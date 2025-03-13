@@ -1,0 +1,2 @@
+D:/SEP Test/MTCS-Mobile/driverapp/android/app/.cxx/Debug/2yf2i2e5/x86/CMakeFiles/edit_cache.dir
+D:/SEP Test/MTCS-Mobile/driverapp/android/app/.cxx/Debug/2yf2i2e5/x86/CMakeFiles/rebuild_cache.dir

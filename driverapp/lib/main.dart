@@ -1,42 +1,103 @@
-import 'package:driverapp/loginScreen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:driverapp/firebase_options.dart';
+import 'package:driverapp/loginScreen.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  await requestPermission();
-  await getToken();
-  setupFirebaseMessagingListener();
-  
-  runApp(const MyApp());
+// 🔹 Plugin hiển thị thông báo cục bộ
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+// 🔹 Cấu hình Local Notifications
+void setupLocalNotifications() {
+  const AndroidInitializationSettings androidInitSettings =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  const InitializationSettings initSettings =
+      InitializationSettings(android: androidInitSettings);
+
+  flutterLocalNotificationsPlugin.initialize(initSettings);
 }
 
-Future<void> requestPermission() async {
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  NotificationSettings settings = await messaging.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-
-  if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-    print('User granted permission');
-  } else {
-    print('User declined or has not accepted permission');
+// 🔹 Hiển thị thông báo trên thanh trạng thái
+void showNotification(RemoteMessage message) {
+  RemoteNotification? notification = message.notification;
+  if (notification != null) {
+    flutterLocalNotificationsPlugin.show(
+      notification.hashCode,
+      notification.title,
+      notification.body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'high_importance_channel',
+          'Thông báo',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
+    );
   }
 }
 
-Future<void> getToken() async {
-  String? token = await FirebaseMessaging.instance.getToken();
-  print("FCM Token: $token");
+// 🔹 Xử lý thông báo khi app chạy nền
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  showNotification(message);
 }
 
-void setupFirebaseMessagingListener() {
+// 🔹 Lắng nghe thông báo từ Firebase khi app đang chạy
+void setupFirebaseMessaging() {
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print("Received message: ${message.notification?.title} - ${message.notification?.body}");
+    showNotification(message);
   });
+
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    print("📩 Người dùng nhấn vào thông báo: ${message.notification?.title}");
+  });
+}
+
+// 🔹 Lưu userId vào SharedPreferences sau khi đăng nhập
+Future<void> saveUserId(String userId) async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  await prefs.setString('userId', userId);
+}
+
+// 🔹 Lấy userId từ SharedPreferences
+Future<String?> getUserId() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  return prefs.getString('userId');
+}
+
+// 🔹 Lưu FCM Token vào Firestore
+Future<void> saveTokenToFirestore(String userId) async {
+  String? token = await FirebaseMessaging.instance.getToken();
+  if (token != null) {
+    print("📲 Lưu FCM Token vào Firestore: $token");
+  }
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Khởi tạo Local Notifications
+  setupLocalNotifications();
+
+  // Đăng ký xử lý thông báo khi app chạy nền
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+  // Lắng nghe thông báo khi app đang chạy
+  setupFirebaseMessaging();
+
+  // Kiểm tra nếu user đã đăng nhập thì lưu token vào Firestore
+  String? userId = await getUserId();
+  if (userId != null) {
+    await saveTokenToFirestore(userId);
+  }
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -45,12 +106,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Driver App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const LoginScreen(), // Màn hình đầu tiên là LoginScreen
+      home: const LoginScreen(),
     );
   }
 }
