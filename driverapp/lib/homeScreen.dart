@@ -1,6 +1,7 @@
 import 'package:driverapp/components/function_card.dart';
 import 'package:driverapp/components/status_counter.dart';
 import 'package:driverapp/notificationScreen.dart';
+import 'package:driverapp/services/auth_service.dart';
 import 'package:driverapp/services/navigation_service.dart';
 import 'package:driverapp/services/order_service.dart';
 import 'package:driverapp/services/notification_service.dart';
@@ -20,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final OrderService _orderService = OrderService();
   final NavigationService _navigationService = NavigationService();
   final NotificationService _notificationService = NotificationService();
+  final AuthService _authService = AuthService();
   
   Map<String, int> _orderCounts = {
     'assigned': 0,
@@ -97,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MTCS Driver App'),
+        title: const Text('MTCS Ứng Dụng Tài Xế'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
@@ -178,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Text(
-                                'Welcome, Driver',
+                                'Xin Chào, Tài Xế',
                                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -204,22 +206,30 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         color: ColorConstants.backgroundLight,
                         borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.5),
+                            spreadRadius: 2,
+                            blurRadius: 5,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           StatusCounter(
-                            label: "Assigned",
+                            label: "Được Giao",
                             count: _orderCounts['assigned'].toString(),
                             color: ColorConstants.assignedColor,
                           ),
                           StatusCounter(
-                            label: "Processing",
+                            label: "Đang Xử Lý",
                             count: _orderCounts['processing'].toString(),
                             color: ColorConstants.processingColor,
                           ),
                           StatusCounter(
-                            label: "Completed",
+                            label: "Hoàn Thành",
                             count: _orderCounts['completed'].toString(),
                             color: ColorConstants.completedColor,
                           ),
@@ -238,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         mainAxisSpacing: 16,
                         children: [
                           FunctionCard(
-                            title: "Assigned Orders",
+                            title: "Đơn Hàng Được Giao",
                             icon: Icons.assignment,
                             color: ColorConstants.assignedColor,
                             onTap: () => _navigationService.navigateToOrderList(
@@ -246,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           FunctionCard(
-                            title: "Processing Orders",
+                            title: "Đơn Hàng Đang Xử Lý",
                             icon: Icons.local_shipping,
                             color: ColorConstants.processingColor,
                             onTap: () => _navigationService.navigateToOrderList(
@@ -254,7 +264,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           FunctionCard(
-                            title: "Finished Orders",
+                            title: "Đơn Hàng Đã Hoàn Thành",
                             icon: Icons.done_all,
                             color: ColorConstants.completedColor,
                             onTap: () => _navigationService.navigateToOrderList(
@@ -262,12 +272,18 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           FunctionCard(
-                            title: "My Profile",
+                            title: "Hồ Sơ Của Tôi",
                             icon: Icons.account_circle,
                             color: ColorConstants.profileColor,
                             onTap: () => _navigationService.navigateToProfile(
                               context, widget.userId
                             ),
+                          ),
+                          FunctionCard(
+                            title: "Đăng Xuất",
+                            icon: Icons.logout,
+                            color: Colors.red.shade400,
+                            onTap: () => AuthService.logoutConfirm(context),
                           ),
                         ],
                       ),

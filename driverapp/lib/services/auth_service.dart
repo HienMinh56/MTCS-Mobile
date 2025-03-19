@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:flutter/material.dart';
 
 class AuthService {
   static const String _baseUrl = "https://mtcs-server.azurewebsites.net/api";
@@ -126,5 +127,35 @@ class AuthService {
     await prefs.remove('authToken');
     await FirebaseMessaging.instance.deleteToken();
     print("🔴 Đã đăng xuất!");
+  }
+
+  /// 🔴 **Xác nhận đăng xuất**
+  static void logoutConfirm(BuildContext context) {
+    // Show confirmation dialog
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Xác nhận đăng xuất'),
+          content: const Text('Bạn có chắc muốn đăng xuất không?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Hủy'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                // Call the static logout method to clear credentials
+                await AuthService.logout();
+                // Navigate to login screen and clear navigation stack
+                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+              },
+              child: const Text('Đăng xuất'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

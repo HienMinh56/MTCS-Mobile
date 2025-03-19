@@ -5,6 +5,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:driverapp/firebase_options.dart';
 import 'package:driverapp/loginScreen.dart';
+import 'package:driverapp/homeScreen.dart';
+import 'package:driverapp/services/auth_service.dart';
 
 // 🔹 Plugin hiển thị thông báo cục bộ
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -111,7 +113,76 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const SplashScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/home': (context) => HomeScreen(userId: ''), // We'll replace this with dynamic userId when navigating
+      },
+    );
+  }
+}
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    // Add a small delay for better user experience
+    await Future.delayed(const Duration(milliseconds: 1000));
+    
+    if (!mounted) return;
+    
+    final bool isLoggedIn = await AuthService.isLoggedIn();
+    final String? userId = await AuthService.getUserId();
+    
+    if (isLoggedIn && userId != null) {
+      // User is logged in, navigate to HomeScreen
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context, 
+        MaterialPageRoute(builder: (context) => HomeScreen(userId: userId))
+      );
+    } else {
+      // No valid session, navigate to LoginScreen
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen())
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              "MTCS",
+              style: TextStyle(
+                fontSize: 36,
+                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const CircularProgressIndicator(),
+          ],
+        ),
+      ),
     );
   }
 }

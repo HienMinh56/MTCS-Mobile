@@ -1,37 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:driverapp/profileScreen.dart';
+import 'package:driverapp/order_list_screen.dart';
 
 class NavigationService {
-  void navigateToOrderList(BuildContext context, String orderType, String userId) {
-    // This would normally navigate to the specific order type screen
-    // For now we just show a snackbar as placeholder
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Navigate to $orderType orders for user $userId')),
+  void navigateToOrderList(BuildContext context, String status, String userId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OrderListScreen(userId: userId, status: status),
+      ),
     );
-    
-    // Example navigation code for when you create those screens:
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(
-    //     builder: (context) => OrderListScreen(
-    //       orderType: orderType,
-    //       userId: userId,
-    //     ),
-    //   ),
-    // );
   }
   
-  void navigateToProfile(BuildContext context, String userId) {
-    // This would normally navigate to the profile screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Navigate to profile for user $userId')),
+  void navigateToProfile(BuildContext context, String driverId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfileScreen(driverId: driverId),
+      ),
     );
-    
-    // Example navigation code:
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(
-    //     builder: (context) => ProfileScreen(userId: userId),
-    //   ),
-    // );
   }
 }
