@@ -6,46 +6,46 @@ class ProfileService {
   final String baseUrl = 'https://mtcs-server.azurewebsites.net/api';
 
   Future<DriverProfile> getDriverProfile(String driverId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/Driver/$driverId/profile'),
-      headers: {'Content-Type': 'application/json'},
-    );
+    try {
+      print("Calling API to get driver profile for ID: $driverId");
+      final response = await http.get(
+        Uri.parse('$baseUrl/Driver/$driverId/profile'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 15));
 
-    if (response.statusCode == 200) {
-      final responseData = jsonDecode(response.body);
-      final profileResponse = DriverProfileResponse.fromJson(responseData);
+      print("API response status code: ${response.statusCode}");
       
-      if (profileResponse.success && profileResponse.data != null) {
-        return profileResponse.data!;
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        print("API response body received");
+        
+        // Fix fileUrls structure before creating the response object
+        if (responseData['data'] != null && responseData['data']['fileUrls'] != null) {
+          var fileUrls = responseData['data']['fileUrls'];
+          if (fileUrls is Map && fileUrls.containsKey('\$values')) {
+            // Replace the map with just the values array
+            responseData['data']['fileUrls'] = fileUrls['\$values'] ?? [];
+          }
+        }
+        
+        final profileResponse = DriverProfileResponse.fromJson(responseData);
+        
+        if (profileResponse.success && profileResponse.data != null) {
+          print("Profile parsed successfully. Total working time: ${profileResponse.data!.totalWorkingTime}");
+          return profileResponse.data!;
+        } else {
+          print("API success=false or no data: ${profileResponse.message}");
+          throw Exception(profileResponse.message);
+        }
       } else {
-        throw Exception(profileResponse.message);
+        print("API error: HTTP status ${response.statusCode}");
+        throw Exception('Không thể tải hồ sơ tài xế: ${response.statusCode}');
       }
-    } else {
-      throw Exception('Không thể tải hồ sơ tài xế: ${response.statusCode}');
+    } catch (e) {
+      print("Exception in getDriverProfile: $e");
+      throw Exception('Lỗi khi tải hồ sơ tài xế: $e');
     }
   }
 
-  // Helper method to format working time from minutes to hours and minutes
-  String formatWorkingTime(int minutes) {
-    final hours = minutes ~/ 60;
-    final remainingMinutes = minutes % 60;
-    
-    if (hours > 0) {
-      return '$hours hrs $remainingMinutes mins';
-    } else {
-      return '$remainingMinutes mins';
-    }
-  }
-
-  // Helper method to format working time in Vietnamese
-  String formatWorkingTimeVietnamese(int minutes) {
-    final hours = minutes ~/ 60;
-    final remainingMinutes = minutes % 60;
-    
-    if (hours > 0) {
-      return '$hours giờ $remainingMinutes phút';
-    } else {
-      return '$remainingMinutes phút';
-    }
-  }
+  
 }

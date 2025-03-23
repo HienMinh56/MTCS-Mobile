@@ -1,10 +1,11 @@
 import 'package:driverapp/components/function_card.dart';
 import 'package:driverapp/components/status_counter.dart';
-import 'package:driverapp/notificationScreen.dart';
+import 'package:driverapp/screens/notificationScreen.dart';
 import 'package:driverapp/services/auth_service.dart';
 import 'package:driverapp/services/navigation_service.dart';
 import 'package:driverapp/services/order_service.dart';
 import 'package:driverapp/services/notification_service.dart';
+import 'package:driverapp/services/profile_service.dart';
 import 'package:driverapp/utils/color_constants.dart';
 import 'package:flutter/material.dart';
 
@@ -21,7 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final OrderService _orderService = OrderService();
   final NavigationService _navigationService = NavigationService();
   final NotificationService _notificationService = NotificationService();
-  final AuthService _authService = AuthService();
+  final ProfileService _profileService = ProfileService();
   
   Map<String, int> _orderCounts = {
     'assigned': 0,
@@ -30,16 +31,33 @@ class _HomeScreenState extends State<HomeScreen> {
   };
   int _unreadNotifications = 0;
   bool _isLoading = true;
+  int _totalWorkingTime = 0;
+  int _currentWeekWorkingTime = 0;
   
   @override
   void initState() {
     super.initState();
     _loadOrderCounts();
+    _loadDriverProfile();
     Future.delayed(const Duration(milliseconds: 500), () {
       _loadUnreadNotificationCount();
     });
   }
   
+  Future<void> _loadDriverProfile() async {
+    try {
+      final profile = await _profileService.getDriverProfile(widget.userId);
+      if (mounted) {
+        setState(() {
+          _totalWorkingTime = profile.totalWorkingTime;
+          _currentWeekWorkingTime = profile.currentWeekWorkingTime;
+        });
+      }
+    } catch (e) {
+      print("Error loading driver profile: $e");
+    }
+  }
+
   Future<void> _loadOrderCounts() async {
     try {
       final counts = await _orderService.getOrderCounts(widget.userId);
@@ -156,6 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onRefresh: () async {
           await _loadOrderCounts();
           await _loadUnreadNotificationCount();
+          await _loadDriverProfile();
         },
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -198,7 +217,78 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                     
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 20),
+                    
+                    // Working time summary
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Thời gian làm việc tuần này',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '$_currentWeekWorkingTime giờ',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            height: 40,
+                            width: 1,
+                            color: Colors.blue.shade200,
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 12.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Tổng thời gian làm việc',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '$_totalWorkingTime giờ',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 20),
                     
                     // Order status summary
                     Container(
@@ -269,6 +359,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: ColorConstants.completedColor,
                             onTap: () => _navigationService.navigateToOrderList(
                               context, "completed", widget.userId
+                            ),
+                          ),
+                          FunctionCard(
+                            title: "Lịch Sử Báo Cáo",
+                            icon: Icons.description,
+                            color: Colors.teal,
+                            onTap: () => _navigationService.navigateToReportMenu(
+                              context, widget.userId
                             ),
                           ),
                           FunctionCard(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:driverapp/models/order.dart';
 import 'package:driverapp/screens/order_detail_screen.dart';
+import 'package:driverapp/screens/trip_screen.dart';
 
 class OrderList extends StatelessWidget {
   final List<Order> orders;
@@ -79,7 +80,16 @@ class OrderList extends StatelessWidget {
                     const SizedBox(width: 8),
                     OutlinedButton.icon(
                       onPressed: () {
-                        // Navigate to trip screen
+                        // Navigate to trip screen with order status
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => TripScreen(
+                              orderId: order.orderId,
+                              orderStatus: order.status,
+                            ),
+                          ),
+                        );
                       },
                       icon: const Icon(Icons.directions_car, size: 18),
                       label: const Text('Chuyến đi'),

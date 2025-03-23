@@ -106,8 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _buildProfileHeader(),
         const SizedBox(height: 24),
         _buildInfoSection(),
-        const SizedBox(height: 24),
-        _buildWorkingTimeSection(),
+        // Working time section removed
       ],
     );
   }
@@ -133,7 +132,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 16),
         Text(
-          _driverProfile!.fullName,
+          _driverProfile!.fullName.isNotEmpty ? _driverProfile!.fullName : 'Không có tên',
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -202,46 +201,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const Divider(),
-            _buildInfoRow(Icons.email, 'Email', _driverProfile!.email),
-            _buildInfoRow(Icons.phone, 'Số Điện Thoại', _driverProfile!.phoneNumber),
+            _buildInfoRow(Icons.email, 'Email', _driverProfile!.email.isNotEmpty ? _driverProfile!.email : 'Không có'),
+            _buildInfoRow(Icons.phone, 'Số Điện Thoại', _driverProfile!.phoneNumber.isNotEmpty ? _driverProfile!.phoneNumber : 'Không có'),
             _buildInfoRow(
               Icons.calendar_today, 
               'Ngày Tham Gia', 
               _formatDate(_driverProfile!.createdDate)
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWorkingTimeSection() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Thời Gian Làm Việc',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const Divider(),
-            _buildTimeRow(
-              'Tổng Thời Gian Làm Việc',
-              _profileService.formatWorkingTimeVietnamese(_driverProfile!.totalWorkingTime),
-              Colors.blue,
-            ),
-            const SizedBox(height: 12),
-            _buildTimeRow(
-              'Tuần Này',
-              _profileService.formatWorkingTimeVietnamese(_driverProfile!.currentWeekWorkingTime),
-              Colors.green,
             ),
           ],
         ),
@@ -281,42 +246,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildTimeRow(String label, String value, Color color) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 16,
-            ),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _formatDate(String dateString) {
+  String _formatDate(String? dateString) {
+    if (dateString == null || dateString.isEmpty) {
+      return 'Không có';
+    }
+    
     try {
       final date = DateTime.parse(dateString);
       return '${date.day}/${date.month}/${date.year}';
     } catch (e) {
-      return 'Không có';
+      return 'Không hợp lệ';
     }
   }
 }

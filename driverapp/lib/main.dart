@@ -3,9 +3,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:driverapp/firebase_options.dart';
-import 'package:driverapp/loginScreen.dart';
-import 'package:driverapp/homeScreen.dart';
+import 'package:driverapp/screens/firebase_options.dart';
+import 'package:driverapp/screens/loginScreen.dart';
+import 'package:driverapp/screens/homeScreen.dart';
 import 'package:driverapp/services/auth_service.dart';
 
 // 🔹 Plugin hiển thị thông báo cục bộ

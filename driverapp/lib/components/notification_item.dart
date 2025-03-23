@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:driverapp/services/notification_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
+import 'package:driverapp/utils/date_utils.dart';
 
 class NotificationItem extends StatefulWidget {
   final Map<String, dynamic> notification;
@@ -41,31 +40,9 @@ class _NotificationItemState extends State<NotificationItem> with SingleTickerPr
     super.dispose();
   }
 
-  // Format timestamp for display
+  // Format timestamp for display 
   String _formatTimestamp(dynamic timestamp) {
-    if (timestamp == null) return '';
-    
-    if (timestamp is Timestamp) {
-      DateTime dateTime = timestamp.toDate();
-      final now = DateTime.now();
-      final difference = now.difference(dateTime);
-      
-      if (difference.inDays == 0) {
-        // Today, show time
-        return 'Today ${DateFormat('HH:mm').format(dateTime)}';
-      } else if (difference.inDays == 1) {
-        // Yesterday
-        return 'Yesterday';
-      } else if (difference.inDays < 7) {
-        // Within a week
-        return '${difference.inDays}d ago';
-      } else {
-        // More than a week
-        return DateFormat('dd/MM/yy').format(dateTime);
-      }
-    } else {
-      return '';
-    }
+    return AppDateUtils.formatRelativeTime(timestamp);
   }
 
   @override
