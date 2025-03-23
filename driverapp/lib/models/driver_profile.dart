@@ -30,6 +30,19 @@ class DriverProfile {
   });
 
   factory DriverProfile.fromJson(Map<String, dynamic> json) {
+    // Handle the fileUrls special structure with $values
+    List<String> extractedFileUrls = [];
+    if (json['fileUrls'] != null) {
+      if (json['fileUrls'] is Map && json['fileUrls'].containsKey('\$values')) {
+        final values = json['fileUrls']['\$values'];
+        if (values is List) {
+          extractedFileUrls = List<String>.from(values.map((url) => url.toString()));
+        }
+      } else if (json['fileUrls'] is List) {
+        extractedFileUrls = List<String>.from(json['fileUrls'].map((url) => url.toString()));
+      }
+    }
+
     return DriverProfile(
       driverId: json['driverId'] ?? '',
       fullName: json['fullName'] ?? '',
@@ -43,7 +56,7 @@ class DriverProfile {
       modifiedBy: json['modifiedBy'],
       totalWorkingTime: json['totalWorkingTime'] ?? 0,
       currentWeekWorkingTime: json['currentWeekWorkingTime'] ?? 0,
-      fileUrls: List<String>.from(json['fileUrls'] ?? []),
+      fileUrls: extractedFileUrls,
     );
   }
 }
@@ -52,7 +65,7 @@ class DriverProfileResponse {
   final bool success;
   final DriverProfile? data;
   final String message;
-  final List<String>? errors;
+  final dynamic errors;
 
   DriverProfileResponse({
     required this.success,
@@ -66,7 +79,7 @@ class DriverProfileResponse {
       success: json['success'] ?? false,
       data: json['data'] != null ? DriverProfile.fromJson(json['data']) : null,
       message: json['message'] ?? '',
-      errors: json['errors'] != null ? List<String>.from(json['errors']) : null,
+      errors: json['errors'],
     );
   }
 }

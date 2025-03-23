@@ -111,7 +111,7 @@ class OrderDetailScreen extends StatelessWidget {
             _buildDetailItem('Nhiệt độ container', order.containerTemperature != null 
                 ? '${order.containerTemperature}°C' : 'N/A'),
             _buildDetailItem('Khối lượng đơn hàng', order.orderWeight != null 
-                ? '${order.orderWeight} kg' : 'N/A'),
+                ? '${order.orderWeight} Tấn' : 'N/A'),
             
             const Divider(height: 24),
             
