@@ -36,8 +36,8 @@ class IncidentReport {
   factory IncidentReport.fromJson(Map<String, dynamic> json) {
     List<IncidentReportFile> files = [];
     if (json['incidentReportsFiles'] != null && 
-        json['incidentReportsFiles'][r'$values'] != null) {
-      files = (json['incidentReportsFiles'][r'$values'] as List)
+        json['incidentReportsFiles'] != null) {
+      files = (json['incidentReportsFiles'] as List)
           .map((file) => IncidentReportFile.fromJson(file))
           .toList();
     }
@@ -74,16 +74,6 @@ class IncidentReport {
     return DateFormat('dd/MM/yyyy HH:mm').format(createdDate);
   }
 
-  String getTypeText() {
-    switch (type) {
-      case 1:
-        return 'Nhẹ';
-      case 2:
-        return 'Nghiêm trọng';
-      default:
-        return 'Không xác định';
-    }
-  }
 }
 
 class IncidentReportFile {

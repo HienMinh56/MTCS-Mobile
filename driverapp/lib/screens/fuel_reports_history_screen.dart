@@ -16,11 +16,33 @@ class FuelReportsScreen extends StatefulWidget {
 class _FuelReportsScreenState extends State<FuelReportsScreen> {
   final ReportService _reportService = ReportService();
   late Future<List<FuelReport>> _fuelReportsFuture;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _fuelReportsFuture = _reportService.getFuelReports(widget.userId);
+    _loadFuelReports();
+  }
+
+  Future<void> _loadFuelReports() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    
+    try {
+      _fuelReportsFuture = _reportService.getFuelReports(widget.userId);
+      await _fuelReportsFuture; // Wait to catch any errors
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Không thể tải báo cáo: ${e.toString()}';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -32,35 +54,75 @@ class _FuelReportsScreenState extends State<FuelReportsScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadFuelReports,
+          ),
+        ],
       ),
-      body: FutureBuilder<List<FuelReport>>(
-        future: _fuelReportsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'Đã xảy ra lỗi: ${snapshot.error}',
-                style: const TextStyle(color: Colors.red),
-              ),
-            );
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-              child: Text('Không có báo cáo nhiên liệu nào'),
-            );
-          } else {
-            return ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                final report = snapshot.data![index];
-                return _buildFuelReportCard(context, report);
-              },
-            );
-          }
-        },
-      ),
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _errorMessage!,
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadFuelReports,
+                        child: const Text('Thử lại'),
+                      ),
+                    ],
+                  ),
+                )
+              : FutureBuilder<List<FuelReport>>(
+                  future: _fuelReportsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Đã xảy ra lỗi: ${snapshot.error}',
+                              style: const TextStyle(color: Colors.red),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _loadFuelReports,
+                              child: const Text('Thử lại'),
+                            ),
+                          ],
+                        ),
+                      );
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return const Center(
+                        child: Text('Không có báo cáo nhiên liệu nào'),
+                      );
+                    } else {
+                      return RefreshIndicator(
+                        onRefresh: _loadFuelReports,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16.0),
+                          itemCount: snapshot.data!.length,
+                          itemBuilder: (context, index) {
+                            final report = snapshot.data![index];
+                            return _buildFuelReportCard(context, report);
+                          },
+                        ),
+                      );
+                    }
+                  },
+                ),
     );
   }
 

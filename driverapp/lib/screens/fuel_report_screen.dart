@@ -2,6 +2,8 @@ import 'package:driverapp/components/delivery_report/image_section.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:driverapp/utils/image_utils.dart';
+import 'package:driverapp/utils/validation_utils.dart';
+import 'package:driverapp/services/fuel_report_service.dart';
 
 class FuelReportScreen extends StatefulWidget {
   final String tripId;
@@ -80,39 +82,96 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
     });
   }
 
-  void _submitReport() {
-    // Validate inputs
-    if (_fuelAmountController.text.isEmpty || 
-        _priceController.text.isEmpty || 
-        _locationController.text.isEmpty) {
+  Future<void> _submitReport() async {
+    // Validate inputs using ValidationUtils
+    String? fuelAmountError = ValidationUtils.validateFuelAmount(_fuelAmountController.text);
+    if (fuelAmountError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng điền đầy đủ thông tin'),
+        SnackBar(
+          content: Text(fuelAmountError),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
     
-    if (_selectedImages.isEmpty) {
+    String? fuelCostError = ValidationUtils.validateFuelCost(_priceController.text);
+    if (fuelCostError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng tải lên ít nhất một ảnh'),
+        SnackBar(
+          content: Text(fuelCostError),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
     
-    // Submit report logic would go here in a real app
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Báo cáo đổ nhiên liệu đã được gửi'),
-        backgroundColor: Colors.green,
-      ),
+    String? locationError = ValidationUtils.validateLocation(_locationController.text);
+    if (locationError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(locationError),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    String? imagesError = ValidationUtils.validateImages(_selectedImages);
+    if (imagesError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(imagesError),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    // Parse values (we know they're valid at this point)
+    final double refuelAmount = double.parse(_fuelAmountController.text);
+    final double fuelCost = double.parse(_priceController.text);
+    
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
     );
     
+    // Submit the report using the service
+    final result = await FuelReportService.submitFuelReport(
+      tripId: widget.tripId,
+      refuelAmount: refuelAmount,
+      fuelCost: fuelCost,
+      location: _locationController.text,
+      images: _selectedImages,
+    );
+    
+    // Close loading dialog
     Navigator.pop(context);
+    
+    // Handle the result
+    if (result['success']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
