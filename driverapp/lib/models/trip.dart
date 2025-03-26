@@ -2,51 +2,53 @@ class Trip {
   final String tripId;
   final String orderId;
   final String driverId;
-  final String tractorId;
-  final String trailerId;
-  final String distance;
-  final String matchType;
-  final String matchBy;
-  final String matchTime;
-  String status;
+  final String? tractorId;
+  final String? trailerId;
+  final DateTime? startTime;
+  final DateTime? endTime;
+  String status;  // Changed from final to allow updates
+  String statusName; // Changed from final to allow updates
 
   Trip({
     required this.tripId,
     required this.orderId,
     required this.driverId,
-    required this.tractorId,
-    required this.trailerId,
-    required this.distance,
-    required this.matchType,
-    required this.matchBy,
-    required this.matchTime,
+    this.tractorId,
+    this.trailerId,
+    this.startTime,
+    this.endTime,
     required this.status,
+    required this.statusName,
   });
-}
 
-// Trip status constants
-class TripStatus {
-  static const String notStarted = 'Chưa bắt đầu';
-  static const String started = 'Đã bắt đầu';  // New status
-  static const String onLoadingGoods = 'Đang bốc hàng';
-  static const String onDelivery = 'Đang trên đường vận chuyển';
-  static const String finished = 'Đã hoàn thành vận chuyển';
+  factory Trip.fromJson(Map<String, dynamic> json) {
+    return Trip(
+      tripId: json['tripId'] ?? '',
+      orderId: json['orderId'] ?? '',
+      driverId: json['driverId'] ?? '',
+      tractorId: json['tractorId'],
+      trailerId: json['trailerId'],
+      startTime: json['startTime'] != null ? DateTime.parse(json['startTime']) : null,
+      endTime: json['endTime'] != null ? DateTime.parse(json['endTime']) : null,
+      status: json['status'] ?? '',
+      // Map the status ID to a display name based on your API response
+      statusName: _getStatusName(json['status']),
+    );
+  }
 
-  // Get next status in the flow
-  static String? getNextStatus(String currentStatus) {
-    switch (currentStatus) {
-      case notStarted:
-        return started;
-      case started:
-        return onLoadingGoods;
-      case onLoadingGoods:
-        return onDelivery;
-      case onDelivery:
-        return finished;
-      case finished:
-        return null; // No next status
-      default:
-        return null;
-    }
+  // Helper method to convert status codes to display names
+  static String _getStatusName(String? statusId) {
+    final Map<String, String> statusMap = {
+      'not_started': 'Chưa bắt đầu',
+      'going_to_port': 'Đang đến cảng',
+      'picking_up_goods': 'Đang bốc dỡ hàng',
+      'is_delivering': 'Đang trên đường giao',
+      'at_delivery_point': 'Đang ở điểm giao',
+      'canceled': 'Đã hủy chuyến',
+      'delaying': 'Đang delay',
+      'completed': 'Đã hoàn thành',
+    };
+    
+    return statusMap[statusId] ?? statusId ?? 'Unknown';
   }
 }

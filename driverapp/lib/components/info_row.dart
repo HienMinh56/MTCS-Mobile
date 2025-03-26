@@ -3,41 +3,40 @@ import 'package:flutter/material.dart';
 class InfoRow extends StatelessWidget {
   final String label;
   final String value;
-  final Color? valueColor;
-  final double labelWidth;
+  final double padding;
+  final bool showLabel;
 
   const InfoRow({
     Key? key,
     required this.label,
     required this.value,
-    this.valueColor,
-    this.labelWidth = 140,
+    this.padding = 4.0,
+    this.showLabel = true,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: EdgeInsets.only(bottom: padding),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: labelWidth,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Colors.black54,
-                fontSize: 14,
+          if (showLabel && label.isNotEmpty)
+            SizedBox(
+              width: 120,
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-          ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: valueColor,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),

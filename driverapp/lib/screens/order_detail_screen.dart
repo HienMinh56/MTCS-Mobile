@@ -1,190 +1,185 @@
 import 'package:flutter/material.dart';
-import 'package:driverapp/models/order.dart';
+import 'package:driverapp/services/order_service.dart';
+import 'package:driverapp/utils/formatters.dart';
+import 'package:driverapp/components/info_row.dart';
+import 'package:driverapp/components/section_card.dart';
 
-class OrderDetailScreen extends StatelessWidget {
-  final Order order;
+class OrderDetailScreen extends StatefulWidget {
+  final String tripId;
 
-  const OrderDetailScreen({Key? key, required this.order}) : super(key: key);
+  const OrderDetailScreen({Key? key, required this.tripId}) : super(key: key);
+
+  @override
+  State<OrderDetailScreen> createState() => _OrderDetailScreenState();
+}
+
+class _OrderDetailScreenState extends State<OrderDetailScreen> {
+  final OrderService _orderService = OrderService();
+  bool _isLoading = true;
+  String _errorMessage = '';
+  Map<String, dynamic>? _orderDetails;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOrderDetails();
+  }
+
+  Future<void> _loadOrderDetails() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      // Load order details
+      final orderDetails = await _orderService.getOrderByTripId(widget.tripId);
+
+      if (mounted) {
+        setState(() {
+          _orderDetails = orderDetails;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Lỗi khi tải dữ liệu: $e';
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chi Tiết Đơn Hàng'),
+        title: Text('Chi tiết Order: ${_orderDetails?['orderId'] ?? ''}'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 16),
-            _buildDetailCard(context),
-          ],
-        ),
+      body: RefreshIndicator(
+        onRefresh: _loadOrderDetails,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage.isNotEmpty
+                ? Center(child: Text(_errorMessage))
+                : _buildOrderContent(),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Đơn hàng: ${order.orderId}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Row(
+  Widget _buildOrderContent() {
+    if (_orderDetails == null) {
+      return const Center(child: Text('Không có dữ liệu'));
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionCard(
+            title: 'Thông tin Cơ bản',
+            children: [
+              InfoRow(label: 'Order ID:', value: _orderDetails!['orderId'] ?? 'N/A'),
+              InfoRow(label: 'Tracking Code:', value: _orderDetails!['trackingCode'] ?? 'N/A'),
+              InfoRow(label: 'Số Container:', value: _orderDetails!['containerNumber'] ?? 'N/A'),
+              InfoRow(label: 'Giá:', value: CurrencyFormatter.formatVND(_orderDetails!['price'])),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          SectionCard(
+            title: 'Điểm Giao Nhận',
+            children: [
+              InfoRow(label: 'Điểm lấy hàng:', value: _orderDetails!['pickUpLocation'] ?? 'N/A'),
+              InfoRow(label: 'Điểm giao hàng:', value: _orderDetails!['deliveryLocation'] ?? 'N/A'),
+              InfoRow(label: 'Điểm trả rỗng:', value: _orderDetails!['conReturnLocation'] ?? 'N/A'),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          SectionCard(
+            title: 'Thông tin Hàng Hóa',
+            children: [
+              InfoRow(label: 'Loại Container:', value: _getContainerType(_orderDetails!['containerType'])),
+              InfoRow(label: 'Loại Giao Hàng:', value: _getDeliveryType(_orderDetails!['deliveryType'])),
+              InfoRow(label: 'Nhiệt độ:', value: '${_orderDetails!['temperature']} °C'),
+              InfoRow(label: 'Khối lượng:', value: '${_orderDetails!['weight']} tấn'),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          SectionCard(
+            title: 'Thời Gian',
+            children: [
+              InfoRow(label: 'Ngày lấy hàng:', value: _formatDate(_orderDetails!['pickUpDate'])),
+              InfoRow(label: 'Ngày giao hàng:', value: _formatDate(_orderDetails!['deliveryDate'])),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          SectionCard(
+            title: 'Thông tin Liên Hệ',
+            children: [
+              InfoRow(label: 'Người liên hệ:', value: _orderDetails!['contactPerson'] ?? 'N/A'),
+              InfoRow(label: 'SĐT liên hệ:', value: _orderDetails!['contactPhone'] ?? 'N/A'),
+              InfoRow(label: 'Người đặt hàng:', value: _orderDetails!['orderPlacer'] ?? 'N/A'),
+            ],
+          ),
+          
+          if (_orderDetails!['note'] != null && _orderDetails!['note'].toString().isNotEmpty)
+            Column(
               children: [
-                _buildStatusChip(order.status),
-                const Spacer(),
-                const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  order.deliveryDate,
-                  style: TextStyle(color: Colors.grey[700]),
+                const SizedBox(height: 16),
+                SectionCard(
+                  title: 'Ghi Chú',
+                  children: [
+                    InfoRow(label: '', value: _orderDetails!['note'] ?? 'Không có ghi chú'),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusChip(String status) {
-    Color color;
-    
-    switch (status.toLowerCase()) {
-      case 'đã giao': color = Colors.green; break;
-      case 'đang giao': color = Colors.blue; break;
-      case 'chờ xử lý': color = Colors.orange; break;
-      default: color = Colors.grey;
-    }
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.5)),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(color: color, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  Widget _buildDetailCard(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Thông tin chi tiết',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const Divider(height: 24),
-            
-            // Shipping details section
-            _buildSectionTitle('Thông tin vận đơn'),
-            _buildDetailItem('Mã vận đơn', order.shippingCode ?? 'N/A'),
-            _buildDetailItem('Cách thức vận chuyển', order.transportationType ?? 'N/A'),
-            
-            const Divider(height: 24),
-            
-            // Container details section
-            _buildSectionTitle('Thông tin container'),
-            _buildDetailItem('Mã container', order.containerId ?? 'N/A'),
-            _buildDetailItem('Loại container', order.containerType ?? 'N/A'),
-            _buildDetailItem('Nhiệt độ container', order.containerTemperature != null 
-                ? '${order.containerTemperature}°C' : 'N/A'),
-            _buildDetailItem('Khối lượng đơn hàng', order.orderWeight != null 
-                ? '${order.orderWeight} Tấn' : 'N/A'),
-            
-            const Divider(height: 24),
-            
-            // Locations and dates section
-            _buildSectionTitle('Địa điểm & thời gian'),
-            _buildDetailItem('Ngày lấy hàng', order.pickupDate ?? 'N/A'),
-            _buildDetailItem('Ngày giao hàng', order.deliveryDate),
-            _buildDetailItem('Chỗ lấy hàng', order.pickupLocation ?? 'N/A'),
-            _buildDetailItem('Chỗ giao hàng', order.deliveryLocation),
-            _buildDetailItem('Chỗ trả container', order.containerReturnLocation ?? 'N/A'),
-            
-            const Divider(height: 24),
-            
-            // Partner information section
-            _buildSectionTitle('Thông tin đối tác'),
-            _buildDetailItem('Tên đối tác', order.partnerName ?? order.customerName),
-            _buildDetailItem('Số điện thoại đối tác', order.partnerPhone ?? 'N/A'),
-            
-            const Divider(height: 24),
-            
-            // Payment information section
-            _buildSectionTitle('Thông tin thanh toán'),
-            _buildDetailItem('Trạng thái thanh toán', 
-                order.isPaid ?? false ? 'Đã thanh toán' : 'Chưa thanh toán',
-                valueColor: order.isPaid ?? false ? Colors.green : Colors.red),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          color: Colors.blue,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailItem(String label, String value, {Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              label,
-              style: TextStyle(
-                color: Colors.grey[700],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              value,
-              style: TextStyle(
-                color: valueColor,
-                fontWeight: valueColor != null ? FontWeight.w500 : null,
-              ),
-            ),
-          ),
         ],
       ),
     );
+  }
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return 'N/A';
+    try {
+      final dateTime = DateTime.parse(dateStr);
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+  
+  String _getContainerType(int? type) {
+    if (type == null) return 'N/A';
+    switch (type) {
+      case 1:
+        return 'Container Thường';
+      case 2:
+        return 'Container Lạnh';
+      default:
+        return 'Loại $type';
+    }
+  }
+  
+  String _getDeliveryType(int? type) {
+    if (type == null) return 'N/A';
+    switch (type) {
+      case 1:
+        return 'Giao thẳng';
+      case 2:
+        return 'Giao kho';
+      default:
+        return 'Loại $type';
+    }
   }
 }

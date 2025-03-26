@@ -1,9 +1,7 @@
 import 'package:driverapp/components/function_card.dart';
-import 'package:driverapp/components/status_counter.dart';
 import 'package:driverapp/screens/notificationScreen.dart';
 import 'package:driverapp/services/auth_service.dart';
 import 'package:driverapp/services/navigation_service.dart';
-import 'package:driverapp/services/order_service.dart';
 import 'package:driverapp/services/notification_service.dart';
 import 'package:driverapp/services/profile_service.dart';
 import 'package:driverapp/utils/color_constants.dart';
@@ -19,16 +17,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final OrderService _orderService = OrderService();
   final NavigationService _navigationService = NavigationService();
   final NotificationService _notificationService = NotificationService();
   final ProfileService _profileService = ProfileService();
   
-  Map<String, int> _orderCounts = {
-    'assigned': 0,
-    'processing': 0,
-    'completed': 0
-  };
   int _unreadNotifications = 0;
   bool _isLoading = true;
   int _totalWorkingTime = 0;
@@ -37,11 +29,30 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadOrderCounts();
-    _loadDriverProfile();
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _loadUnreadNotificationCount();
-    });
+    _loadInitialData();
+  }
+  
+  Future<void> _loadInitialData() async {
+    try {
+      await _loadDriverProfile();
+      
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+      
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _loadUnreadNotificationCount();
+      });
+    } catch (e) {
+      print("Error loading initial data: $e");
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
   
   Future<void> _loadDriverProfile() async {
@@ -55,20 +66,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       print("Error loading driver profile: $e");
-    }
-  }
-
-  Future<void> _loadOrderCounts() async {
-    try {
-      final counts = await _orderService.getOrderCounts(widget.userId);
-      setState(() {
-        _orderCounts = counts;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
   
@@ -172,7 +169,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await _loadOrderCounts();
           await _loadUnreadNotificationCount();
           await _loadDriverProfile();
         },
@@ -180,92 +176,63 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.all(16.0),
           child: _isLoading 
               ? const Center(child: CircularProgressIndicator())
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Driver welcome section - Fix the overflow here
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Color(0xFFBBDEFB), // Colors.blue.shade100
-                          child: Icon(Icons.person, size: 35, color: Colors.blue),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded( // Wrap in Expanded to prevent overflow
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text(
-                                'Xin Chào, Tài Xế',
-                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'ID: ${_formatUserId(widget.userId)}',
-                                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 20),
-                    
-                    // Working time summary
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.blue.shade200),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              : SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Driver welcome section
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          const CircleAvatar(
+                            radius: 30,
+                            backgroundColor: Color(0xFFBBDEFB),
+                            child: Icon(Icons.person, size: 35, color: Colors.blue),
+                          ),
+                          const SizedBox(width: 16),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 const Text(
-                                  'Thời gian làm việc tuần này',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.blue,
-                                  ),
+                                  'Xin Chào, Tài Xế',
+                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 2),
                                 Text(
-                                  '$_currentWeekWorkingTime giờ',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  'ID: ${_formatUserId(widget.userId)}',
+                                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
                           ),
-                          Container(
-                            height: 40,
-                            width: 1,
-                            color: Colors.blue.shade200,
-                          ),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 12.0),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Working time summary
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
-                                    'Tổng thời gian làm việc',
+                                    'Thời gian làm việc tuần này',
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
@@ -274,7 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '$_totalWorkingTime giờ',
+                                    '$_currentWeekWorkingTime giờ',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -283,110 +250,115 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ],
                               ),
                             ),
-                          ),
-                        ],
+                            Container(
+                              height: 40,
+                              width: 1,
+                              color: Colors.blue.shade200,
+                            ),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 12.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Tổng thời gian làm việc',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$_totalWorkingTime giờ',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    
-                    const SizedBox(height: 20),
-                    
-                    // Order status summary
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: ColorConstants.backgroundLight,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.5),
-                            spreadRadius: 2,
-                            blurRadius: 5,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
+                      
+                      const SizedBox(height: 20),
+
+                      Container(
+                        height: 450,
+                        child: GridView.count(
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: 2,
+                          childAspectRatio: 1.3,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          children: [
+                            FunctionCard(
+                              title: "Trip Chưa Bắt Đầu",
+                              icon: Icons.pending_actions,
+                              color: Colors.amber.shade700,
+                              onTap: () => _navigationService.navigateToTripList(
+                                context, 
+                                widget.userId, 
+                                status: "not_started"
+                              ),
+                            ),
+                            FunctionCard(
+                              title: "Trip Đang Xử Lý",
+                              icon: Icons.directions_car,
+                              color: Colors.blue.shade700,
+                              onTap: () => _navigationService.navigateToTripList(
+                                context, 
+                                widget.userId, 
+                                status: "in_progress",
+                                statusList: [
+                                  "going_to_port",
+                                  "picking_up_goods",
+                                  "is_delivering",
+                                  "at_delivery_point",
+                                ]
+                              ),
+                            ),
+                            FunctionCard(
+                              title: "Trip Đã Hoàn Thành",
+                              icon: Icons.check_circle,
+                              color: Colors.green.shade700,
+                              onTap: () => _navigationService.navigateToTripList(
+                                context, 
+                                widget.userId, 
+                                status: "completed"
+                              ),
+                            ),
+                            FunctionCard(
+                              title: "Lịch Sử Báo Cáo",
+                              icon: Icons.description,
+                              color: Colors.teal,
+                              onTap: () => _navigationService.navigateToReportMenu(
+                                context, widget.userId
+                              ),
+                            ),
+                            FunctionCard(
+                              title: "Hồ Sơ Của Tôi",
+                              icon: Icons.account_circle,
+                              color: ColorConstants.profileColor,
+                              onTap: () => _navigationService.navigateToProfile(
+                                context, widget.userId
+                              ),
+                            ),
+                            FunctionCard(
+                              title: "Đăng Xuất",
+                              icon: Icons.logout,
+                              color: Colors.red.shade400,
+                              onTap: () => AuthService.logoutConfirm(context),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          StatusCounter(
-                            label: "Được Giao",
-                            count: _orderCounts['assigned'].toString(),
-                            color: ColorConstants.assignedColor,
-                          ),
-                          StatusCounter(
-                            label: "Đang Xử Lý",
-                            count: _orderCounts['processing'].toString(),
-                            color: ColorConstants.processingColor,
-                          ),
-                          StatusCounter(
-                            label: "Hoàn Thành",
-                            count: _orderCounts['completed'].toString(),
-                            color: ColorConstants.completedColor,
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 30),
-                    
-                    // Main function grid
-                    Expanded(
-                      child: GridView.count(
-                        crossAxisCount: 2,
-                        childAspectRatio: 1.3,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        children: [
-                          FunctionCard(
-                            title: "Đơn Hàng Được Giao",
-                            icon: Icons.assignment,
-                            color: ColorConstants.assignedColor,
-                            onTap: () => _navigationService.navigateToOrderList(
-                              context, "assigned", widget.userId
-                            ),
-                          ),
-                          FunctionCard(
-                            title: "Đơn Hàng Đang Xử Lý",
-                            icon: Icons.local_shipping,
-                            color: ColorConstants.processingColor,
-                            onTap: () => _navigationService.navigateToOrderList(
-                              context, "processing", widget.userId
-                            ),
-                          ),
-                          FunctionCard(
-                            title: "Đơn Hàng Đã Hoàn Thành",
-                            icon: Icons.done_all,
-                            color: ColorConstants.completedColor,
-                            onTap: () => _navigationService.navigateToOrderList(
-                              context, "completed", widget.userId
-                            ),
-                          ),
-                          FunctionCard(
-                            title: "Lịch Sử Báo Cáo",
-                            icon: Icons.description,
-                            color: Colors.teal,
-                            onTap: () => _navigationService.navigateToReportMenu(
-                              context, widget.userId
-                            ),
-                          ),
-                          FunctionCard(
-                            title: "Hồ Sơ Của Tôi",
-                            icon: Icons.account_circle,
-                            color: ColorConstants.profileColor,
-                            onTap: () => _navigationService.navigateToProfile(
-                              context, widget.userId
-                            ),
-                          ),
-                          FunctionCard(
-                            title: "Đăng Xuất",
-                            icon: Icons.logout,
-                            color: Colors.red.shade400,
-                            onTap: () => AuthService.logoutConfirm(context),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
         ),
       ),

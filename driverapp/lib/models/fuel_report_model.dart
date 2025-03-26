@@ -1,63 +1,5 @@
 import 'package:intl/intl.dart';
 
-class FuelReport {
-  final String reportId;
-  final String tripId;
-  final double refuelAmount;
-  final double fuelCost;
-  final String location;
-  final DateTime reportTime;
-  final String reportBy;
-  final List<FuelReportFile> files;
-
-  FuelReport({
-    required this.reportId,
-    required this.tripId,
-    required this.refuelAmount,
-    required this.fuelCost,
-    required this.location,
-    required this.reportTime,
-    required this.reportBy,
-    required this.files,
-  });
-
-  factory FuelReport.fromJson(Map<String, dynamic> json) {
-    List<FuelReportFile> files = [];
-    if (json['fuelReportFiles'] != null && 
-        json['fuelReportFiles'][r'$values'] != null) {
-      files = (json['fuelReportFiles'][r'$values'] as List)
-          .map((file) => FuelReportFile.fromJson(file))
-          .toList();
-    }
-
-    return FuelReport(
-      reportId: json['reportId'] ?? '',
-      tripId: json['tripId'] ?? '',
-      refuelAmount: json['refuelAmount']?.toDouble() ?? 0.0,
-      fuelCost: json['fuelCost']?.toDouble() ?? 0.0,
-      location: json['location'] ?? '',
-      reportTime: json['reportTime'] != null 
-          ? DateTime.parse(json['reportTime']) 
-          : DateTime.now(),
-      reportBy: json['reportBy'] ?? '',
-      files: files,
-    );
-  }
-
-  String getFormattedReportTime() {
-    return DateFormat('dd/MM/yyyy HH:mm').format(reportTime);
-  }
-
-  String getFormattedRefuelAmount() {
-    return '${refuelAmount.toStringAsFixed(2)} lít';
-  }
-
-  String getFormattedFuelCost() {
-    final numberFormat = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
-    return numberFormat.format(fuelCost);
-  }
-}
-
 class FuelReportFile {
   final String fileId;
   final String reportId;
@@ -67,7 +9,11 @@ class FuelReportFile {
   final String uploadBy;
   final String? description;
   final String? note;
+  final String? deletedDate;
+  final String? deletedBy;
   final String fileUrl;
+  final String modifiedDate;
+  final String modifiedBy;
 
   FuelReportFile({
     required this.fileId,
@@ -78,7 +24,11 @@ class FuelReportFile {
     required this.uploadBy,
     this.description,
     this.note,
+    this.deletedDate,
+    this.deletedBy,
     required this.fileUrl,
+    required this.modifiedDate,
+    required this.modifiedBy,
   });
 
   factory FuelReportFile.fromJson(Map<String, dynamic> json) {
@@ -93,7 +43,71 @@ class FuelReportFile {
       uploadBy: json['uploadBy'] ?? '',
       description: json['description'],
       note: json['note'],
+      deletedDate: json['deletedDate'],
+      deletedBy: json['deletedBy'],
       fileUrl: json['fileUrl'] ?? '',
+      modifiedDate: json['modifiedDate'] ?? '',
+      modifiedBy: json['modifiedBy'] ?? '',
     );
+  }
+}
+
+class FuelReport {
+  final String reportId;
+  final String tripId;
+  final double refuelAmount;
+  final double fuelCost;
+  final String location;
+  final DateTime reportTime;
+  final String reportBy;
+  final String? licensePlate;
+  final List<FuelReportFile> files; // Keep this as files for compatibility
+
+  FuelReport({
+    required this.reportId,
+    required this.tripId,
+    required this.refuelAmount,
+    required this.fuelCost,
+    required this.location,
+    required this.reportTime,
+    required this.reportBy,
+    this.licensePlate,
+    required this.files,
+  });
+
+  factory FuelReport.fromJson(Map<String, dynamic> json) {
+    List<FuelReportFile> filesList = [];
+    if (json['fuelReportFiles'] != null) {
+      filesList = (json['fuelReportFiles'] as List)
+          .map((fileJson) => FuelReportFile.fromJson(fileJson))
+          .toList();
+    }
+
+    return FuelReport(
+      reportId: json['reportId'] ?? '',
+      tripId: json['tripId'] ?? '',
+      refuelAmount: (json['refuelAmount'] ?? 0).toDouble(),
+      fuelCost: (json['fuelCost'] ?? 0).toDouble(),
+      location: json['location'] ?? '',
+      reportTime: json['reportTime'] != null 
+          ? DateTime.parse(json['reportTime']) 
+          : DateTime.now(),
+      reportBy: json['reportBy'] ?? '',
+      licensePlate: json['licensePlate'],
+      files: filesList, // Map fuelReportFiles to files
+    );
+  }
+
+  String getFormattedRefuelAmount() {
+    return '$refuelAmount lít';
+  }
+
+  String getFormattedFuelCost() {
+    final formatter = NumberFormat('#,###', 'vi_VN');
+    return '${formatter.format(fuelCost)} VND';
+  }
+
+  String getFormattedReportTime() {
+    return DateFormat('dd/MM/yyyy HH:mm').format(reportTime);
   }
 }

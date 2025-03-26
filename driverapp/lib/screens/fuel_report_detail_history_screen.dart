@@ -56,7 +56,6 @@ class FuelReportDetailScreen extends StatelessWidget {
         InfoRow(
           label: 'Chi phí:',
           value: report.getFormattedFuelCost(),
-          valueColor: Colors.green,
         ),
         InfoRow(label: 'Vị trí:', value: report.location),
         InfoRow(label: 'Thời gian báo cáo:', value: report.getFormattedReportTime()),
@@ -79,7 +78,7 @@ class FuelReportDetailScreen extends StatelessWidget {
             files: report.files,
             getImageUrl: (file) => file.fileUrl,
             getImageTitle: (file) => file.fileName,
-            getUploadTime: (file) => ImageUtils.formatUploadDate(file.uploadDate),
+            // getUploadTime: (file) => ImageUtils.formatUploadDate(file.uploadDate),
             onImageTap: (file) {
               ImageUtils.showFullImageDialog(
                 context, 

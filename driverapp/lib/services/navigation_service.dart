@@ -1,20 +1,13 @@
+import 'package:driverapp/screens/delivery_reports_history_screen.dart';
 import 'package:driverapp/screens/report_menu_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:driverapp/screens/profileScreen.dart';
-import 'package:driverapp/screens/order_list_screen.dart';
-import 'package:driverapp/screens/delivery_reports_history_screen.dart';
 import 'package:driverapp/screens/incident_reports_history_screen.dart';
 import 'package:driverapp/screens/fuel_reports_history_screen.dart';
+import 'package:driverapp/screens/trip_list_screen.dart';
 
 class NavigationService {
-  void navigateToOrderList(BuildContext context, String status, String userId) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => OrderListScreen(userId: userId, status: status),
-      ),
-    );
-  }
+  
   
   void navigateToProfile(BuildContext context, String driverId) {
     Navigator.push(
@@ -60,6 +53,23 @@ class NavigationService {
       context,
       MaterialPageRoute(
         builder: (context) => IncidentReportsScreen(userId: userId),
+      ),
+    );
+  }
+
+  // Method to navigate to Trip List with filter by status
+  void navigateToTripList(BuildContext context, String driverId, {
+    required String status, 
+    List<String>? statusList
+  }) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TripListScreen(
+          driverId: driverId, 
+          status: status,
+          statusList: statusList,
+        ),
       ),
     );
   }
