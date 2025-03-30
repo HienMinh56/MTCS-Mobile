@@ -70,6 +70,16 @@ class DeliveryStatusService {
     return statuses[currentIndex + 1];
   }
   
+  // Add this method to check if a status has a next status
+  Future<bool> hasNextStatus(String statusId) async {
+    try {
+      final nextStatus = await getNextTripStatus(statusId);
+      return nextStatus != null;
+    } catch (e) {
+      return false;
+    }
+  }
+  
   // Get status name by ID
   Future<String> getStatusName(String? statusId) async {
     if (statusId == null) return 'N/A';

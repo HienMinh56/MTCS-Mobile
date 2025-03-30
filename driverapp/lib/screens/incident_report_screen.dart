@@ -3,6 +3,7 @@ import 'package:driverapp/components/delivery_report/image_section.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:driverapp/utils/image_utils.dart';
+import 'package:driverapp/services/incident_report_service.dart';
 
 class IncidentReportScreen extends StatefulWidget {
   final String tripId;
@@ -19,14 +20,16 @@ class IncidentReportScreen extends StatefulWidget {
 class _IncidentReportScreenState extends State<IncidentReportScreen> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
-  final _resolutionController = TextEditingController();
   final _locationController = TextEditingController();
-  // ignore: unused_field
   String? _selectedIncidentType;
-  String _repairType = 'Sửa được';
+  int _incidentType = 1; // 1 = On Site, 2 = Change Vehicle
   final List<File> _images = [];
+  bool _isSubmitting = false;
   
-  // Dummy incident types for auto-complete
+  // Incident report service
+  final _incidentReportService = IncidentReportService();
+  
+  // Incident types for auto-complete
   final List<String> _incidentTypes = [
     'Xe hỏng động cơ',
     'Xe bị nổ lốp',
@@ -81,26 +84,95 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
     });
   }
 
-  void _submitReport() {
-    if (_formKey.currentState!.validate()) {
-      // Here you would send the report data to your backend
-      // Including incident type, description, repair type, resolution, location and images
-      
+  Future<void> _submitReport() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    
+    if (_images.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Đã gửi báo cáo sự cố thành công'),
-          backgroundColor: Colors.green,
+          content: Text('Vui lòng thêm ít nhất một hình ảnh'),
+          backgroundColor: Colors.orange,
         ),
       );
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+    
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+    
+    try {
+      final response = await _incidentReportService.submitIncidentReport(
+        tripId: widget.tripId,
+        incidentType: _selectedIncidentType ?? '',
+        description: _descriptionController.text,
+        location: _locationController.text,
+        type: _incidentType,
+        status: 'Resolved', // Defaulting to Resolved as per API example
+        images: _images,
+      );
       
+      // Close loading indicator
       Navigator.pop(context);
+      
+      if (response.success) {
+        // Show success message with report ID if available
+        final reportId = response.data?['reportId'] ?? '';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              reportId.isNotEmpty 
+                  ? 'Báo cáo sự cố đã được gửi thành công. Mã báo cáo: $reportId'
+                  : 'Báo cáo sự cố đã được gửi thành công'
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        Navigator.pop(context); // Return to previous screen
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: ${response.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading indicator
+      Navigator.pop(context);
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi không xác định: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
     }
   }
 
   @override
   void dispose() {
     _descriptionController.dispose();
-    _resolutionController.dispose();
     _locationController.dispose();
     super.dispose();
   }
@@ -213,6 +285,45 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                 
                 const SizedBox(height: 20),
                 
+                // Incident Resolution Type (On Site vs Change Vehicle)
+                _buildSectionTitle('Loại xử lý sự cố'),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.blue.shade200),
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white,
+                  ),
+                  child: Column(
+                    children: [
+                      RadioListTile<int>(
+                        title: const Text('Xử lý tại chỗ (On Site)'),
+                        value: 1,
+                        groupValue: _incidentType,
+                        activeColor: Colors.blue.shade700,
+                        onChanged: (value) {
+                          setState(() {
+                            _incidentType = value!;
+                          });
+                        },
+                      ),
+                      Divider(height: 1, color: Colors.blue.shade100),
+                      RadioListTile<int>(
+                        title: const Text('Thay xe (Change Vehicle)'),
+                        value: 2,
+                        groupValue: _incidentType,
+                        activeColor: Colors.blue.shade700,
+                        onChanged: (value) {
+                          setState(() {
+                            _incidentType = value!;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
+                
                 // Location
                 _buildSectionTitle('Địa điểm xảy ra sự cố'),
                 TextFormField(
@@ -273,71 +384,6 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                   },
                 ),
                 
-                const SizedBox(height: 20),
-                
-                // Repair Type
-                _buildSectionTitle('Tình trạng sửa chữa'),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.blue.shade200),
-                    borderRadius: BorderRadius.circular(12),
-                    color: Colors.white,
-                  ),
-                  child: Column(
-                    children: [
-                      RadioListTile<String>(
-                        title: const Text('Sửa được'),
-                        value: 'Sửa được',
-                        groupValue: _repairType,
-                        activeColor: Colors.blue.shade700,
-                        onChanged: (value) {
-                          setState(() {
-                            _repairType = value!;
-                          });
-                        },
-                      ),
-                      Divider(height: 1, color: Colors.blue.shade100),
-                      RadioListTile<String>(
-                        title: const Text('Không sửa được'),
-                        value: 'Không sửa được',
-                        groupValue: _repairType,
-                        activeColor: Colors.blue.shade700,
-                        onChanged: (value) {
-                          setState(() {
-                            _repairType = value!;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 20),
-                
-                // Resolution Details
-                _buildSectionTitle('Chi tiết cách giải quyết'),
-                TextFormField(
-                  controller: _resolutionController,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    hintText: 'Nhập cách giải quyết sự cố (nếu có)...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.blue.shade200),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: _repairType == 'Sửa được' ? Colors.white : Colors.grey.shade100,
-                  ),
-                  enabled: _repairType == 'Sửa được',
-                ),
-                
                 const SizedBox(height: 24),
                 
                 // Images - use the new implementation
@@ -360,7 +406,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                     ],
                   ),
                   child: ElevatedButton.icon(
-                    onPressed: _submitReport,
+                    onPressed: _isSubmitting ? null : _submitReport,
                     icon: const Icon(Icons.send, size: 22),
                     label: const Text(
                       'GỬI BÁO CÁO',

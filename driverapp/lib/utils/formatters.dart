@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 class DateFormatter {
   static String formatDateTime(DateTime? dateTime) {
     if (dateTime == null) return 'N/A';
@@ -47,6 +49,20 @@ class CurrencyFormatter {
       return '${price.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => "${m[1]},")} VNĐ';
     } catch (e) {
       return 'N/A';
+    }
+  }
+}
+
+class NumberFormatter {
+  static String formatCurrency(dynamic value) {
+    if (value == null) return '0';
+    
+    try {
+      final num numValue = num.parse(value.toString());
+      final formatter = NumberFormat('#,###', 'vi_VN');
+      return formatter.format(numValue);
+    } catch (e) {
+      return value.toString();
     }
   }
 }

@@ -9,6 +9,8 @@ import 'package:driverapp/components/info_row.dart';
 import 'package:driverapp/screens/trip_detail_screen.dart';
 import 'package:driverapp/screens/order_detail_screen.dart';
 import 'package:driverapp/screens/fuel_report_screen.dart';
+import 'package:driverapp/screens/delivery_report_screen.dart';
+import 'package:driverapp/screens/incident_report_screen.dart';
 
 class TripListScreen extends StatefulWidget {
   final String driverId;
@@ -16,9 +18,9 @@ class TripListScreen extends StatefulWidget {
   final List<String>? statusList;
 
   const TripListScreen({
-    Key? key, 
-    required this.driverId, 
-    required this.status, 
+    Key? key,
+    required this.driverId,
+    required this.status,
     this.statusList,
   }) : super(key: key);
 
@@ -50,8 +52,8 @@ class _TripListScreenState extends State<TripListScreen> {
         final List<Trip> allTrips = [];
         for (final status in widget.statusList!) {
           final trips = await _tripService.getDriverTrips(
-            widget.driverId, 
-            status: status
+            widget.driverId,
+            status: status,
           );
           allTrips.addAll(trips);
         }
@@ -65,8 +67,8 @@ class _TripListScreenState extends State<TripListScreen> {
       } else {
         // Load single status
         final trips = await _tripService.getDriverTrips(
-          widget.driverId, 
-          status: widget.status
+          widget.driverId,
+          status: widget.status,
         );
         
         if (mounted) {
@@ -166,8 +168,8 @@ class TripCard extends StatefulWidget {
   final void Function(String tripId, String newStatus, String newStatusName)? onStatusUpdated;
 
   const TripCard({
-    Key? key, 
-    required this.trip, 
+    Key? key,
+    required this.trip,
     this.onStatusUpdated,
   }) : super(key: key);
 
@@ -178,6 +180,110 @@ class TripCard extends StatefulWidget {
 class _TripCardState extends State<TripCard> {
   final TripService _tripService = TripService();
   final DeliveryStatusService _statusService = DeliveryStatusService();
+  
+  // Add a static cache to store next status information
+  static final Map<String, DeliveryStatus> _nextStatusCache = {};
+  
+  // Add state variables to track loading status and final status
+  bool _isLoadingNextStatus = false;
+  DeliveryStatus? _nextStatus;
+  bool _isFinalStatus = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    // Pre-load next status information if not in cache
+    if (widget.trip.status != 'completed' && !_nextStatusCache.containsKey(widget.trip.status)) {
+      _loadNextStatus();
+    } else if (_nextStatusCache.containsKey(widget.trip.status)) {
+      _nextStatus = _nextStatusCache[widget.trip.status];
+      _checkIfFinalStatus();
+    }
+  }
+  
+  // Method to check if the next status is the final status
+  void _checkIfFinalStatus() {
+    // Check if there will be no further status after this one
+    _statusService.hasNextStatus(_nextStatus?.statusId ?? '').then((hasNext) {
+      if (mounted) {
+        setState(() {
+          _isFinalStatus = !hasNext;
+        });
+      }
+    });
+  }
+  
+  // Method to load next status
+  Future<void> _loadNextStatus() async {
+    if (widget.trip.status == 'completed') return;
+    
+    setState(() {
+      _isLoadingNextStatus = true;
+    });
+    
+    try {
+      final nextStatus = await _statusService.getNextTripStatus(widget.trip.status);
+      if (nextStatus != null) {
+        // Store in cache for future use
+        _nextStatusCache[widget.trip.status] = nextStatus;
+      }
+      
+      if (mounted) {
+        setState(() {
+          _nextStatus = nextStatus;
+          _isLoadingNextStatus = false;
+        });
+        
+        // Check if this is the final status
+        _checkIfFinalStatus();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingNextStatus = false;
+        });
+      }
+    }
+  }
+  
+  Future<void> _navigateToDeliveryReportScreen() async {
+    final _TripListScreenState? parentState = 
+        context.findAncestorStateOfType<_TripListScreenState>();
+    
+    if (parentState == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không thể xác định ID tài xế'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    final String driverId = parentState.widget.driverId;
+    
+    final bool? reportSubmitted = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DeliveryReportScreen(
+          tripId: widget.trip.tripId,
+          userId: driverId, // Use the driverId from parent widget
+          onReportSubmitted: (success) {
+            Navigator.pop(context, success);
+          },
+        ),
+      ),
+    );
+    
+    if (reportSubmitted == true && context.mounted && _nextStatus != null) {
+      _updateTripStatus(
+        context, 
+        _nextStatus!.statusId,
+        _nextStatus!.statusName,
+        bypassDeliveryReportCheck: true,
+      );
+    }
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -253,6 +359,11 @@ class _TripCardState extends State<TripCard> {
   }
 
   void _showTripDetailAndUpdateOptions() {
+    // If we don't have next status yet and trip isn't completed, try loading it
+    if (_nextStatus == null && widget.trip.status != 'completed' && !_isLoadingNextStatus) {
+      _loadNextStatus();
+    }
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -335,53 +446,42 @@ class _TripCardState extends State<TripCard> {
                       
                       // Update status button (if not completed)
                       if (widget.trip.status != 'completed')
-                        FutureBuilder<DeliveryStatus?>(
-                          future: _statusService.getNextTripStatus(widget.trip.status),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(child: CircularProgressIndicator());
-                            }
-                            
-                            final nextStatus = snapshot.data;
-                            if (nextStatus == null) {
-                              return const Center(child: Text('Không thể cập nhật trạng thái'));
-                            }
-                            
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Cập nhật trạng thái:',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () => _updateTripStatus(
-                                      context, 
-                                      nextStatus.statusId,
-                                      nextStatus.statusName,
-                                    ),
-                                    icon: const Icon(Icons.arrow_forward),
-                                    label: Text('Cập nhật thành: ${nextStatus.statusName}'),
-                                    style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      textStyle: const TextStyle(fontSize: 16),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Cập nhật trạng thái:',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _isLoadingNextStatus
+                                ? const Center(child: CircularProgressIndicator())
+                                : _nextStatus == null
+                                    ? const Center(child: Text('Không thể cập nhật trạng thái'))
+                                    : SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton.icon(
+                                          onPressed: () => _updateTripStatus(
+                                            context, 
+                                            _nextStatus!.statusId,
+                                            _nextStatus!.statusName,
+                                          ),
+                                          icon: const Icon(Icons.arrow_forward),
+                                          label: Text('Cập nhật thành: ${_nextStatus!.statusName}'),
+                                          style: ElevatedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                            textStyle: const TextStyle(fontSize: 16),
+                                          ),
+                                        ),
+                                      ),
+                          ],
                         ),
                       
                       const SizedBox(height: 24),
                       
-                      // View full details button
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
@@ -403,30 +503,56 @@ class _TripCardState extends State<TripCard> {
                         ),
                       ),
                       
-                      // Add fuel report button
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context); // Close sheet
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => FuelReportScreen(tripId: widget.trip.tripId),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.local_gas_station, color: Colors.orange),
-                          label: const Text('Báo cáo đổ nhiên liệu'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            textStyle: const TextStyle(fontSize: 16),
-                            foregroundColor: Colors.orange,
-                            side: const BorderSide(color: Colors.orange),
+                      if (widget.trip.status != 'not_started' && widget.trip.status != 'completed') ...[
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context); // Close sheet
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FuelReportScreen(tripId: widget.trip.tripId),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.local_gas_station, color: Colors.orange),
+                            label: const Text('Báo cáo đổ nhiên liệu'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              textStyle: const TextStyle(fontSize: 16),
+                              foregroundColor: Colors.orange,
+                              side: const BorderSide(color: Colors.orange),
+                            ),
                           ),
                         ),
-                      ),
+                        
+                        // Add Incident Report button
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context); // Close sheet
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => IncidentReportScreen(tripId: widget.trip.tripId),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.report_problem, color: Colors.red),
+                            label: const Text('Báo cáo sự cố'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              textStyle: const TextStyle(fontSize: 16),
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -442,8 +568,13 @@ class _TripCardState extends State<TripCard> {
     BuildContext context, 
     String newStatus, 
     String statusName,
+    {bool bypassDeliveryReportCheck = false}
   ) async {
-    // Show loading indicator
+    if (_isFinalStatus && !bypassDeliveryReportCheck) {
+      _navigateToDeliveryReportScreen();
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -455,20 +586,17 @@ class _TripCardState extends State<TripCard> {
     try {
       final result = await _tripService.updateTripStatus(widget.trip.tripId, newStatus);
       
-      // Close loading dialog
       if (context.mounted) {
         Navigator.pop(context);
       }
       
       if (context.mounted) {
         if (result['success'] == true) {
-          // 1. Update trip object state locally
           setState(() {
             widget.trip.status = newStatus;
             widget.trip.statusName = statusName;
           });
           
-          // 2. Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Cập nhật thành công sang trạng thái: $statusName'),
@@ -476,19 +604,14 @@ class _TripCardState extends State<TripCard> {
             ),
           );
 
-          // 3. Close bottom sheet
           Navigator.pop(context);
 
-          // 4. Notify parent widget about the status change
           if (widget.onStatusUpdated != null) {
             widget.onStatusUpdated!(widget.trip.tripId, newStatus, statusName);
           }
 
-          // 5. Check if the trip should still be in the current view
-          // If not, we don't need to reopen the bottom sheet
           final _TripListScreenState? parentState = context.findAncestorStateOfType<_TripListScreenState>();
           if (parentState != null && parentState._shouldKeepInList(newStatus)) {
-            // Only reopen the sheet if the trip remains in this list
             Future.delayed(Duration.zero, () {
               if (context.mounted) {
                 _showTripDetailAndUpdateOptions();
@@ -496,7 +619,6 @@ class _TripCardState extends State<TripCard> {
             });
           }
         } else {
-          // Handle failure
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Cập nhật trạng thái thất bại: ${result['message'] ?? 'Unknown error'}'),
@@ -507,7 +629,6 @@ class _TripCardState extends State<TripCard> {
       }
     } catch (e) {
       if (context.mounted) {
-        // Close loading dialog on error
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

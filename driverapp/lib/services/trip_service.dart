@@ -26,6 +26,7 @@ class TripService {
     }
   }
 
+  // Method to get detailed information about a specific trip
   Future<Map<String, dynamic>> getTripDetail(String tripId) async {
     try {
       final response = await http.get(
@@ -33,7 +34,11 @@ class TripService {
         headers: ApiUtils.headers,
       );
       
-      return ApiUtils.handleResponse(response, (data) => data['data'][0]);
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to load trip details: ${response.statusCode}');
+      }
     } catch (e) {
       throw Exception('Failed to load trip details: $e');
     }

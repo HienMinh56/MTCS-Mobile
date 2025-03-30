@@ -32,7 +32,7 @@ class _FuelReportsScreenState extends State<FuelReportsScreen> {
     });
     
     try {
-      _fuelReportsFuture = _reportService.getFuelReports(widget.userId);
+      _fuelReportsFuture = _reportService.getFuelReports(null,widget.userId);
       await _fuelReportsFuture; // Wait to catch any errors
     } catch (e) {
       setState(() {

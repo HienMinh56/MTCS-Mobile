@@ -4,17 +4,20 @@ import 'package:driverapp/components/info_card.dart';
 import 'package:driverapp/components/info_row.dart';
 import 'package:flutter/material.dart';
 import 'package:driverapp/services/profile_service.dart';
+import 'package:driverapp/services/delivery_report_service.dart';
 import 'package:driverapp/utils/image_utils.dart';
 import 'package:driverapp/utils/date_utils.dart';
 
 class DeliveryReportScreen extends StatefulWidget {
   final String tripId;
   final String userId;
+  final Function(bool success)? onReportSubmitted;
 
   const DeliveryReportScreen({
     Key? key,
     required this.tripId,
     required this.userId,
+    this.onReportSubmitted,
   }) : super(key: key);
 
   @override
@@ -23,6 +26,7 @@ class DeliveryReportScreen extends StatefulWidget {
 
 class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
   final ProfileService _profileService = ProfileService();
+  final DeliveryReportService _reportService = DeliveryReportService();
   final TextEditingController _noteController = TextEditingController();
   final List<File> _imageFiles = [];
   String _driverName = 'Đang tải...';
@@ -101,26 +105,23 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
     });
 
     try {
-      // TODO: Implement API call to submit the report
-      await Future.delayed(const Duration(seconds: 2));
+      // Use the service to submit the report
+      final result = await _reportService.submitDeliveryReport(
+        tripId: widget.tripId,
+        notes: _noteController.text.trim().isNotEmpty ? _noteController.text.trim() : null,
+        imageFiles: _imageFiles.isNotEmpty ? _imageFiles : null,
+      );
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Báo cáo biên bản giao nhận đã được gửi thành công'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context);
+      if (result['success']) {
+        if (mounted) {
+          _onReportSuccess();
+        }
+      } else {
+        throw Exception(result['message'] ?? 'Unknown error');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi khi gửi báo cáo: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _onReportFailure(e.toString());
       }
     } finally {
       if (mounted) {
@@ -129,6 +130,42 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
         });
       }
     }
+  }
+
+  // When report is successfully submitted
+  void _onReportSuccess() {
+    // Show success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Báo cáo đã được gửi thành công'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    
+    // Call the callback if provided
+    if (widget.onReportSubmitted != null) {
+      widget.onReportSubmitted!(true);
+    } else {
+      // Default behavior if no callback
+      Navigator.pop(context);
+    }
+  }
+
+  // When report submission fails
+  void _onReportFailure(String message) {
+    // Show error message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Lỗi gửi báo cáo: $message'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    
+    // Call the callback if provided
+    if (widget.onReportSubmitted != null) {
+      widget.onReportSubmitted!(false);
+    }
+    // Don't navigate away on failure
   }
 
   @override
