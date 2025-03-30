@@ -30,8 +30,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
   String _errorMessage = '';
   Map<String, dynamic>? _tripDetails;
   Map<String, dynamic>? _orderDetails;
-  List<dynamic> _fuelReports = [];
-  List<dynamic> _incidentReports = [];
+  List<Map<String, dynamic>> _fuelReports = [];
+  List<Map<String, dynamic>> _incidentReports = [];
 
   // Add state variables to track which report type is expanded
   bool _isFuelReportsExpanded = false;
@@ -41,6 +41,34 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
   void initState() {
     super.initState();
     _loadDetails();
+  }
+
+  // Helper method to convert dynamic maps to string key maps
+  Map<String, dynamic> _convertToStringKeyMap(dynamic item) {
+    if (item is Map) {
+      return item.map<String, dynamic>((key, value) {
+        if (value is Map) {
+          return MapEntry(key.toString(), _convertToStringKeyMap(value));
+        } else if (value is List) {
+          return MapEntry(key.toString(), _convertListItems(value));
+        } else {
+          return MapEntry(key.toString(), value);
+        }
+      });
+    }
+    return <String, dynamic>{};
+  }
+
+  List<dynamic> _convertListItems(List items) {
+    return items.map((item) {
+      if (item is Map) {
+        return _convertToStringKeyMap(item);
+      } else if (item is List) {
+        return _convertListItems(item);
+      } else {
+        return item;
+      }
+    }).toList();
   }
 
   Future<void> _loadDetails() async {
@@ -55,18 +83,21 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       
       // Extract trip from the data array in the response
       if (response['status'] == 200 && response['data'] is List && response['data'].isNotEmpty) {
-        final tripDetails = response['data'][0];
+        final tripDetails = _convertToStringKeyMap(response['data'][0]);
         
         // Load order details
         final orderResponse = await _orderService.getOrderByTripId(widget.tripId);
-        final orderDetails = orderResponse['data'] ?? {};
+        final orderDetails = orderResponse['data'] != null ? 
+            _convertToStringKeyMap(orderResponse['data']) : <String, dynamic>{};
         
         // Load fuel reports - add more robust error handling
-        List<dynamic> fuelReports = [];
+        List<Map<String, dynamic>> fuelReports = [];
         try {
           final fuelReportsResponse = await _fuelReportService.getFuelReportsByTripId(widget.tripId);
           if (fuelReportsResponse['status'] == 200 && fuelReportsResponse['data'] is List) {
-            fuelReports = fuelReportsResponse['data'];
+            fuelReports = (fuelReportsResponse['data'] as List)
+                .map((item) => _convertToStringKeyMap(item))
+                .toList();
           }
         } catch (e) {
           print('Error loading fuel reports: $e');
@@ -74,13 +105,15 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
         }
         
         // Load incident reports - add more robust error handling
-        List<dynamic> incidentReports = [];
+        List<Map<String, dynamic>> incidentReports = [];
         try {
           final incidentReportsResponse = await _incidentReportService.getIncidentReportsByTripId(widget.tripId);
           // Check for both possible success status codes (1 and 200)
           if ((incidentReportsResponse['status'] == 1 || incidentReportsResponse['status'] == 200) && 
               incidentReportsResponse['data'] is List) {
-            incidentReports = incidentReportsResponse['data'];
+            incidentReports = (incidentReportsResponse['data'] as List)
+                .map((item) => _convertToStringKeyMap(item))
+                .toList();
           }
         } catch (e) {
           print('Error loading incident reports: $e');
@@ -1332,7 +1365,35 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi: ${response['message']}')),
-      );
+      );  // Add this helper method near the start of your class
+
+
+
+
+}  }    }  Map<String, dynamic> _convertToStringKeyMap(dynamic item) {
+    if (item is Map) {
+      return item.map<String, dynamic>((key, value) {
+        if (value is Map) {
+          return MapEntry(key.toString(), _convertToStringKeyMap(value));
+        } else if (value is List) {
+          return MapEntry(key.toString(), _convertListItems(value));
+        } else {
+          return MapEntry(key.toString(), value);
+        }
+      });
     }
+    return <String, dynamic>{};
   }
-}
+
+  List<dynamic> _convertListItems(List items) {
+    return items.map((item) {
+      if (item is Map) {
+        return _convertToStringKeyMap(item);
+      } else if (item is List) {
+        return _convertListItems(item);
+      } else {
+        return item;
+      }
+    }).toList();
+  }
+
