@@ -31,7 +31,7 @@ class _DeliveryReportsScreenState extends State<DeliveryReportsScreen> {
       _errorMessage = null;
     });
 
-    _reportsFuture = _reportService.getDeliveryReports(widget.driverId);
+    _reportsFuture = _reportService.getDeliveryReports(null,widget.driverId);
     _reportsFuture.then((_) {
       setState(() {
         _isLoading = false;
