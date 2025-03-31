@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:driverapp/models/trip.dart';
 import 'package:driverapp/utils/constants.dart';
 import 'package:driverapp/utils/api_utils.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TripService {
   final String _baseUrl = Constants.apiBaseUrl;
@@ -70,9 +71,19 @@ class TripService {
     final url = '$_baseUrl/api/trips/$tripId/status';
     
     try {
+      // Retrieve the saved token from secure storage
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('authToken') ?? '';
+      
+      // Create headers with authentication token
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+      
       final response = await http.patch(
         Uri.parse(url),
-        headers: ApiUtils.headers,
+        headers: headers,
         body: json.encode(newStatus),
       );
 

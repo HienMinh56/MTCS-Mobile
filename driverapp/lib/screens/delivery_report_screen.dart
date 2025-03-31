@@ -100,6 +100,12 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
       return;
     }
 
+    // Show confirmation dialog before submitting
+    final bool confirmed = await _showConfirmationDialog();
+    if (!confirmed) {
+      return; // User cancelled the submission
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -166,6 +172,36 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
       widget.onReportSubmitted!(false);
     }
     // Don't navigate away on failure
+  }
+
+  // Add this method for showing the confirmation dialog
+  Future<bool> _showConfirmationDialog() async {
+    return await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Xác nhận gửi báo cáo'),
+          content: const Text(
+            'Sau khi gửi, báo cáo không thể chỉnh sửa. Vui lòng kiểm tra kỹ nội dung trước khi xác nhận gửi.',
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.purple.shade700,
+              ),
+              child: const Text('Xác nhận gửi', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    ) ?? false; // Return false if dialog is dismissed without a choice
   }
 
   @override

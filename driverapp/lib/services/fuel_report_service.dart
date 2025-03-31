@@ -11,7 +11,7 @@ class FuelReportService {
   /// Get authentication headers for API requests
   Future<Map<String, String>> _getHeaders() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('token');
+    final String? token = prefs.getString('authToken');
     
     return {
       'Content-Type': 'application/json',
@@ -20,9 +20,26 @@ class FuelReportService {
     };
   }
   
-  /// Submits a fuel report to the server
-  /// Returns a Map with 'success' boolean and 'message' string
+  /// Static version of submitFuelReport that creates an instance internally
   static Future<Map<String, dynamic>> submitFuelReport({
+    required String tripId,
+    required double refuelAmount,
+    required double fuelCost,
+    required String location,
+    required List<File> images,
+  }) async {
+    final instance = FuelReportService();
+    return instance.submitFuelReportInstance(
+      tripId: tripId,
+      refuelAmount: refuelAmount,
+      fuelCost: fuelCost,
+      location: location,
+      images: images,
+    );
+  }
+  
+  /// Instance implementation of submitFuelReport
+  Future<Map<String, dynamic>> submitFuelReportInstance({
     required String tripId,
     required double refuelAmount,
     required double fuelCost,
@@ -32,6 +49,16 @@ class FuelReportService {
     try {
       var uri = Uri.parse('$_baseUrl/fuel-reports');
       var request = http.MultipartRequest('POST', uri);
+      
+      // Get headers with authorization token
+      final headers = await _getHeaders();
+      
+      // Add headers to request (except Content-Type which is set by MultipartRequest)
+      headers.forEach((key, value) {
+        if (key != 'Content-Type') {
+          request.headers[key] = value;
+        }
+      });
       
       // Add form fields
       request.fields['TripId'] = tripId;
@@ -122,39 +149,31 @@ class FuelReportService {
         };
       }
       
-      // Using http directly instead of http.MultipartRequest to ensure proper handling of multiple fields
       final uri = Uri.parse('$_baseUrl/fuel-reports');
       
-      // Create a unique boundary for multipart form data
-      var boundary = '----WebKitFormBoundary${DateTime.now().millisecondsSinceEpoch}';
+      // Create a MultipartRequest
+      var request = http.MultipartRequest('PUT', uri);
       
-      // Get headers and set the Content-Type for multipart
-      var headers = await _getHeaders();
-      headers['Content-Type'] = 'multipart/form-data; boundary=$boundary';
+      // Add authorization headers
+      final headers = await _getHeaders();
+      headers.forEach((key, value) {
+        if (key != 'Content-Type') {
+          request.headers[key] = value;
+        }
+      });
       
-      // Build the request body manually to ensure proper handling of multiple fields with the same name
-      var requestBody = <int>[];
-      
-      // Helper function to add text fields
-      void addFormField(String name, String value) {
-        requestBody.addAll(utf8.encode('--$boundary\r\n'));
-        requestBody.addAll(utf8.encode('Content-Disposition: form-data; name="$name"\r\n\r\n'));
-        requestBody.addAll(utf8.encode(value));
-        requestBody.addAll(utf8.encode('\r\n'));
-      }
-      
-      // Add basic fields
-      addFormField('ReportId', reportId);
-      addFormField('RefuelAmount', refuelAmount.toString());
-      addFormField('FuelCost', fuelCost.toString());
-      addFormField('Location', location);
+      // Add form fields
+      request.fields['ReportId'] = reportId;
+      request.fields['RefuelAmount'] = refuelAmount.toString();
+      request.fields['FuelCost'] = fuelCost.toString();
+      request.fields['Location'] = location;
       
       // Add file IDs to remove - each as a separate field with the same name
-      for (var fileId in fileIdsToRemove) {
-        addFormField('FileIdsToRemove', fileId);
+      for (int i = 0; i < fileIdsToRemove.length; i++) {
+        request.fields['FileIdsToRemove[$i]'] = fileIdsToRemove[i];
       }
       
-      // Add files
+      // Add new files
       for (var file in addedFiles) {
         var fileName = path.basename(file.path);
         var fileExtension = path.extension(fileName).toLowerCase();
@@ -168,23 +187,14 @@ class FuelReportService {
           mimeType = 'application/octet-stream';
         }
         
-        requestBody.addAll(utf8.encode('--$boundary\r\n'));
-        requestBody.addAll(utf8.encode('Content-Disposition: form-data; name="AddedFiles"; filename="$fileName"\r\n'));
-        requestBody.addAll(utf8.encode('Content-Type: $mimeType\r\n\r\n'));
-        
-        // Add file bytes
-        requestBody.addAll(await file.readAsBytes());
-        requestBody.addAll(utf8.encode('\r\n'));
+        request.files.add(await http.MultipartFile.fromPath(
+          'AddedFiles',
+          file.path,
+          contentType: MediaType.parse(mimeType),
+        ));
       }
       
-      // Add closing boundary
-      requestBody.addAll(utf8.encode('--$boundary--\r\n'));
-      
-      // Create and send the request
-      var request = http.Request('PUT', uri);
-      request.headers.addAll(headers);
-      request.bodyBytes = requestBody;
-      
+      // Send request and process response
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
       

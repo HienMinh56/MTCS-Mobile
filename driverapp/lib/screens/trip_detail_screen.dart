@@ -4,10 +4,10 @@ import 'package:driverapp/services/order_service.dart';
 import 'package:driverapp/services/delivery_status_service.dart';
 import 'package:driverapp/services/fuel_report_service.dart';
 import 'package:driverapp/services/incident_report_service.dart';
+import 'package:driverapp/services/delivery_report_service.dart'; // Add this import
 import 'package:driverapp/utils/color_constants.dart';
 import 'package:driverapp/utils/formatters.dart';
 import 'package:driverapp/components/info_row.dart';
-import 'package:driverapp/components/incident_confirmation_dialog.dart'; // Add this import
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
@@ -25,17 +25,20 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
   final DeliveryStatusService _statusService = DeliveryStatusService();
   final FuelReportService _fuelReportService = FuelReportService();
   final IncidentReportService _incidentReportService = IncidentReportService();
-  
+  final DeliveryReportService _deliveryReportService = DeliveryReportService(); // Add this line
+
   bool _isLoading = true;
   String _errorMessage = '';
   Map<String, dynamic>? _tripDetails;
   Map<String, dynamic>? _orderDetails;
   List<Map<String, dynamic>> _fuelReports = [];
   List<Map<String, dynamic>> _incidentReports = [];
+  List<Map<String, dynamic>> _deliveryReports = []; // Add this line
 
   // Add state variables to track which report type is expanded
   bool _isFuelReportsExpanded = false;
   bool _isIncidentReportsExpanded = false;
+  bool _isDeliveryReportsExpanded = false; // Add this line
 
   @override
   void initState() {
@@ -80,21 +83,27 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     try {
       // Load trip details
       final response = await _tripService.getTripDetail(widget.tripId);
-      
+
       // Extract trip from the data array in the response
-      if (response['status'] == 200 && response['data'] is List && response['data'].isNotEmpty) {
+      if (response['status'] == 200 &&
+          response['data'] is List &&
+          response['data'].isNotEmpty) {
         final tripDetails = _convertToStringKeyMap(response['data'][0]);
-        
+
         // Load order details
-        final orderResponse = await _orderService.getOrderByTripId(widget.tripId);
-        final orderDetails = orderResponse['data'] != null ? 
-            _convertToStringKeyMap(orderResponse['data']) : <String, dynamic>{};
-        
+        final orderResponse =
+            await _orderService.getOrderByTripId(widget.tripId);
+        final orderDetails = orderResponse['data'] != null
+            ? _convertToStringKeyMap(orderResponse['data'])
+            : <String, dynamic>{};
+
         // Load fuel reports - add more robust error handling
         List<Map<String, dynamic>> fuelReports = [];
         try {
-          final fuelReportsResponse = await _fuelReportService.getFuelReportsByTripId(widget.tripId);
-          if (fuelReportsResponse['status'] == 200 && fuelReportsResponse['data'] is List) {
+          final fuelReportsResponse =
+              await _fuelReportService.getFuelReportsByTripId(widget.tripId);
+          if (fuelReportsResponse['status'] == 200 &&
+              fuelReportsResponse['data'] is List) {
             fuelReports = (fuelReportsResponse['data'] as List)
                 .map((item) => _convertToStringKeyMap(item))
                 .toList();
@@ -103,13 +112,15 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
           print('Error loading fuel reports: $e');
           // Continue with empty fuel reports rather than failing the whole function
         }
-        
+
         // Load incident reports - add more robust error handling
         List<Map<String, dynamic>> incidentReports = [];
         try {
-          final incidentReportsResponse = await _incidentReportService.getIncidentReportsByTripId(widget.tripId);
+          final incidentReportsResponse = await _incidentReportService
+              .getIncidentReportsByTripId(widget.tripId);
           // Check for both possible success status codes (1 and 200)
-          if ((incidentReportsResponse['status'] == 1 || incidentReportsResponse['status'] == 200) && 
+          if ((incidentReportsResponse['status'] == 1 ||
+                  incidentReportsResponse['status'] == 200) &&
               incidentReportsResponse['data'] is List) {
             incidentReports = (incidentReportsResponse['data'] as List)
                 .map((item) => _convertToStringKeyMap(item))
@@ -119,6 +130,22 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
           print('Error loading incident reports: $e');
           // Continue with empty incident reports rather than failing the whole function
         }
+        
+        // Load delivery reports
+        List<Map<String, dynamic>> deliveryReports = [];
+        try {
+          final deliveryReportsResponse = await _deliveryReportService
+              .getDeliveryReportsByTripId(widget.tripId);
+          if (deliveryReportsResponse['status'] == 200 &&
+              deliveryReportsResponse['data'] is List) {
+            deliveryReports = (deliveryReportsResponse['data'] as List)
+                .map((item) => _convertToStringKeyMap(item))
+                .toList();
+          }
+        } catch (e) {
+          print('Error loading delivery reports: $e');
+          // Continue with empty delivery reports rather than failing the whole function
+        }
 
         if (mounted) {
           setState(() {
@@ -126,11 +153,13 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
             _orderDetails = orderDetails;
             _fuelReports = fuelReports;
             _incidentReports = incidentReports;
+            _deliveryReports = deliveryReports; // Add this line
             _isLoading = false;
           });
         }
       } else {
-        throw Exception('Không tìm thấy dữ liệu trip hoặc định dạng dữ liệu không đúng');
+        throw Exception(
+            'Không tìm thấy dữ liệu trip hoặc định dạng dữ liệu không đúng');
       }
     } catch (e) {
       if (mounted) {
@@ -143,7 +172,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {  // Removed extra parenthesis
+  Widget build(BuildContext context) {
+    // Removed extra parenthesis
     return Scaffold(
       appBar: AppBar(
         title: Text('Chi tiết Trip ${widget.tripId}'),
@@ -171,12 +201,12 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
         children: [
           _buildSectionTitle('Thông tin Trip'),
           _buildDetailCard(_buildTripDetails()),
-          
+
           // Reports Section with icons
           const SizedBox(height: 20),
           _buildSectionTitle('Báo cáo'),
           _buildReportIconsSection(),
-          
+
           // Fuel Reports Section (expandable)
           if (_isFuelReportsExpanded) ...[
             const SizedBox(height: 16),
@@ -201,18 +231,21 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
               ],
             ),
             if (_fuelReports.isNotEmpty)
-              ..._fuelReports.map((report) => _buildFuelReportCard(report)).toList()
+              ..._fuelReports
+                  .map((report) => _buildFuelReportCard(report))
+                  .toList()
             else
               Card(
                 elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 child: const Padding(
                   padding: EdgeInsets.all(16.0),
                   child: Center(child: Text('Chưa có báo cáo đổ xăng')),
                 ),
               ),
           ],
-          
+
           // Incident Reports Section (expandable)
           if (_isIncidentReportsExpanded) ...[
             const SizedBox(height: 16),
@@ -237,11 +270,14 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
               ],
             ),
             if (_incidentReports.isNotEmpty)
-              ..._incidentReports.map((report) => _buildIncidentReportCard(report)).toList()
+              ..._incidentReports
+                  .map((report) => _buildIncidentReportCard(report))
+                  .toList()
             else
               Card(
                 elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 child: const Padding(
                   padding: EdgeInsets.all(16.0),
                   child: Center(child: Text('Chưa có báo cáo sự cố')),
@@ -249,7 +285,46 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
               ),
           ],
           
-          if (_tripDetails!['tripStatusHistories'] != null && 
+          // Delivery Reports Section (expandable)
+          if (_isDeliveryReportsExpanded) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Báo cáo giao hàng',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.keyboard_arrow_up),
+                  onPressed: () {
+                    setState(() {
+                      _isDeliveryReportsExpanded = false;
+                    });
+                  },
+                ),
+              ],
+            ),
+            if (_deliveryReports.isNotEmpty)
+              ..._deliveryReports
+                  .map((report) => _buildDeliveryReportCard(report))
+                  .toList()
+            else
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                child: const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(child: Text('Chưa có báo cáo giao hàng')),
+                ),
+              ),
+          ],
+
+          if (_tripDetails!['tripStatusHistories'] != null &&
               (_tripDetails!['tripStatusHistories'] as List).isNotEmpty) ...[
             const SizedBox(height: 20),
             _buildSectionTitle('Lịch sử trạng thái'),
@@ -278,6 +353,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   // Close the other section if this one is opening
                   if (_isFuelReportsExpanded) {
                     _isIncidentReportsExpanded = false;
+                    _isDeliveryReportsExpanded = false;
                   }
                 });
               },
@@ -289,7 +365,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: _isFuelReportsExpanded 
+                          color: _isFuelReportsExpanded
                               ? ColorConstants.primaryColor.withOpacity(0.2)
                               : Colors.grey.withOpacity(0.1),
                           shape: BoxShape.circle,
@@ -337,7 +413,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                 ],
               ),
             ),
-            
+
             // Incident report icon
             GestureDetector(
               onTap: () {
@@ -346,6 +422,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   // Close the other section if this one is opening
                   if (_isIncidentReportsExpanded) {
                     _isFuelReportsExpanded = false;
+                    _isDeliveryReportsExpanded = false;
                   }
                 });
               },
@@ -357,7 +434,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: _isIncidentReportsExpanded 
+                          color: _isIncidentReportsExpanded
                               ? ColorConstants.primaryColor.withOpacity(0.2)
                               : Colors.grey.withOpacity(0.1),
                           shape: BoxShape.circle,
@@ -397,6 +474,75 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                     'Sự cố',
                     style: TextStyle(
                       color: _isIncidentReportsExpanded
+                          ? ColorConstants.primaryColor
+                          : Colors.grey[700],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Delivery report icon - add this section
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _isDeliveryReportsExpanded = !_isDeliveryReportsExpanded;
+                  // Close the other section if this one is opening
+                  if (_isDeliveryReportsExpanded) {
+                    _isFuelReportsExpanded = false;
+                    _isIncidentReportsExpanded = false;
+                  }
+                });
+              },
+              child: Column(
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _isDeliveryReportsExpanded
+                              ? ColorConstants.primaryColor.withOpacity(0.2)
+                              : Colors.grey.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.receipt_long,
+                          color: _isDeliveryReportsExpanded
+                              ? ColorConstants.primaryColor
+                              : Colors.grey[700],
+                          size: 36,
+                        ),
+                      ),
+                      if (_deliveryReports.isNotEmpty)
+                        Positioned(
+                          right: -5,
+                          top: -5,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              _deliveryReports.length.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Giao hàng',
+                    style: TextStyle(
+                      color: _isDeliveryReportsExpanded
                           ? ColorConstants.primaryColor
                           : Colors.grey[700],
                       fontWeight: FontWeight.bold,
@@ -446,30 +592,32 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       FutureBuilder<String>(
         future: _statusService.getStatusName(_tripDetails!['status']),
         builder: (context, snapshot) {
-          final statusName = snapshot.data ?? _getTripStatusName(_tripDetails!['status']);
+          final statusName =
+              snapshot.data ?? _getTripStatusName(_tripDetails!['status']);
           return InfoRow(label: 'Trạng thái:', value: statusName);
         },
       ),
       InfoRow(label: 'Xe kéo ID:', value: _tripDetails!['tractorId'] ?? 'N/A'),
       InfoRow(label: 'Rơ moóc ID:', value: _tripDetails!['trailerId'] ?? 'N/A'),
       InfoRow(
-        label: 'Thời gian bắt đầu:', 
-        value: DateFormatter.formatDateTimeFromString(_tripDetails!['startTime']),
+        label: 'Thời gian bắt đầu:',
+        value:
+            DateFormatter.formatDateTimeFromString(_tripDetails!['startTime']),
       ),
       InfoRow(
-        label: 'Thời gian kết thúc:', 
-        value: _tripDetails!['endTime'] != null 
+        label: 'Thời gian kết thúc:',
+        value: _tripDetails!['endTime'] != null
             ? DateFormatter.formatDateTimeFromString(_tripDetails!['endTime'])
             : 'Chưa hoàn thành',
       ),
       // Add match information
       InfoRow(
-        label: 'Loại ghép:', 
+        label: 'Loại ghép:',
         value: _getMatchTypeName(_tripDetails!['matchType']),
       ),
       InfoRow(label: 'Ghép bởi:', value: _tripDetails!['matchBy'] ?? 'N/A'),
       InfoRow(
-        label: 'Thời gian ghép:', 
+        label: 'Thời gian ghép:',
         value: _tripDetails!['matchTime'] != null
             ? DateFormatter.formatDateTimeFromString(_tripDetails!['matchTime'])
             : 'N/A',
@@ -480,97 +628,377 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
   // Helper method to convert matchType code to readable text
   String _getMatchTypeName(dynamic matchType) {
     if (matchType == null) return 'N/A';
-    
-    switch(matchType) {
-      case 1: return 'Tự động';
-      case 2: return 'Thủ công';
-      default: return 'Loại $matchType';
+
+    switch (matchType) {
+      case 1:
+        return 'Tự động';
+      case 2:
+        return 'Thủ công';
+      default:
+        return 'Loại $matchType';
     }
   }
 
-  // New method to build fuel report card
+  // Enhanced fuel report card with better styling
   Widget _buildFuelReportCard(Map<String, dynamic> report) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16.0),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InfoRow(label: 'Số lượng xăng:', value: '${report['refuelAmount']} lít'),
-            InfoRow(
-              label: 'Chi phí:', 
-              value: '${NumberFormatter.formatCurrency(report['fuelCost'])} VNĐ',
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with colored accent
+          Container(
+            decoration: BoxDecoration(
+              color: ColorConstants.primaryColor.withOpacity(0.1),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(15),
+                topRight: Radius.circular(15),
+              ),
             ),
-            InfoRow(label: 'Địa điểm:', value: report['location'] ?? 'N/A'),
-            InfoRow(
-              label: 'Thời gian báo cáo:', 
-              value: DateFormatter.formatDateTimeFromString(report['reportTime']),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.local_gas_station,
+                  color: ColorConstants.primaryColor,
+                  size: 24,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Báo cáo đổ xăng',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        DateFormatter.formatDateTimeFromString(report['reportTime']),
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: ColorConstants.primaryColor.withOpacity(0.5)),
+                  ),
+                  child: Text(
+                    '${NumberFormatter.formatCurrency(report['fuelCost'])} đ',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: ColorConstants.primaryColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            
-            const SizedBox(height: 12),
-            const Text(
-              'Hình ảnh:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            
-            if (report['fuelReportFiles'] != null && (report['fuelReportFiles'] as List).isNotEmpty)
-              SizedBox(
-                height: 100,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: (report['fuelReportFiles'] as List).length,
-                  itemBuilder: (context, index) {
-                    final file = report['fuelReportFiles'][index];
-                    return GestureDetector(
-                      onTap: () => _showFullScreenImage(file['fileUrl']),
+          ),
+
+          // Main content
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Fuel amount with visual indicator
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 1,
                       child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        width: 100,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            file['fileUrl'],
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return const Center(child: CircularProgressIndicator());
-                            },
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Center(child: Icon(Icons.error)),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.amber.shade200),
+                        ),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'Số lượng',
+                              style: TextStyle(
+                                color: Colors.amber,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '${report['refuelAmount']}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'lít',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 1,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.lightBlue.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.lightBlue.shade200),
+                        ),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'Địa điểm',
+                              style: TextStyle(
+                                color: Colors.lightBlue,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              report['location'] ?? 'N/A',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Images section
+                if (report['fuelReportFiles'] != null &&
+                    (report['fuelReportFiles'] as List).isNotEmpty) ...[
+                  const Row(
+                    children: [
+                      Icon(Icons.photo_library, size: 18, color: Colors.grey),
+                      SizedBox(width: 8),
+                      Text(
+                        'Hình ảnh',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 120,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: (report['fuelReportFiles'] as List).length,
+                      itemBuilder: (context, index) {
+                        final file = report['fuelReportFiles'][index];
+                        return GestureDetector(
+                          onTap: () => _showFullScreenImage(file['fileUrl']),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 10),
+                            width: 120,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade300),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.shade200,
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.network(
+                                file['fileUrl'],
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      value: loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded /
+                                              loadingProgress.expectedTotalBytes!
+                                          : null,
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Center(
+                                      child: Icon(Icons.error, color: Colors.red),
+                                    ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ] else
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Column(
+                        children: [
+                          Icon(Icons.no_photography, color: Colors.grey, size: 40),
+                          SizedBox(height: 8),
+                          Text(
+                            'Không có hình ảnh',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                
+                // Edit button - only if trip not ended
+                if (_tripDetails!['endTime'] == null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: Center(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showEditFuelReportDialog(report),
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Chỉnh sửa báo cáo'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
-              )
-            else
-              const Text('Không có hình ảnh'),
-            
-            const SizedBox(height: 16),
-            Center(
-              child: ElevatedButton(
-                onPressed: _tripDetails!['endTime'] != null ? null : () => _showEditFuelReportDialog(report),
-                child: Text(
-                  'Chỉnh sửa báo cáo',
-                  style: TextStyle(
-                    color: _tripDetails!['endTime'] != null 
-                        ? Colors.grey[600] 
-                        : null,
+                    ),
                   ),
-                ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
-  
+
+  // New method to build fuel report card
+  // Widget _buildFuelReportCard(Map<String, dynamic> report) {
+  //   return Card(
+  //     margin: const EdgeInsets.only(bottom: 16.0),
+  //     elevation: 2,
+  //     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  //     child: Padding(
+  //       padding: const EdgeInsets.all(16.0),
+  //       child: Column(
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           InfoRow(
+  //               label: 'Số lượng xăng:',
+  //               value: '${report['refuelAmount']} lít'),
+  //           InfoRow(
+  //             label: 'Chi phí:',
+  //             value:
+  //                 '${NumberFormatter.formatCurrency(report['fuelCost'])} VNĐ',
+  //           ),
+  //           InfoRow(label: 'Địa điểm:', value: report['location'] ?? 'N/A'),
+  //           InfoRow(
+  //             label: 'Thời gian báo cáo:',
+  //             value:
+  //                 DateFormatter.formatDateTimeFromString(report['reportTime']),
+  //           ),
+  //           const SizedBox(height: 12),
+  //           const Text(
+  //             'Hình ảnh:',
+  //             style: TextStyle(fontWeight: FontWeight.bold),
+  //           ),
+  //           const SizedBox(height: 8),
+  //           if (report['fuelReportFiles'] != null &&
+  //               (report['fuelReportFiles'] as List).isNotEmpty)
+  //             SizedBox(
+  //               height: 100,
+  //               child: ListView.builder(
+  //                 scrollDirection: Axis.horizontal,
+  //                 itemCount: (report['fuelReportFiles'] as List).length,
+  //                 itemBuilder: (context, index) {
+  //                   final file = report['fuelReportFiles'][index];
+  //                   return GestureDetector(
+  //                     onTap: () => _showFullScreenImage(file['fileUrl']),
+  //                     child: Container(
+  //                       margin: const EdgeInsets.only(right: 8),
+  //                       width: 100,
+  //                       child: ClipRRect(
+  //                         borderRadius: BorderRadius.circular(8),
+  //                         child: Image.network(
+  //                           file['fileUrl'],
+  //                           fit: BoxFit.cover,
+  //                           loadingBuilder: (context, child, loadingProgress) {
+  //                             if (loadingProgress == null) return child;
+  //                             return const Center(
+  //                                 child: CircularProgressIndicator());
+  //                           },
+  //                           errorBuilder: (context, error, stackTrace) =>
+  //                               const Center(child: Icon(Icons.error)),
+  //                         ),
+  //                       ),
+  //                     ),
+  //                   );
+  //                 },
+  //               ),
+  //             )
+  //           else
+  //             const Text('Không có hình ảnh'),
+  //           const SizedBox(height: 16),
+  //           Center(
+  //             child: ElevatedButton(
+  //               onPressed: _tripDetails!['endTime'] != null
+  //                   ? null
+  //                   : () => _showEditFuelReportDialog(report),
+  //               child: Text(
+  //                 'Chỉnh sửa báo cáo',
+  //                 style: TextStyle(
+  //                   color: _tripDetails!['endTime'] != null
+  //                       ? Colors.grey[600]
+  //                       : null,
+  //                 ),
+  //               ),
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
+
   void _showFullScreenImage(String imageUrl) {
     Navigator.push(
       context,
@@ -591,7 +1019,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   fit: BoxFit.contain,
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
-                    return const Center(child: CircularProgressIndicator(color: Colors.white));
+                    return const Center(
+                        child: CircularProgressIndicator(color: Colors.white));
                   },
                 ),
               ),
@@ -601,7 +1030,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       ),
     );
   }
-  
+
   void _showEditFuelReportDialog(Map<String, dynamic> report) {
     final TextEditingController refuelAmountController = TextEditingController(
       text: report['refuelAmount'].toString(),
@@ -612,13 +1041,13 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     final TextEditingController locationController = TextEditingController(
       text: report['location'] ?? '',
     );
-    
+
     // Track images to keep or remove
-    final List<Map<String, dynamic>> existingFiles = 
+    final List<Map<String, dynamic>> existingFiles =
         List<Map<String, dynamic>>.from(report['fuelReportFiles'] ?? []);
     final Set<String> fileIdsToRemove = {};
     final List<File> newFiles = [];
-    
+
     showDialog(
       context: context,
       builder: (context) {
@@ -633,32 +1062,33 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   children: [
                     TextField(
                       controller: refuelAmountController,
-                      decoration: const InputDecoration(labelText: 'Số lượng xăng (lít)'),
+                      decoration: const InputDecoration(
+                          labelText: 'Số lượng xăng (lít)'),
                       keyboardType: TextInputType.number,
                     ),
                     TextField(
                       controller: fuelCostController,
-                      decoration: const InputDecoration(labelText: 'Chi phí (VNĐ)'),
+                      decoration:
+                          const InputDecoration(labelText: 'Chi phí (VNĐ)'),
                       keyboardType: TextInputType.number,
                     ),
                     TextField(
                       controller: locationController,
                       decoration: const InputDecoration(labelText: 'Địa điểm'),
                     ),
-                    
                     const SizedBox(height: 16),
                     const Text(
                       'Hình ảnh hiện tại:',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
-                    
                     if (existingFiles.isNotEmpty)
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: existingFiles.map((file) {
-                          final bool isMarkedForRemoval = fileIdsToRemove.contains(file['fileId']);
+                          final bool isMarkedForRemoval =
+                              fileIdsToRemove.contains(file['fileId']);
                           return Stack(
                             children: [
                               Container(
@@ -666,7 +1096,9 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                 height: 80,
                                 decoration: BoxDecoration(
                                   border: Border.all(
-                                    color: isMarkedForRemoval ? Colors.red : Colors.grey,
+                                    color: isMarkedForRemoval
+                                        ? Colors.red
+                                        : Colors.grey,
                                     width: 2,
                                   ),
                                   borderRadius: BorderRadius.circular(8),
@@ -698,11 +1130,15 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.all(2),
                                     decoration: BoxDecoration(
-                                      color: isMarkedForRemoval ? Colors.green : Colors.red,
+                                      color: isMarkedForRemoval
+                                          ? Colors.green
+                                          : Colors.red,
                                       shape: BoxShape.circle,
                                     ),
                                     child: Icon(
-                                      isMarkedForRemoval ? Icons.undo : Icons.close,
+                                      isMarkedForRemoval
+                                          ? Icons.undo
+                                          : Icons.close,
                                       size: 16,
                                       color: Colors.white,
                                     ),
@@ -715,14 +1151,12 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       )
                     else
                       const Text('Không có hình ảnh'),
-                    
                     const SizedBox(height: 16),
                     const Text(
                       'Hình ảnh mới:',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
-                    
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -734,7 +1168,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                 width: 80,
                                 height: 80,
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey, width: 2),
+                                  border:
+                                      Border.all(color: Colors.grey, width: 2),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: ClipRRect(
@@ -771,13 +1206,14 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                             ],
                           );
                         }).toList(),
-                        
+
                         // Add image button
                         GestureDetector(
                           onTap: () async {
                             final ImagePicker picker = ImagePicker();
-                            final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-                            
+                            final XFile? image = await picker.pickImage(
+                                source: ImageSource.gallery);
+
                             if (image != null) {
                               setState(() {
                                 newFiles.add(File(image.path));
@@ -829,11 +1265,14 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                           ),
                         ),
                       );
-                      
-                      final double refuelAmount = double.tryParse(refuelAmountController.text) ?? 0;
-                      final double fuelCost = double.tryParse(fuelCostController.text) ?? 0;
-                      
-                      final response = await _fuelReportService.updateFuelReport(
+
+                      final double refuelAmount =
+                          double.tryParse(refuelAmountController.text) ?? 0;
+                      final double fuelCost =
+                          double.tryParse(fuelCostController.text) ?? 0;
+
+                      final response =
+                          await _fuelReportService.updateFuelReport(
                         reportId: report['reportId'],
                         refuelAmount: refuelAmount,
                         fuelCost: fuelCost,
@@ -841,21 +1280,23 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                         fileIdsToRemove: fileIdsToRemove.toList(),
                         addedFiles: newFiles,
                       );
-                      
+
                       // Close loading dialog
                       Navigator.pop(context);
                       // Close edit dialog
                       Navigator.pop(context);
-                      
+
                       if (response['status'] == 200) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Cập nhật báo cáo thành công')),
+                          const SnackBar(
+                              content: Text('Cập nhật báo cáo thành công')),
                         );
                         // Reload trip details to see updated fuel reports
                         _loadDetails();
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Lỗi: ${response['message']}')),
+                          SnackBar(
+                              content: Text('Lỗi: ${response['message']}')),
                         );
                       }
                     } catch (e) {
@@ -879,17 +1320,18 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
   }
 
   List<Widget> _buildTripStatusHistory() {
-    final List<dynamic> histories = List.from(_tripDetails!['tripStatusHistories']);
-    
+    final List<dynamic> histories =
+        List.from(_tripDetails!['tripStatusHistories']);
+
     // Sort histories by startTime (chronologically)
     histories.sort((a, b) {
       DateTime aTime = DateTime.parse(a['startTime']);
       DateTime bTime = DateTime.parse(b['startTime']);
       return aTime.compareTo(bTime);
     });
-    
+
     final List<Widget> widgets = [];
-    
+
     for (int i = 0; i < histories.length; i++) {
       final history = histories[i];
       widgets.add(
@@ -914,7 +1356,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                     FutureBuilder<String>(
                       future: _statusService.getStatusName(history['statusId']),
                       builder: (context, snapshot) {
-                        final statusName = snapshot.data ?? _getTripStatusName(history['statusId']);
+                        final statusName = snapshot.data ??
+                            _getTripStatusName(history['statusId']);
                         return Text(
                           statusName,
                           style: const TextStyle(
@@ -938,7 +1381,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
         ),
       );
     }
-    
+
     return widgets;
   }
 
@@ -947,108 +1390,785 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     return _statusService.getStatusNameFallback(status);
   }
 
-  // New method to build incident report card
+  // New method to build incident report card with improved styling
   Widget _buildIncidentReportCard(Map<String, dynamic> report) {
+    // Convert incident type to int for badge coloring
+    final int incidentTypeValue = int.tryParse(report['type']?.toString() ?? '1') ?? 1;
+    final String incidentTypeName = _getIncidentTypeName(incidentTypeValue);
+    
+    // Choose badge color based on type
+    final Color typeBadgeColor = incidentTypeValue == 2 ? Colors.orange : Colors.blue;
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 16.0),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InfoRow(label: 'Mã báo cáo:', value: report['reportId'] ?? 'N/A'),
-            InfoRow(label: 'Loại sự cố:', value: report['incidentType'] ?? 'N/A'),
-            InfoRow(label: 'Mô tả:', value: report['description'] ?? 'N/A'),
-            InfoRow(
-              label: 'Thời gian xảy ra:', 
-              value: DateFormatter.formatDateTimeFromString(report['incidentTime']),
-            ),
-            InfoRow(label: 'Địa điểm:', value: report['location'] ?? 'N/A'),
-            InfoRow(label: 'Trạng thái:', value: report['status'] ?? 'N/A'),
-            
-            if (report['resolutionDetails'] != null && report['resolutionDetails'].toString().isNotEmpty)
-              InfoRow(label: 'Giải pháp:', value: report['resolutionDetails']),
-            
-            if (report['handledBy'] != null && report['handledBy'].toString().isNotEmpty)
-              InfoRow(label: 'Người xử lý:', value: report['handledBy']),
-            
-            if (report['handledTime'] != null)
-              InfoRow(
-                label: 'Thời gian xử lý:', 
-                value: DateFormatter.formatDateTimeFromString(report['handledTime']),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with colored strip or badge showing status and type
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: report['status'] == 'Resolved' ? Colors.green.shade50 : Colors.orange.shade50,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
               ),
-            
-            const SizedBox(height: 12),
-            const Text(
-              'Hình ảnh:',
-              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
-            
-            if (report['incidentReportsFiles'] != null && (report['incidentReportsFiles'] as List).isNotEmpty)
-              SizedBox(
-                height: 100,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: (report['incidentReportsFiles'] as List).length,
-                  itemBuilder: (context, index) {
-                    final file = report['incidentReportsFiles'][index];
-                    return GestureDetector(
-                      onTap: () => _showFullScreenImage(file['fileUrl']),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        width: 100,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            file['fileUrl'],
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return const Center(child: CircularProgressIndicator());
-                            },
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Center(child: Icon(Icons.error)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '#${report['reportId']}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: report['status'] == 'Resolved' ? Colors.green.shade800 : Colors.orange.shade800,
+                    fontSize: 16,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: typeBadgeColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: typeBadgeColor),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        incidentTypeValue == 2 ? Icons.swap_horiz : Icons.handyman,
+                        color: typeBadgeColor,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        incidentTypeName,
+                        style: TextStyle(
+                          color: typeBadgeColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Main content
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InfoRow(
+                  label: 'Loại sự cố:',
+                  value: report['incidentType'] ?? 'N/A',
+                ),
+                InfoRow(label: 'Mô tả:', value: report['description'] ?? 'N/A'),
+                InfoRow(
+                  label: 'Thời gian xảy ra:',
+                  value: DateFormatter.formatDateTimeFromString(
+                      report['incidentTime']),
+                ),
+                InfoRow(label: 'Địa điểm:', value: report['location'] ?? 'N/A'),
+                
+                // Status with colored indicator
+                Row(
+                  children: [
+                    const Text('Trạng thái:', style: TextStyle(color: Colors.black54)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: report['status'] == 'Resolved' ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        report['status'] ?? 'N/A',
+                        style: TextStyle(
+                          color: report['status'] == 'Resolved' ? Colors.green : Colors.orange,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                if (report['resolutionDetails'] != null &&
+                    report['resolutionDetails'].toString().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  InfoRow(
+                    label: 'Giải pháp:',
+                    value: report['resolutionDetails'],
+                  ),
+                ],
+
+                if (report['handledBy'] != null &&
+                    report['handledBy'].toString().isNotEmpty)
+                  InfoRow(label: 'Người xử lý:', value: report['handledBy']),
+
+                if (report['handledTime'] != null)
+                  InfoRow(
+                    label: 'Thời gian xử lý:',
+                    value: DateFormatter.formatDateTimeFromString(
+                        report['handledTime']),
+                  ),
+
+                const SizedBox(height: 12),
+                const Text(
+                  'Hình ảnh:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+
+                if (report['incidentReportsFiles'] != null &&
+                    (report['incidentReportsFiles'] as List).isNotEmpty)
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: (report['incidentReportsFiles'] as List).length,
+                      itemBuilder: (context, index) {
+                        final file = report['incidentReportsFiles'][index];
+                        return GestureDetector(
+                          onTap: () => _showFullScreenImage(file['fileUrl']),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            width: 100,
+                            height: 100,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                file['fileUrl'],
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                },
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Center(child: Icon(Icons.error)),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                else
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text('Không có hình ảnh', style: TextStyle(fontStyle: FontStyle.italic)),
+                    ),
+                  ),
+                
+                const SizedBox(height: 16),
+                
+                // First row of action buttons - Edit and Resolve
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Edit button
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: (_tripDetails!['endTime'] != null || report['status'] == 'Resolved')
+                            ? null
+                            : () => _showEditIncidentDialog(report),
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Chỉnh sửa'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    
+                    // Resolve button - only if not resolved
+                    if (report['status'] != 'Resolved')
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _tripDetails!['endTime'] != null
+                              ? null
+                              : () => _showConfirmIncidentDialog(report),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ColorConstants.primaryColor,
+                            padding: const EdgeInsets.symmetric(vertical: 12.0),
+                          ),
+                          icon: const Icon(Icons.check_circle, color: Colors.white),
+                          label: const Text(
+                            'Xác nhận giải quyết',
+                            style: TextStyle(color: Colors.white),
                           ),
                         ),
                       ),
-                    );
-                  },
+                  ],
                 ),
-              )
-            else
-              const Text('Không có hình ảnh'),
-              
-            // Add confirm button if incident is not resolved and trip is not ended
-            if (report['status'] != 'Resolved' && _tripDetails!['endTime'] == null)
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0),
-                child: Center(
-                  child: ElevatedButton(
-                    onPressed: () => _showConfirmIncidentDialog(report),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ColorConstants.primaryColor,
-                    ),
-                    child: const Text(
-                      'Xác nhận đã giải quyết',
-                      style: TextStyle(color: Colors.white),
+                
+                // Add second row of action buttons for billing and resolution images
+                // Only show if incident is not resolved yet
+                if (report['status'] != 'Resolved' && _tripDetails!['endTime'] == null) ...[
+                  const SizedBox(height: 16),
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // Upload billing images button - enhanced design
+                        Expanded(
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => _showUploadBillingImagesDialog(report),
+                              borderRadius: BorderRadius.circular(10),
+                              splashColor: Colors.orange.withOpacity(0.3),
+                              child: Ink(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Colors.orange.shade200, Colors.orange.shade100],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.orange.shade300),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.orange.shade100,
+                                      offset: const Offset(0, 2),
+                                      blurRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.receipt_long,
+                                        color: Colors.orange.shade800,
+                                        size: 28,
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Hóa đơn chi phí',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.orange.shade800,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(width: 16),
+                        
+                        // Upload exchange/resolution images button - enhanced design
+                        Expanded(
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => _showUploadExchangeImagesDialog(report),
+                              borderRadius: BorderRadius.circular(10),
+                              splashColor: Colors.green.withOpacity(0.3),
+                              child: Ink(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Colors.green.shade200, Colors.green.shade100],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.green.shade300),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.green.shade100,
+                                      offset: const Offset(0, 2),
+                                      blurRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.photo_camera,
+                                        color: Colors.green.shade800,
+                                        size: 28,
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Ảnh giải quyết',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.green.shade800,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ),
-          ],
-        ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
-  
+
+  void _showEditIncidentDialog(Map<String, dynamic> report) {
+    // Check if incident is already resolved - prevent editing
+    if (report['status'] == 'Resolved') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không thể chỉnh sửa sự cố đã được giải quyết'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    // Initialize controllers with existing values
+    final TextEditingController incidentTypeController = TextEditingController(
+      text: report['incidentType'] ?? '',
+    );
+    final TextEditingController descriptionController = TextEditingController(
+      text: report['description'] ?? '',
+    );
+    final TextEditingController locationController = TextEditingController(
+      text: report['location'] ?? '',
+    );
+
+    // Initialize incident resolution type (default to 1 if not present)
+    int selectedIncidentType = report['type'] != null ? 
+        int.tryParse(report['type'].toString()) ?? 1 : 1;
+
+    // Track images to keep or remove
+    final List<Map<String, dynamic>> existingFiles =
+        List<Map<String, dynamic>>.from(report['incidentReportsFiles'] ?? []);
+    final Set<String> fileIdsToRemove = {};
+    final List<File> newFiles = [];
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Chỉnh sửa báo cáo sự cố'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: incidentTypeController,
+                      decoration: const InputDecoration(
+                          labelText: 'Loại sự cố'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      decoration:
+                          const InputDecoration(labelText: 'Mô tả'),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: locationController,
+                      decoration: const InputDecoration(labelText: 'Địa điểm'),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Add incident resolution type selector with horizontal layout
+                    const Text(
+                      'Cách xử lý sự cố:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.grey.shade50,
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                      child: Row(
+                        children: [
+                          // Option 1: Xử lý tại chỗ
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedIncidentType = 1;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: selectedIncidentType == 1 ? Colors.blue.shade100 : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: selectedIncidentType == 1 ? Colors.blue : Colors.transparent,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Radio<int>(
+                                      value: 1,
+                                      groupValue: selectedIncidentType,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          selectedIncidentType = value!;
+                                        });
+                                      },
+                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Flexible(
+                                      child: Text(
+                                        'Xử lý tại chỗ',
+                                        style: TextStyle(fontSize: 13),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          
+                          const SizedBox(width: 8),
+                          
+                          // Option 2: Thay xe
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedIncidentType = 2;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: selectedIncidentType == 2 ? Colors.orange.shade100 : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: selectedIncidentType == 2 ? Colors.orange : Colors.transparent,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Radio<int>(
+                                      value: 2,
+                                      groupValue: selectedIncidentType,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          selectedIncidentType = value!;
+                                        });
+                                      },
+                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Flexible(
+                                      child: Text(
+                                        'Thay xe',
+                                        style: TextStyle(fontSize: 13),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    const Text(
+                      'Hình ảnh hiện tại:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    if (existingFiles.isNotEmpty)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: existingFiles.map((file) {
+                          final bool isMarkedForRemoval =
+                              fileIdsToRemove.contains(file['fileId']);
+                          return Stack(
+                            children: [
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: isMarkedForRemoval
+                                        ? Colors.red
+                                        : Colors.grey,
+                                    width: 2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Opacity(
+                                    opacity: isMarkedForRemoval ? 0.5 : 1.0,
+                                    child: Image.network(
+                                      file['fileUrl'],
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      if (isMarkedForRemoval) {
+                                        fileIdsToRemove.remove(file['fileId']);
+                                      } else {
+                                        fileIdsToRemove.add(file['fileId']);
+                                      }
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: isMarkedForRemoval
+                                          ? Colors.green
+                                          : Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      isMarkedForRemoval
+                                          ? Icons.undo
+                                          : Icons.close,
+                                      size: 16,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      )
+                    else
+                      const Text('Không có hình ảnh'),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Thêm hình ảnh mới:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ...newFiles.map((file) {
+                          return Stack(
+                            children: [
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  border:
+                                      Border.all(color: Colors.grey, width: 2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Image.file(
+                                    file,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      newFiles.remove(file);
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      size: 16,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+
+                        // Add image button
+                        GestureDetector(
+                          onTap: () async {
+                            final ImagePicker picker = ImagePicker();
+                            final XFile? image = await picker.pickImage(
+                                source: ImageSource.gallery);
+
+                            if (image != null) {
+                              setState(() {
+                                newFiles.add(File(image.path));
+                              });
+                            }
+                          },
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey, width: 2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.add_a_photo, size: 30),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Hủy'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    try {
+                      // Show loading dialog
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => AlertDialog(
+                          contentPadding: const EdgeInsets.all(20),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          content: SizedBox(
+                            width: 250,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 16),
+                                Text('Đang cập nhật báo cáo...'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+
+                      final response = await _incidentReportService.updateIncidentReport(
+                        reportId: report['reportId'],
+                        incidentType: incidentTypeController.text.isNotEmpty ? 
+                            incidentTypeController.text : null,
+                        description: descriptionController.text.isNotEmpty ? 
+                            descriptionController.text : null,
+                        location: locationController.text.isNotEmpty ? 
+                            locationController.text : null,
+                        type: selectedIncidentType, // Pass the selected incident type
+                        fileIdsToRemove: fileIdsToRemove.isEmpty ? null : fileIdsToRemove.toList(),
+                        addedFiles: newFiles.isEmpty ? null : newFiles,
+                      );
+
+                      // Close loading dialog
+                      Navigator.pop(context);
+                      
+                      // Close edit dialog
+                      Navigator.pop(context);
+
+                      if (response['status'] == 1 || response['status'] == 200) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Cập nhật báo cáo thành công')),
+                        );
+                        // Reload trip details to see updated incident reports
+                        _loadDetails();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text('Lỗi: ${response['message']}')),
+                        );
+                      }
+                    } catch (e) {
+                      // Close loading dialog if still open
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Lỗi: $e')),
+                      );
+                    }
+                  },
+                  child: const Text('Lưu'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   // Add method to show incident confirmation dialog
   void _showConfirmIncidentDialog(Map<String, dynamic> report) {
+    // Check if incident is already resolved
+    if (report['status'] == 'Resolved') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sự cố đã được giải quyết'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
     final TextEditingController resolutionController = TextEditingController();
     final List<File> resolutionImages = []; // Type 2 (resolution proof)
-    
+
     // Open dialog with simple content first, then expand it with setState
     showDialog(
       context: context,
@@ -1075,12 +2195,10 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       const Text(
                         'Xác nhận giải quyết sự cố',
                         style: TextStyle(
-                          fontSize: 18, 
-                          fontWeight: FontWeight.bold
-                        ),
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Make content scrollable to prevent overflow
                       Flexible(
                         child: SingleChildScrollView(
@@ -1098,38 +2216,49 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                 maxLines: 3,
                               ),
                               const SizedBox(height: 16),
-                              
+
                               // Existing images section
                               const Text(
                                 'Hình ảnh hiện tại:',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 8),
-                              
-                              if (report['incidentReportsFiles'] != null && 
-                                  (report['incidentReportsFiles'] as List).isNotEmpty)
+
+                              if (report['incidentReportsFiles'] != null &&
+                                  (report['incidentReportsFiles'] as List)
+                                      .isNotEmpty)
                                 SizedBox(
                                   height: 80,
                                   child: ListView.builder(
                                     scrollDirection: Axis.horizontal,
-                                    itemCount: (report['incidentReportsFiles'] as List).length,
+                                    itemCount:
+                                        (report['incidentReportsFiles'] as List)
+                                            .length,
                                     itemBuilder: (context, index) {
-                                      final file = report['incidentReportsFiles'][index];
+                                      final file =
+                                          report['incidentReportsFiles'][index];
                                       return Container(
                                         margin: const EdgeInsets.only(right: 8),
                                         width: 80,
                                         height: 80,
                                         child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                           child: Image.network(
                                             file['fileUrl'],
                                             fit: BoxFit.cover,
-                                            loadingBuilder: (context, child, loadingProgress) {
-                                              if (loadingProgress == null) return child;
-                                              return const Center(child: CircularProgressIndicator());
+                                            loadingBuilder: (context, child,
+                                                loadingProgress) {
+                                              if (loadingProgress == null)
+                                                return child;
+                                              return const Center(
+                                                  child:
+                                                      CircularProgressIndicator());
                                             },
-                                            errorBuilder: (context, error, stackTrace) =>
-                                                const Center(child: Icon(Icons.error)),
+                                            errorBuilder: (context, error,
+                                                    stackTrace) =>
+                                                const Center(
+                                                    child: Icon(Icons.error)),
                                           ),
                                         ),
                                       );
@@ -1139,60 +2268,12 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                               else
                                 const Text('Không có hình ảnh'),
 
-                              const SizedBox(height: 16),
-                              
-                              // Resolution images (Type 2)
-                              const Text(
-                                'Hình ảnh kết quả giải quyết:',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 8),
-                              
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  ...resolutionImages.map((file) => _buildImagePreview(
-                                    file, 
-                                    ColorConstants.primaryColor,
-                                    () {
-                                      setDialogState(() {
-                                        resolutionImages.remove(file);
-                                      });
-                                    }
-                                  )).toList(),
-                                  
-                                  // Add image button
-                                  GestureDetector(
-                                    onTap: () async {
-                                      final ImagePicker picker = ImagePicker();
-                                      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-                                      if (image != null) {
-                                        setDialogState(() {
-                                          resolutionImages.add(File(image.path));
-                                        });
-                                      }
-                                    },
-                                    child: Container(
-                                      width: 80,
-                                      height: 80,
-                                      decoration: BoxDecoration(
-                                        border: Border.all(
-                                          color: ColorConstants.primaryColor,
-                                          width: 2
-                                        ),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(Icons.add_a_photo, size: 30),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              const SizedBox(height: 16),                        
                             ],
                           ),
                         ),
                       ),
-                      
+
                       // Dialog buttons
                       const SizedBox(height: 16),
                       Row(
@@ -1204,7 +2285,10 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
-                            onPressed: () => _confirmIncidentResolution(
+                            // Only enable if incident hasn't been resolved yet
+                            onPressed: report['status'] == 'Resolved' 
+                                ? null 
+                                : () => _confirmIncidentResolution(
                               context,
                               report,
                               resolutionController.text,
@@ -1224,9 +2308,10 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       },
     );
   }
-  
+
   // Helper method to build image preview
-  Widget _buildImagePreview(File file, Color borderColor, VoidCallback onRemove) {
+  Widget _buildImagePreview(
+      File file, Color borderColor, VoidCallback onRemove) {
     return Stack(
       children: [
         Container(
@@ -1263,14 +2348,25 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       ],
     );
   }
-  
-  // Helper method to handle confirmation action
+
+  // Helper method to handle confirmation action - modified to make images optional
   void _confirmIncidentResolution(
     BuildContext context,
     Map<String, dynamic> report,
     String resolutionDetails,
     List<File> resolutionImages,
   ) async {
+    // Double-check if incident is already resolved
+    if (report['status'] == 'Resolved') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sự cố đã được giải quyết'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
     try {
       // Show a simple loading dialog
       showDialog(
@@ -1290,24 +2386,35 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
         ),
       );
       
-      final now = DateTime.now();
-      
-      // Make API call with resolution images - type is handled within the API
-      final response = await _incidentReportService.updateIncidentReport(
+      // Call the API endpoint to set the incident as resolved
+      // Images are now optional - only upload if there are any
+      final response = await _incidentReportService.resolveIncidentReport(
         reportId: report['reportId'],
-        tripId: widget.tripId,
-        incidentType: report['incidentType'] ?? '',
-        description: report['description'] ?? '',
-        location: report['location'] ?? '',
-        status: 'Resolved',
         resolutionDetails: resolutionDetails,
-        handledBy: 'Driver',
-        handledTime: now,
-        resolutionImages: resolutionImages,
-        type: 2, // General type for the report
+        resolutionImages: resolutionImages.isNotEmpty ? resolutionImages : null,
       );
-      
-      _handleApiResponse(context, response);
+
+      // Close loading dialog
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      // Close confirmation dialog
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      if (response['status'] == 1 || response['status'] == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Xác nhận giải quyết sự cố thành công')),
+        );
+        // Reload trip details
+        _loadDetails();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: ${response['message']}')),
+        );
+      }
     } catch (e) {
       // Close loading dialog if open
       if (Navigator.canPop(context)) {
@@ -1318,82 +2425,732 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       );
     }
   }
-  
-  // Helper method to handle API response
-  void _handleApiResponse(BuildContext context, Map<String, dynamic> response) {
-    // Close loading dialogs
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
+
+  // New method to show dialog for uploading billing images
+  void _showUploadBillingImagesDialog(Map<String, dynamic> report) {
+    // Check if incident is already resolved
+    if (report['status'] == 'Resolved') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không thể tải hình ảnh khi sự cố đã được giải quyết'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
     
-    // Close confirmation dialog
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
-    
-    if (response['status'] == 1 || response['status'] == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Xác nhận giải quyết sự cố thành công')),
-      );
-      // Reload trip details
-      _loadDetails();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: ${response['message']}')),
-      );
-    }
+    final List<File> billingImages = [];
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.9,
+                constraints: BoxConstraints(
+                  maxWidth: 500,
+                  maxHeight: MediaQuery.of(context).size.height * 0.7,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Dialog Title
+                      const Text(
+                        'Tải lên hóa đơn sự cố',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Make content scrollable to prevent overflow
+                      Flexible(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Show selected billing images
+                              const Text(
+                                'Hình ảnh hóa đơn:',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  ...billingImages
+                                      .map((file) => _buildImagePreview(
+                                          file, Colors.orange, () {
+                                        setDialogState(() {
+                                          billingImages.remove(file);
+                                        });
+                                      }))
+                                      .toList(),
+
+                                  // Add image button
+                                  GestureDetector(
+                                    onTap: () async {
+                                      final ImagePicker picker = ImagePicker();
+                                      final XFile? image = await picker.pickImage(
+                                          source: ImageSource.gallery);
+                                      if (image != null) {
+                                        setDialogState(() {
+                                          billingImages.add(File(image.path));
+                                        });
+                                      }
+                                    },
+                                    child: Container(
+                                      width: 80,
+                                      height: 80,
+decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: Colors.orange, width: 2),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.add_a_photo,
+                                          size: 30, color: Colors.orange),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Lưu ý: Vui lòng tải lên các hình ảnh hóa đơn liên quan đến sự cố này.',
+                                style: TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              // Add warning message about refunds
+                              const Text(
+                                'QUAN TRỌNG: Nếu hình ảnh không phù hợp hoặc không rõ ràng, bạn sẽ không được hoàn tiền!',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Dialog buttons
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Hủy'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: billingImages.isEmpty
+                                ? null // Disable if no images selected
+                                : () => _uploadBillingImages(
+                                      context,
+                                      report['reportId'],
+                                      billingImages,
+                                    ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              disabledBackgroundColor: Colors.grey,
+                            ),
+                            child: const Text(
+                              'Tải lên',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
-  
-  // Helper method to handle API response
-  void _handleIncidentUpdateResponse(BuildContext context, Map<String, dynamic> response) {
-    // Close the loading dialog if it's still open
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
-    
-    // Close the confirmation dialog if it's still open
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
-    
-    if (response['status'] == 1 || response['status'] == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Xác nhận giải quyết sự cố thành công')),
+
+  // Method to upload billing images
+  Future<void> _uploadBillingImages(
+    BuildContext context,
+    String reportId,
+    List<File> images,
+  ) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Dialog(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text("Đang tải lên hóa đơn..."),
+              ],
+            ),
+          ),
+        ),
       );
-      // Reload trip details
-      _loadDetails();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: ${response['message']}')),
-      );  // Add this helper method near the start of your class
 
+      // Upload the images
+      final response = await _incidentReportService.uploadBillingImages(
+        reportId: reportId,
+        images: images,
+      );
 
-
-
-}  }    }  Map<String, dynamic> _convertToStringKeyMap(dynamic item) {
-    if (item is Map) {
-      return item.map<String, dynamic>((key, value) {
-        if (value is Map) {
-          return MapEntry(key.toString(), _convertToStringKeyMap(value));
-        } else if (value is List) {
-          return MapEntry(key.toString(), _convertListItems(value));
-        } else {
-          return MapEntry(key.toString(), value);
-        }
-      });
-    }
-    return <String, dynamic>{};
-  }
-
-  List<dynamic> _convertListItems(List items) {
-    return items.map((item) {
-      if (item is Map) {
-        return _convertToStringKeyMap(item);
-      } else if (item is List) {
-        return _convertListItems(item);
-      } else {
-        return item;
+      // Close loading dialog
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
       }
-    }).toList();
+
+      // Close upload dialog
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      // Show result message
+      if (response['status'] == 1) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tải lên hóa đơn thành công')),
+        );
+        // Reload data to show updated images
+        _loadDetails();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: ${response['message']}')),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if open
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: $e')),
+      );
+    }
   }
 
+  // New method to show dialog for uploading exchange/resolution images
+  void _showUploadExchangeImagesDialog(Map<String, dynamic> report) {
+    // Check if incident is already resolved
+    if (report['status'] == 'Resolved') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không thể tải hình ảnh khi sự cố đã được giải quyết'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    final List<File> exchangeImages = [];
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.9,
+                constraints: BoxConstraints(
+                  maxWidth: 500,
+                  maxHeight: MediaQuery.of(context).size.height * 0.7,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Dialog Title
+                      const Text(
+                        'Tải lên hình ảnh giải quyết',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Make content scrollable to prevent overflow
+                      Flexible(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Show selected exchange images
+                              const Text(
+                                'Hình ảnh giải quyết:',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  ...exchangeImages
+                                      .map((file) => _buildImagePreview(
+                                          file, Colors.green, () {
+                                        setDialogState(() {
+                                          exchangeImages.remove(file);
+                                        });
+                                      }))
+                                      .toList(),
+
+                                  // Add image button
+                                  GestureDetector(
+                                    onTap: () async {
+                                      final ImagePicker picker = ImagePicker();
+                                      final XFile? image = await picker.pickImage(
+                                          source: ImageSource.gallery);
+                                      if (image != null) {
+                                        setDialogState(() {
+                                          exchangeImages.add(File(image.path));
+                                        });
+                                      }
+                                    },
+                                    child: Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: Colors.green, width: 2),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.add_a_photo,
+                                          size: 30, color: Colors.green),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Lưu ý: Vui lòng tải lên các hình ảnh cho thấy đã giải quyết sự cố.',
+                                style: TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              // Add warning message about refunds
+                              const Text(
+                                'QUAN TRỌNG: Nếu hình ảnh không phù hợp hoặc không rõ ràng, bạn sẽ không được hoàn tiền!',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Dialog buttons
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Hủy'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: exchangeImages.isEmpty
+                                ? null // Disable if no images selected
+                                : () => _uploadExchangeImages(
+                                      context,
+                                      report['reportId'],
+                                      exchangeImages,
+                                    ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              disabledBackgroundColor: Colors.grey,
+                            ),
+                            child: const Text(
+                              'Tải lên',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Method to upload exchange/resolution images
+  Future<void> _uploadExchangeImages(
+    BuildContext context,
+    String reportId,
+    List<File> images,
+  ) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Dialog(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text("Đang tải lên hình ảnh giải quyết..."),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Upload the images
+      final response = await _incidentReportService.uploadExchangeImages(
+        reportId: reportId,
+        images: images,
+      );
+
+      // Close loading dialog
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      // Close upload dialog
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      // Show result message
+      if (response['status'] == 1) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tải lên hình ảnh giải quyết thành công')),
+        );
+        // Reload data to show updated images
+        _loadDetails();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: ${response['message']}')),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if open
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: $e')),
+      );
+    }
+  }
+
+  // Helper method to convert incident type code to readable text
+  String _getIncidentTypeName(dynamic incidentType) {
+    if (incidentType == null) return 'N/A';
+    
+    switch (int.tryParse(incidentType.toString()) ?? 0) {
+      case 1:
+        return 'Xử lý tại chỗ';
+      case 2:
+        return 'Thay xe';
+      default:
+        return 'Không xác định';
+    }
+  }
+  
+  // Enhanced delivery report card with better styling
+  Widget _buildDeliveryReportCard(Map<String, dynamic> report) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16.0),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with colored accent
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(15),
+                topRight: Radius.circular(15),
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.receipt_long,
+                  color: Colors.green,
+                  size: 24,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Báo cáo giao hàng',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        DateFormatter.formatDateTimeFromString(report['reportTime']),
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.green.withOpacity(0.5)),
+                  ),
+                  child: Text(
+                    report['reportBy'] ?? 'N/A',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Main content
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Notes section with decorative container
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.notes, color: Colors.grey, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Ghi chú',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        report['notes'] ?? 'Không có ghi chú',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: report['notes'] != null ? FontWeight.w500 : FontWeight.normal,
+                          fontStyle: report['notes'] != null ? FontStyle.normal : FontStyle.italic,
+                          color: report['notes'] != null ? Colors.black87 : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Images section
+                if (report['deliveryReportsFiles'] != null &&
+                    (report['deliveryReportsFiles'] as List).isNotEmpty) ...[
+                  const Row(
+                    children: [
+                      Icon(Icons.photo_library, size: 18, color: Colors.grey),
+                      SizedBox(width: 8),
+                      Text(
+                        'Hình ảnh xác nhận',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 120,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: (report['deliveryReportsFiles'] as List).length,
+                      itemBuilder: (context, index) {
+                        final file = report['deliveryReportsFiles'][index];
+                        return GestureDetector(
+                          onTap: () => _showFullScreenImage(file['fileUrl']),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 10),
+                            width: 120,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade300),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.shade200,
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.network(
+                                      file['fileUrl'],
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return Center(
+                                          child: CircularProgressIndicator(
+                                            value: loadingProgress.expectedTotalBytes != null
+                                                ? loadingProgress.cumulativeBytesLoaded /
+                                                    loadingProgress.expectedTotalBytes!
+                                                : null,
+                                          ),
+                                        );
+                                      },
+                                      errorBuilder: (context, error, stackTrace) =>
+                                          const Center(
+                                            child: Icon(Icons.error, color: Colors.red),
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                                // Add a small badge showing the file type if available
+                                if (file['fileType'] != null)
+                                  Positioned(
+                                    right: 5,
+                                    bottom: 5,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.6),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        file['fileType'],
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ] else
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      child: Column(
+                        children: [
+                          Icon(Icons.no_photography, color: Colors.grey.shade400, size: 40),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Không có hình ảnh xác nhận giao hàng',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  
+}
+
+Map<String, dynamic> _convertToStringKeyMap(dynamic item) {
+  if (item is Map) {
+    return item.map<String, dynamic>((key, value) {
+      if (value is Map) {
+        return MapEntry(key.toString(), _convertToStringKeyMap(value));
+      } else if (value is List) {
+        return MapEntry(key.toString(), _convertListItems(value));
+      } else {
+        return MapEntry(key.toString(), value);
+      }
+    });
+  }
+  return <String, dynamic>{};
+}
+
+List<dynamic> _convertListItems(List items) {
+  return items.map((item) {
+    if (item is Map) {
+      return _convertToStringKeyMap(item);
+    } else if (item is List) {
+      return _convertListItems(item);
+    } else {
+      return item;
+    }
+  }).toList();
+}
