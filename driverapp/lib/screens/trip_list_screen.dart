@@ -138,15 +138,50 @@ class _TripListScreenState extends State<TripListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(getScreenTitle()),
+        elevation: 0,
+        backgroundColor: ColorConstants.primaryColor,
       ),
       body: RefreshIndicator(
         onRefresh: _loadTrips,
+        color: ColorConstants.accentColor,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _errorMessage.isNotEmpty
-                ? Center(child: Text(_errorMessage))
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text(
+                          _errorMessage,
+                          style: const TextStyle(fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  )
                 : _trips.isEmpty
-                    ? const Center(child: Text('Không có trip nào'))
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.horizontal_rule,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Không có trip nào',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
                     : ListView.builder(
                         padding: const EdgeInsets.all(16.0),
                         itemCount: _trips.length,
@@ -181,68 +216,96 @@ class _TripCardState extends State<TripCard> {
   final TripService _tripService = TripService();
   final DeliveryStatusService _statusService = DeliveryStatusService();
   
-  // Add a static cache to store next status information
-  static final Map<String, DeliveryStatus> _nextStatusCache = {};
+  // Cache all statuses instead of just next status
+  static List<DeliveryStatus>? _allStatuses;
   
-  // Add state variables to track loading status and final status
-  bool _isLoadingNextStatus = false;
+  // Add state variables to track loading status and next status
+  bool _isLoadingStatuses = false;
   DeliveryStatus? _nextStatus;
   bool _isFinalStatus = false;
   
   @override
   void initState() {
     super.initState();
-    // Pre-load next status information if not in cache
-    if (widget.trip.status != 'completed' && !_nextStatusCache.containsKey(widget.trip.status)) {
-      _loadNextStatus();
-    } else if (_nextStatusCache.containsKey(widget.trip.status)) {
-      _nextStatus = _nextStatusCache[widget.trip.status];
-      _checkIfFinalStatus();
+    // Load all statuses if not already cached
+    if (_allStatuses == null) {
+      _loadAllStatuses();
+    } else {
+      _determineNextStatus();
     }
   }
   
-  // Method to check if the next status is the final status
-  void _checkIfFinalStatus() {
-    // Check if there will be no further status after this one
-    _statusService.hasNextStatus(_nextStatus?.statusId ?? '').then((hasNext) {
-      if (mounted) {
-        setState(() {
-          _isFinalStatus = !hasNext;
-        });
-      }
-    });
-  }
-  
-  // Method to load next status
-  Future<void> _loadNextStatus() async {
+  // Method to load all delivery statuses
+  Future<void> _loadAllStatuses() async {
     if (widget.trip.status == 'completed') return;
     
     setState(() {
-      _isLoadingNextStatus = true;
+      _isLoadingStatuses = true;
     });
     
     try {
-      final nextStatus = await _statusService.getNextTripStatus(widget.trip.status);
-      if (nextStatus != null) {
-        // Store in cache for future use
-        _nextStatusCache[widget.trip.status] = nextStatus;
-      }
+      // Use the delivery status service to get all statuses
+      final statuses = await _statusService.getAllDeliveryStatuses();
+      
+      // Store all statuses in cache
+      _allStatuses = statuses;
       
       if (mounted) {
         setState(() {
-          _nextStatus = nextStatus;
-          _isLoadingNextStatus = false;
+          _isLoadingStatuses = false;
         });
         
-        // Check if this is the final status
-        _checkIfFinalStatus();
+        // Determine next status based on all statuses
+        _determineNextStatus();
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _isLoadingNextStatus = false;
+          _isLoadingStatuses = false;
         });
       }
+    }
+  }
+  
+  // Method to determine next status based on statusIndex
+  void _determineNextStatus() {
+    if (_allStatuses == null || widget.trip.status == 'completed') {
+      _isFinalStatus = (widget.trip.status == 'completed');
+      return;
+    }
+    
+    // Find current status in the list
+    DeliveryStatus? currentStatus;
+    for (var status in _allStatuses!) {
+      if (status.statusId == widget.trip.status) {
+        currentStatus = status;
+        break;
+      }
+    }
+    
+    if (currentStatus == null) return;
+    
+    // Current status index
+    int currentIndex = currentStatus.statusIndex;
+    
+    // Find the next status with the next index
+    DeliveryStatus? nextStatus;
+    for (var status in _allStatuses!) {
+      // Find normal flow status (not canceled or delaying) with next index
+      if (status.statusId != 'canceled' && 
+          status.statusId != 'delaying' && 
+          status.statusIndex == currentIndex + 1) {
+        nextStatus = status;
+        break;
+      }
+    }
+    
+    if (mounted) {
+      setState(() {
+        _nextStatus = nextStatus;
+        // If current status is the highest index or is completed
+        _isFinalStatus = (nextStatus == null || widget.trip.status == 'completed');
+      });
     }
   }
   
@@ -287,81 +350,256 @@ class _TripCardState extends State<TripCard> {
   
   @override
   Widget build(BuildContext context) {
+    Color statusColor;
+    IconData statusIcon;
+    
+    // Determine status color and icon based on trip status
+    switch (widget.trip.status) {
+      case 'not_started':
+        statusColor = Colors.blue;
+        statusIcon = Icons.schedule;
+        break;
+      case 'in_progress':
+      case 'loading':
+      case 'delivering':
+        statusColor = Colors.orange;
+        statusIcon = Icons.directions_car;
+        break;
+      case 'completed':
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+        break;
+      case 'delaying':
+        statusColor = Colors.amber;
+        statusIcon = Icons.hourglass_bottom;
+        break;
+      case 'canceled':
+        statusColor = Colors.red;
+        statusIcon = Icons.cancel;
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusIcon = Icons.help_outline;
+    }
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 16.0),
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: statusColor.withOpacity(0.3), width: 1),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Trip: ${widget.trip.tripId}',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+      child: Column(
+        children: [
+          // Header with status indicator
+          Container(
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             ),
-            const SizedBox(height: 8),
-            InfoRow(label: 'Order ID:', value: widget.trip.orderId),
-            InfoRow(label: 'Trạng thái:', value: widget.trip.statusName),
-            InfoRow(
-              label: 'Thời gian bắt đầu:', 
-              value: DateFormatter.formatDateTime(widget.trip.startTime),
-            ),
-            InfoRow(
-              label: 'Thời gian kết thúc:', 
-              value: DateFormatter.formatDateTime(widget.trip.endTime),
-            ),
-            
-            // Add buttons row
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            child: Row(
               children: [
-                // Order details button
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => OrderDetailScreen(tripId: widget.trip.tripId),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.inventory, size: 18),
-                  label: const Text('Xem Order'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ColorConstants.primaryColor,
+                Icon(statusIcon, color: statusColor),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Trip: ${widget.trip.tripId}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                    ),
                   ),
                 ),
-                
-                // Trip details and update button
-                ElevatedButton.icon(
-                  onPressed: () {
-                    _showTripDetailAndUpdateOptions();
-                  },
-                  icon: const Icon(Icons.directions_car, size: 18),
-                  label: const Text('Quản lý Trip'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ColorConstants.accentColor,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    widget.trip.statusName,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          
+          // Trip details
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Fix: Remove custom styling parameters from InfoRow
+                InfoRow(
+                  label: 'Order ID:', 
+                  value: widget.trip.orderId,
+                ),
+                const SizedBox(height: 8),
+                
+                // Fix: Replace InfoRow with custom Row for start time
+                Row(
+                  children: [
+                    const Icon(Icons.access_time, color: Colors.green, size: 16),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Thời gian bắt đầu:',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormatter.formatDateTime(widget.trip.startTime),
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                
+                // Fix: Replace InfoRow with custom Row for end time
+                Row(
+                  children: [
+                    const Icon(Icons.access_time, color: Colors.red, size: 16),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Thời gian kết thúc:',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormatter.formatDateTime(widget.trip.endTime),
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+                
+                // Add buttons row - smaller and more harmonious design
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    // Order details button - compact styling
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => OrderDetailScreen(tripId: widget.trip.tripId),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: ColorConstants.primaryColor.withOpacity(0.07),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: ColorConstants.primaryColor.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: ColorConstants.primaryColor.withOpacity(0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.inventory,
+                                  color: ColorConstants.primaryColor,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Xem Order',
+                                style: TextStyle(
+                                  color: ColorConstants.primaryColor,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(width: 10),
+                    
+                    // Trip details and update button - compact styling
+                    Expanded(
+                      child: InkWell(
+                        onTap: () {
+                          _showTripDetailAndUpdateOptions();
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: ColorConstants.accentColor.withOpacity(0.07),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: ColorConstants.accentColor.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: ColorConstants.accentColor.withOpacity(0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.directions_car,
+                                  color: ColorConstants.accentColor,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Quản lý Trip',
+                                style: TextStyle(
+                                  color: ColorConstants.accentColor,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   void _showTripDetailAndUpdateOptions() {
-    // If we don't have next status yet and trip isn't completed, try loading it
-    if (_nextStatus == null && widget.trip.status != 'completed' && !_isLoadingNextStatus) {
-      _loadNextStatus();
+    // Update this section to use the new approach
+    if (_allStatuses == null && widget.trip.status != 'completed' && !_isLoadingStatuses) {
+      _loadAllStatuses();
+    } else if (_allStatuses != null && _nextStatus == null && widget.trip.status != 'completed') {
+      _determineNextStatus();
     }
     
     showModalBottomSheet(
@@ -380,6 +618,19 @@ class _TripCardState extends State<TripCard> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Handle bar for dragging
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 8, bottom: 4),
+                    height: 4,
+                    width: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                
                 // Header with trip ID
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -390,13 +641,25 @@ class _TripCardState extends State<TripCard> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Chi tiết Trip: ${widget.trip.tripId}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Trip: ${widget.trip.tripId}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Order: ${widget.trip.orderId}',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, color: Colors.white),
@@ -417,25 +680,29 @@ class _TripCardState extends State<TripCard> {
                         'Trạng thái hiện tại:',
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade100,
+                          color: Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.info, color: Colors.blue),
-                            const SizedBox(width: 8),
-                            Text(
-                              widget.trip.statusName,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                            Icon(Icons.info, color: Colors.blue.shade700),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                widget.trip.statusName,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade700,
+                                ),
                               ),
                             ),
                           ],
@@ -445,7 +712,9 @@ class _TripCardState extends State<TripCard> {
                       const SizedBox(height: 24),
                       
                       // Update status button (if not completed)
-                      if (widget.trip.status != 'completed')
+                      if (widget.trip.status != 'completed' && 
+                          widget.trip.status != 'delaying' && 
+                          widget.trip.status != 'canceled')
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -453,15 +722,31 @@ class _TripCardState extends State<TripCard> {
                               'Cập nhật trạng thái:',
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            _isLoadingNextStatus
-                                ? const Center(child: CircularProgressIndicator())
+                            const SizedBox(height: 10),
+                            _isLoadingStatuses
+                                ? const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(16.0),
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  )
                                 : _nextStatus == null
-                                    ? const Center(child: Text('Không thể cập nhật trạng thái'))
-                                    : SizedBox(
+                                    ? Center(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16.0),
+                                          child: Text(
+                                            'Không thể cập nhật trạng thái',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : Container(
                                         width: double.infinity,
                                         child: ElevatedButton.icon(
                                           onPressed: () => _updateTripStatus(
@@ -472,85 +757,78 @@ class _TripCardState extends State<TripCard> {
                                           icon: const Icon(Icons.arrow_forward),
                                           label: Text('Cập nhật thành: ${_nextStatus!.statusName}'),
                                           style: ElevatedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(vertical: 12),
-                                            textStyle: const TextStyle(fontSize: 16),
+                                            backgroundColor: ColorConstants.accentColor,
+                                            padding: const EdgeInsets.symmetric(vertical: 14),
+                                            textStyle: const TextStyle(
+                                              fontSize: 16, 
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
                                       ),
                           ],
                         ),
                       
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 8),
                       
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
+                      const Text(
+                        'Tuỳ chọn khác:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      _buildActionButton(
+                        label: 'Xem chi tiết đầy đủ',
+                        icon: Icons.visibility,
+                        color: Colors.blue,
+                        onPressed: () {
+                          Navigator.pop(context); // Close sheet
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TripDetailScreen(tripId: widget.trip.tripId),
+                            ),
+                          );
+                        },
+                      ),
+                      
+                      if (widget.trip.status != 'not_started' && widget.trip.status != 'completed') ...[
+                        const SizedBox(height: 12),
+                        _buildActionButton(
+                          label: 'Báo cáo đổ nhiên liệu',
+                          icon: Icons.local_gas_station,
+                          color: Colors.orange,
                           onPressed: () {
                             Navigator.pop(context); // Close sheet
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => TripDetailScreen(tripId: widget.trip.tripId),
+                                builder: (context) => FuelReportScreen(tripId: widget.trip.tripId),
                               ),
                             );
                           },
-                          icon: const Icon(Icons.visibility),
-                          label: const Text('Xem chi tiết đầy đủ'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            textStyle: const TextStyle(fontSize: 16),
-                          ),
-                        ),
-                      ),
-                      
-                      if (widget.trip.status != 'not_started' && widget.trip.status != 'completed') ...[
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context); // Close sheet
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => FuelReportScreen(tripId: widget.trip.tripId),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.local_gas_station, color: Colors.orange),
-                            label: const Text('Báo cáo đổ nhiên liệu'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              textStyle: const TextStyle(fontSize: 16),
-                              foregroundColor: Colors.orange,
-                              side: const BorderSide(color: Colors.orange),
-                            ),
-                          ),
                         ),
                         
-                        // Add Incident Report button
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context); // Close sheet
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => IncidentReportScreen(tripId: widget.trip.tripId),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.report_problem, color: Colors.red),
-                            label: const Text('Báo cáo sự cố'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              textStyle: const TextStyle(fontSize: 16),
-                              foregroundColor: Colors.red,
-                              side: const BorderSide(color: Colors.red),
-                            ),
-                          ),
+                        const SizedBox(height: 12),
+                        _buildActionButton(
+                          label: 'Báo cáo sự cố',
+                          icon: Icons.report_problem,
+                          color: Colors.red,
+                          onPressed: () {
+                            Navigator.pop(context); // Close sheet
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => IncidentReportScreen(tripId: widget.trip.tripId),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ],
@@ -561,6 +839,34 @@ class _TripCardState extends State<TripCard> {
           },
         );
       },
+    );
+  }
+  
+  // Helper method for building action buttons - renamed to avoid conflicts
+  Widget _buildActionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: TextButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, color: color),
+        label: Text(
+          label,
+          style: TextStyle(color: color, fontWeight: FontWeight.w500),
+        ),
+        style: TextButton.styleFrom(
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        ),
+      ),
     );
   }
   

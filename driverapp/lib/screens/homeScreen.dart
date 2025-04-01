@@ -319,6 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   "picking_up_goods",
                                   "is_delivering",
                                   "at_delivery_point",
+                                  "delaying",
                                 ]
                               ),
                             ),
@@ -329,7 +330,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               onTap: () => _navigationService.navigateToTripList(
                                 context, 
                                 widget.userId, 
-                                status: "completed"
+                                status: "completed",
+                                statusList: [
+                                  "completed",
+                                  "canceled",
+                                ]
                               ),
                             ),
                             FunctionCard(

@@ -2,7 +2,7 @@ class DeliveryStatus {
   final String statusId;
   final String statusName;
   final int statusIndex;
-  final bool isActive;
+  final int isActive;
 
   DeliveryStatus({
     required this.statusId,
@@ -13,11 +13,20 @@ class DeliveryStatus {
 
   factory DeliveryStatus.fromJson(Map<String, dynamic> json) {
     return DeliveryStatus(
-      statusId: json['statusId'] as String,
-      statusName: json['statusName'] as String,
-      statusIndex: json['statusIndex'] as int,
-      isActive: json['isActive'] == 1,
+      statusId: json['statusId'] ?? '',
+      statusName: json['statusName'] ?? '',
+      statusIndex: json['statusIndex'] ?? 0,
+      isActive: json['isActive'] ?? 1,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'statusId': statusId,
+      'statusName': statusName,
+      'statusIndex': statusIndex,
+      'isActive': isActive,
+    };
   }
 
   @override
