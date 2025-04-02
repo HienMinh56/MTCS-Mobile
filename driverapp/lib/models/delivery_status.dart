@@ -1,22 +1,22 @@
 class DeliveryStatus {
   final String statusId;
   final String statusName;
-  final int statusIndex;
   final int isActive;
+  final int statusIndex;
 
   DeliveryStatus({
     required this.statusId,
     required this.statusName,
-    required this.statusIndex,
     required this.isActive,
+    required this.statusIndex,
   });
 
   factory DeliveryStatus.fromJson(Map<String, dynamic> json) {
     return DeliveryStatus(
       statusId: json['statusId'] ?? '',
       statusName: json['statusName'] ?? '',
+      isActive: json['isActive'] ?? 0,
       statusIndex: json['statusIndex'] ?? 0,
-      isActive: json['isActive'] ?? 1,
     );
   }
 

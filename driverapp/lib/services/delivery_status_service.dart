@@ -1,32 +1,30 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:driverapp/models/delivery_status.dart';
-import 'package:driverapp/utils/constants.dart';
 
 class DeliveryStatusService {
-final String _baseUrl = Constants.apiBaseUrl; 
-  
-  // Method to get all delivery statuses
-  Future<List<DeliveryStatus>> getAllDeliveryStatuses() async {
+  final String baseUrl = 'https://mtcs-server.azurewebsites.net/api';
+
+  Future<List<DeliveryStatus>> getDeliveryStatuses() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/delivery-statuses'),
-        headers: {'Content-Type': 'application/json'},
-      );
+      final response = await http.get(Uri.parse('$baseUrl/delivery-statuses'));
       
       if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        if (jsonResponse['status'] == 200 && jsonResponse['data'] != null) {
-          List<dynamic> statusList = jsonResponse['data'];
-          return statusList.map((status) => DeliveryStatus.fromJson(status)).toList();
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        
+        if (responseData['status'] == 200 && responseData['data'] != null) {
+          return (responseData['data'] as List)
+              .map((item) => DeliveryStatus.fromJson(item))
+              .toList();
         } else {
-          throw Exception('Failed to load delivery statuses: ${jsonResponse['message']}');
+          throw Exception('Failed to load delivery statuses: ${responseData['message']}');
         }
       } else {
-        throw Exception('Failed to load delivery statuses: ${response.statusCode}');
+        throw Exception('Failed to load delivery statuses. Status code: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Error getting delivery statuses: $e');
+      print('Error fetching delivery statuses: $e');
+      return []; // Return empty list on error
     }
   }
   
@@ -34,7 +32,7 @@ final String _baseUrl = Constants.apiBaseUrl;
   // to use the new approach internally
   Future<DeliveryStatus?> getNextTripStatus(String currentStatusId) async {
     try {
-      final allStatuses = await getAllDeliveryStatuses();
+      final allStatuses = await getDeliveryStatuses();
       
       // Find current status
       DeliveryStatus? currentStatus;
@@ -65,7 +63,7 @@ final String _baseUrl = Constants.apiBaseUrl;
   // Method to check if status has a next status
   Future<bool> hasNextStatus(String statusId) async {
     try {
-      final allStatuses = await getAllDeliveryStatuses();
+      final allStatuses = await getDeliveryStatuses();
       
       // Find current status
       DeliveryStatus? currentStatus;
@@ -98,7 +96,7 @@ final String _baseUrl = Constants.apiBaseUrl;
     if (statusId == null) return 'N/A';
     
     try {
-      final statuses = await getAllDeliveryStatuses();
+      final statuses = await getDeliveryStatuses();
       final status = statuses.firstWhere(
         (s) => s.statusId == statusId,
         orElse: () => DeliveryStatus(

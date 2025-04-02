@@ -245,7 +245,7 @@ class _TripCardState extends State<TripCard> {
     
     try {
       // Use the delivery status service to get all statuses
-      final statuses = await _statusService.getAllDeliveryStatuses();
+      final statuses = await _statusService.getDeliveryStatuses();
       
       // Store all statuses in cache
       _allStatuses = statuses;
@@ -304,7 +304,10 @@ class _TripCardState extends State<TripCard> {
       setState(() {
         _nextStatus = nextStatus;
         // If current status is the highest index or is completed
-        _isFinalStatus = (nextStatus == null || widget.trip.status == 'completed');
+        // Also check if the next status is 'completed'
+        _isFinalStatus = (nextStatus == null || 
+                         widget.trip.status == 'completed' || 
+                         (nextStatus.statusId == 'completed'));
       });
     }
   }
@@ -359,18 +362,12 @@ class _TripCardState extends State<TripCard> {
         statusColor = Colors.blue;
         statusIcon = Icons.schedule;
         break;
-      case 'in_progress':
-      case 'loading':
-      case 'delivering':
-        statusColor = Colors.orange;
-        statusIcon = Icons.directions_car;
-        break;
       case 'completed':
         statusColor = Colors.green;
         statusIcon = Icons.check_circle;
         break;
       case 'delaying':
-        statusColor = Colors.amber;
+        statusColor = const Color.fromARGB(255, 119, 89, 0);
         statusIcon = Icons.hourglass_bottom;
         break;
       case 'canceled':
@@ -378,8 +375,8 @@ class _TripCardState extends State<TripCard> {
         statusIcon = Icons.cancel;
         break;
       default:
-        statusColor = Colors.grey;
-        statusIcon = Icons.help_outline;
+        statusColor = const Color.fromARGB(255, 0, 17, 255);
+        statusIcon = Icons.directions_car;
     }
     
     return Card(
@@ -876,7 +873,8 @@ class _TripCardState extends State<TripCard> {
     String statusName,
     {bool bypassDeliveryReportCheck = false}
   ) async {
-    if (_isFinalStatus && !bypassDeliveryReportCheck) {
+    // Check if the next status is 'completed' and we need to show delivery report
+    if ((_isFinalStatus || newStatus == 'completed') && !bypassDeliveryReportCheck) {
       _navigateToDeliveryReportScreen();
       return;
     }

@@ -1,6 +1,8 @@
 import 'package:driverapp/components/function_card.dart';
+import 'package:driverapp/models/delivery_status.dart';
 import 'package:driverapp/screens/notificationScreen.dart';
 import 'package:driverapp/services/auth_service.dart';
+import 'package:driverapp/services/delivery_status_service.dart';
 import 'package:driverapp/services/navigation_service.dart';
 import 'package:driverapp/services/notification_service.dart';
 import 'package:driverapp/services/profile_service.dart';
@@ -20,11 +22,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final NavigationService _navigationService = NavigationService();
   final NotificationService _notificationService = NotificationService();
   final ProfileService _profileService = ProfileService();
+  final DeliveryStatusService _deliveryStatusService = DeliveryStatusService();
   
   int _unreadNotifications = 0;
   bool _isLoading = true;
   int _totalWorkingTime = 0;
   int _currentWeekWorkingTime = 0;
+  List<DeliveryStatus> _deliveryStatuses = [];
   
   @override
   void initState() {
@@ -34,7 +38,10 @@ class _HomeScreenState extends State<HomeScreen> {
   
   Future<void> _loadInitialData() async {
     try {
-      await _loadDriverProfile();
+      await Future.wait([
+        _loadDriverProfile(),
+        _loadDeliveryStatuses(),
+      ]);
       
       if (mounted) {
         setState(() {
@@ -55,6 +62,76 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
   
+  Future<void> _loadDeliveryStatuses() async {
+    try {
+      final statuses = await _deliveryStatusService.getDeliveryStatuses();
+      if (mounted) {
+        setState(() {
+          _deliveryStatuses = statuses;
+        });
+      }
+    } catch (e) {
+      print("Error loading delivery statuses: $e");
+    }
+  }
+  
+  // Helper methods to get status lists for each category
+  List<String> _getNotStartedStatuses() {
+    if (_deliveryStatuses.isEmpty) return ["not_started"];
+    
+    // Find the minimum status index
+    final minIndex = _deliveryStatuses
+        .map((s) => s.statusIndex)
+        .reduce((a, b) => a < b ? a : b);
+    
+    // Return statuses with the minimum index
+    return _deliveryStatuses
+        .where((status) => status.statusIndex == minIndex)
+        .map((status) => status.statusId)
+        .toList();
+  }
+  
+  List<String> _getCompletedStatuses() {
+    if (_deliveryStatuses.isEmpty) return ["completed", "canceled"];
+    
+    // Find the maximum status index
+    final maxIndex = _deliveryStatuses
+        .map((s) => s.statusIndex)
+        .reduce((a, b) => a > b ? a : b);
+    
+    // Return statuses with the maximum index or "canceled" status
+    return _deliveryStatuses
+        .where((status) => 
+          status.statusIndex == maxIndex || status.statusId == "canceled")
+        .map((status) => status.statusId)
+        .toList();
+  }
+  
+  List<String> _getInProgressStatuses() {
+    if (_deliveryStatuses.isEmpty) {
+      return [
+        "going_to_port",
+        "picking_up_goods",
+        "is_delivering",
+        "at_delivery_point",
+        "delaying",
+      ];
+    }
+    
+    // Get not started and completed status IDs
+    final notStartedIds = _getNotStartedStatuses();
+    final completedIds = _getCompletedStatuses();
+    
+    // Return all other status IDs
+    return _deliveryStatuses
+        .map((status) => status.statusId)
+        .where((statusId) => 
+          !notStartedIds.contains(statusId) && 
+          !completedIds.contains(statusId))
+        .toList();
+  }
+  
+  // Existing methods
   Future<void> _loadDriverProfile() async {
     try {
       final profile = await _profileService.getDriverProfile(widget.userId);
@@ -97,12 +174,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
   
-  // Add a method to force refresh notification count
   void _forceRefreshNotifications() {
     _loadUnreadNotificationCount();
   }
   
-  // Function to truncate user ID for display
   String _formatUserId(String userId) {
     if (userId.length > 15) {
       return '${userId.substring(0, 12)}...';
@@ -169,8 +244,11 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await _loadUnreadNotificationCount();
-          await _loadDriverProfile();
+          await Future.wait([
+            _loadUnreadNotificationCount(),
+            _loadDriverProfile(),
+            _loadDeliveryStatuses(),
+          ]);
         },
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -303,7 +381,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               onTap: () => _navigationService.navigateToTripList(
                                 context, 
                                 widget.userId, 
-                                status: "not_started"
+                                status: "not_started",
+                                statusList: _getNotStartedStatuses(),
                               ),
                             ),
                             FunctionCard(
@@ -314,13 +393,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 context, 
                                 widget.userId, 
                                 status: "in_progress",
-                                statusList: [
-                                  "going_to_port",
-                                  "picking_up_goods",
-                                  "is_delivering",
-                                  "at_delivery_point",
-                                  "delaying",
-                                ]
+                                statusList: _getInProgressStatuses(),
                               ),
                             ),
                             FunctionCard(
@@ -331,10 +404,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 context, 
                                 widget.userId, 
                                 status: "completed",
-                                statusList: [
-                                  "completed",
-                                  "canceled",
-                                ]
+                                statusList: _getCompletedStatuses(),
                               ),
                             ),
                             FunctionCard(

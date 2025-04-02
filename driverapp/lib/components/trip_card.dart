@@ -58,7 +58,7 @@ class _TripCardState extends State<TripCard> {
     
     try {
       // Use the delivery status service to get all statuses
-      final statuses = await _statusService.getAllDeliveryStatuses();
+      final statuses = await _statusService.getDeliveryStatuses();
       
       // Store all statuses in cache
       _allStatuses = statuses;

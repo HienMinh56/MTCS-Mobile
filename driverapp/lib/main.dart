@@ -7,6 +7,7 @@ import 'package:driverapp/screens/firebase_options.dart';
 import 'package:driverapp/screens/loginScreen.dart';
 import 'package:driverapp/screens/homeScreen.dart';
 import 'package:driverapp/services/auth_service.dart';
+import 'package:driverapp/services/status_manager.dart';
 
 // 🔹 Plugin hiển thị thông báo cục bộ
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -82,6 +83,10 @@ Future<void> saveTokenToFirestore(String userId) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize status manager to fetch delivery statuses
+  await StatusManager.initialize();
+  
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Khởi tạo Local Notifications
