@@ -6,6 +6,7 @@ import 'package:driverapp/services/delivery_status_service.dart';
 import 'package:driverapp/utils/color_constants.dart';
 import 'package:driverapp/utils/formatters.dart';
 import 'package:driverapp/components/info_row.dart';
+import 'package:driverapp/components/trip_filter_panel.dart';  // Import the new component
 import 'package:driverapp/screens/trip_detail_screen.dart';
 import 'package:driverapp/screens/order_detail_screen.dart';
 import 'package:driverapp/screens/fuel_report_screen.dart';
@@ -31,8 +32,15 @@ class TripListScreen extends StatefulWidget {
 class _TripListScreenState extends State<TripListScreen> {
   final TripService _tripService = TripService();
   List<Trip> _trips = [];
+  List<Trip> _filteredTrips = []; // Store filtered trips
   bool _isLoading = true;
   String _errorMessage = '';
+  
+  // Filter state variables
+  String? _statusFilter;
+  DateTime? _startDateFilter;
+  DateTime? _endDateFilter;
+  bool _showFilterPanel = false; // Control filter panel visibility
 
   @override
   void initState() {
@@ -61,6 +69,8 @@ class _TripListScreenState extends State<TripListScreen> {
         if (mounted) {
           setState(() {
             _trips = allTrips;
+            _trips.sort((a, b) => b.startTime!.compareTo(a.startTime!));
+            _applyFilters(); // Apply filters after loading
             _isLoading = false;
           });
         }
@@ -74,6 +84,8 @@ class _TripListScreenState extends State<TripListScreen> {
         if (mounted) {
           setState(() {
             _trips = trips;
+            _trips.sort((a, b) => b.startTime!.compareTo(a.startTime!));
+            _applyFilters(); // Apply filters after loading
             _isLoading = false;
           });
         }
@@ -88,6 +100,57 @@ class _TripListScreenState extends State<TripListScreen> {
     }
   }
 
+  // Apply filters to the trips list
+  void _applyFilters() {
+    List<Trip> result = List.from(_trips);
+    
+    // Apply status filter if selected
+    if (_statusFilter != null && _statusFilter!.isNotEmpty) {
+      result = result.where((trip) => trip.status == _statusFilter).toList();
+    }
+    
+    // Apply date range filter if selected
+    if (_startDateFilter != null) {
+      result = result.where((trip) {
+        final tripDate = trip.startTime;
+        return tripDate != null && tripDate.isAfter(_startDateFilter!);
+      }).toList();
+    }
+    
+    if (_endDateFilter != null) {
+      final endOfDay = DateTime(_endDateFilter!.year, _endDateFilter!.month, 
+                               _endDateFilter!.day, 23, 59, 59);
+      result = result.where((trip) {
+        final tripDate = trip.startTime;
+        return tripDate != null && tripDate.isBefore(endOfDay);
+      }).toList();
+    }
+    
+    setState(() {
+      _filteredTrips = result;
+    });
+  }
+
+  // Reset all filters
+  void _resetFilters() {
+    setState(() {
+      _statusFilter = null;
+      _startDateFilter = null;
+      _endDateFilter = null;
+      _applyFilters();
+    });
+  }
+
+  // Handle filter changes from the filter component
+  void _handleFilterChange(String? status, DateTime? startDate, DateTime? endDate) {
+    setState(() {
+      _statusFilter = status;
+      _startDateFilter = startDate;
+      _endDateFilter = endDate;
+      _applyFilters();
+    });
+  }
+
   // Update a specific trip in the list or remove it if it no longer matches filter
   void _updateTripInList(String tripId, String newStatus, String newStatusName) {
     // Check if the updated trip should remain in the current list based on filter criteria
@@ -97,6 +160,7 @@ class _TripListScreenState extends State<TripListScreen> {
       // If the trip should no longer be in this list, remove it
       setState(() {
         _trips.removeWhere((trip) => trip.tripId == tripId);
+        _applyFilters(); // Reapply filters after updating
       });
     } else {
       // Just update the status
@@ -108,6 +172,7 @@ class _TripListScreenState extends State<TripListScreen> {
             break;
           }
         }
+        _applyFilters(); // Reapply filters after updating
       });
     }
   }
@@ -140,59 +205,105 @@ class _TripListScreenState extends State<TripListScreen> {
         title: Text(getScreenTitle()),
         elevation: 0,
         backgroundColor: ColorConstants.primaryColor,
+        actions: [
+          // Only show filter toggle button on completed trips screen
+          if (widget.status == 'completed')
+            IconButton(
+              icon: Icon(_showFilterPanel ? Icons.filter_list_off : Icons.filter_list),
+              onPressed: () {
+                setState(() {
+                  _showFilterPanel = !_showFilterPanel;
+                });
+              },
+              tooltip: 'Lọc danh sách',
+            ),
+        ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadTrips,
-        color: ColorConstants.accentColor,
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage.isNotEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                        const SizedBox(height: 16),
-                        Text(
-                          _errorMessage,
-                          style: const TextStyle(fontSize: 16),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  )
-                : _trips.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.horizontal_rule,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Không có trip nào',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey[600],
+      body: Column(
+        children: [
+          // Use the new filter component - only visible for completed trips and when toggle is on
+          if (widget.status == 'completed' && _showFilterPanel)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              height: _showFilterPanel ? null : 0,
+              child: TripFilterPanel(
+                statusFilter: _statusFilter,
+                startDateFilter: _startDateFilter,
+                endDateFilter: _endDateFilter,
+                onApplyFilter: _handleFilterChange,
+                onResetFilter: _resetFilters,
+              ),
+            ),
+            
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadTrips,
+              color: ColorConstants.accentColor,
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _errorMessage.isNotEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                              const SizedBox(height: 16),
+                              Text(
+                                _errorMessage,
+                                style: const TextStyle(fontSize: 16),
+                                textAlign: TextAlign.center,
                               ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16.0),
-                        itemCount: _trips.length,
-                        itemBuilder: (context, index) {
-                          final trip = _trips[index];
-                          return TripCard(
-                            trip: trip,
-                            onStatusUpdated: _updateTripInList,
-                          );
-                        },
-                      ),
+                            ],
+                          ),
+                        )
+                      : (_filteredTrips.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.horizontal_rule,
+                                    size: 64,
+                                    color: Colors.grey[400],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Không có trip nào',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  // Show reset filters button if filters are active
+                                  if (_statusFilter != null || _startDateFilter != null || _endDateFilter != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 16),
+                                      child: TextButton.icon(
+                                        onPressed: _resetFilters,
+                                        icon: const Icon(Icons.refresh),
+                                        label: const Text('Xóa bộ lọc'),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: ColorConstants.accentColor,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16.0),
+                              itemCount: _filteredTrips.length,
+                              itemBuilder: (context, index) {
+                                final trip = _filteredTrips[index];
+                                return TripCard(
+                                  trip: trip,
+                                  onStatusUpdated: _updateTripInList,
+                                );
+                              },
+                            )),
+            ),
+          ),
+        ],
       ),
     );
   }
