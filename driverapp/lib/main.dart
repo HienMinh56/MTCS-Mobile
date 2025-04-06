@@ -8,6 +8,7 @@ import 'package:driverapp/screens/loginScreen.dart';
 import 'package:driverapp/screens/homeScreen.dart';
 import 'package:driverapp/services/auth_service.dart';
 import 'package:driverapp/services/status_manager.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 // 🔹 Plugin hiển thị thông báo cục bộ
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -81,8 +82,27 @@ Future<void> saveTokenToFirestore(String userId) async {
   }
 }
 
+// 🔹 Yêu cầu tất cả quyền cần thiết khi khởi động ứng dụng
+Future<void> requestPermissions() async {
+  // Danh sách các quyền cần thiết
+  Map<Permission, PermissionStatus> statuses = await [
+    Permission.camera,
+    Permission.photos,
+    Permission.location,
+    Permission.notification,
+  ].request();
+  
+  // In trạng thái các quyền (để debug)
+  statuses.forEach((permission, status) {
+    print('📱 Quyền ${permission.toString()}: ${status.toString()}');
+  });
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Yêu cầu tất cả quyền cần thiết khi khởi động
+  await requestPermissions();
   
   // Initialize status manager to fetch delivery statuses
   await StatusManager.initialize();

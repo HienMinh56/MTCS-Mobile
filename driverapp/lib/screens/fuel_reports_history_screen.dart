@@ -54,12 +54,6 @@ class _FuelReportsScreenState extends State<FuelReportsScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadFuelReports,
-          ),
-        ],
       ),
       body: _isLoading 
           ? const Center(child: CircularProgressIndicator())
