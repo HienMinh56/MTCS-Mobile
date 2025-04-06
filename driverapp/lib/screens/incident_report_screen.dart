@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:driverapp/utils/image_utils.dart';
 import 'package:driverapp/services/incident_report_service.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 class IncidentReportScreen extends StatefulWidget {
   final String tripId;
@@ -25,6 +27,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
   int _incidentType = 1; // 1 = On Site, 2 = Change Vehicle
   final List<File> _images = [];
   bool _isSubmitting = false;
+  bool _isLoadingLocation = false;
   
   // Incident report service
   final _incidentReportService = IncidentReportService();
@@ -166,6 +169,109 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
     } finally {
       setState(() {
         _isSubmitting = false;
+      });
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() {
+      _isLoadingLocation = true;
+    });
+
+    try {
+      // Check location permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Quyền truy cập vị trí bị từ chối'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          setState(() {
+            _isLoadingLocation = false;
+          });
+          return;
+        }
+      }
+      
+      if (permission == LocationPermission.deniedForever) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Quyền truy cập vị trí bị từ chối vĩnh viễn, vui lòng cấp quyền trong cài đặt'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoadingLocation = false;
+        });
+        return;
+      }
+      
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high
+      );
+      
+      // Try to get address from coordinates
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude, 
+          position.longitude
+        );
+        
+        if (placemarks.isNotEmpty) {
+          Placemark place = placemarks[0];
+          String address = '';
+          
+          // Build address string from available components
+          if (place.street != null && place.street!.isNotEmpty) {
+            address += place.street!;
+          }
+          if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+            address += address.isNotEmpty ? ', ${place.subLocality}' : place.subLocality!;
+          }
+          if (place.locality != null && place.locality!.isNotEmpty) {
+            address += address.isNotEmpty ? ', ${place.locality}' : place.locality!;
+          }
+          if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+            address += address.isNotEmpty ? ', ${place.administrativeArea}' : place.administrativeArea!;
+          }
+          
+          setState(() {
+            _locationController.text = address;
+          });
+        } else {
+          // If no address is found, use the coordinates
+          setState(() {
+            _locationController.text = '${position.latitude}, ${position.longitude}';
+          });
+        }
+      } catch (e) {
+        // If geocoding fails, fallback to coordinates
+        setState(() {
+          _locationController.text = '${position.latitude}, ${position.longitude}';
+        });
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã cập nhật vị trí hiện tại'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không thể lấy vị trí: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoadingLocation = false;
       });
     }
   }
@@ -344,6 +450,21 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                     filled: true,
                     fillColor: Colors.white,
                     prefixIcon: Icon(Icons.location_on, color: Colors.blue.shade700),
+                    suffixIcon: _isLoadingLocation
+                      ? Container(
+                          margin: const EdgeInsets.all(12),
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.blue.shade700,
+                          ),
+                        )
+                      : IconButton(
+                          icon: Icon(Icons.my_location, color: Colors.blue.shade700),
+                          onPressed: _getCurrentLocation,
+                          tooltip: 'Lấy vị trí hiện tại',
+                        ),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {

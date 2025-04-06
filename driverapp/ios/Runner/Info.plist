@@ -2,14 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Allow access to photo library for incident reporting</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Allow access to camera for incident reporting</string>
+	<string>Ứng dụng cần quyền truy cập máy ảnh để chụp ảnh báo cáo</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ứng dụng cần quyền truy cập thư viện ảnh để chọn ảnh báo cáo</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Ứng dụng cần truy cập vị trí của bạn để báo cáo chính xác địa điểm xảy ra sự cố</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Ứng dụng cần truy cập vị trí của bạn để báo cáo chính xác địa điểm xảy ra sự cố</string>
+	<string>Ứng dụng cần quyền truy cập vị trí để xác định vị trí hiện tại</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
