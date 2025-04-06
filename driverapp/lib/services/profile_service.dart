@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:driverapp/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:driverapp/models/driver_profile.dart';
 
@@ -7,10 +8,15 @@ class ProfileService {
 
   Future<DriverProfile> getDriverProfile(String driverId) async {
     try {
-      print("Calling API to get driver profile for ID: $driverId");
+      final token =await AuthService.getAuthToken();
+      
+      // Use updated API endpoint
       final response = await http.get(
-        Uri.parse('$baseUrl/Driver/$driverId/profile'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$baseUrl/Driver/profile?driverId=$driverId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       ).timeout(const Duration(seconds: 15));
 
       print("API response status code: ${response.statusCode}");
@@ -39,6 +45,7 @@ class ProfileService {
         }
       } else {
         print("API error: HTTP status ${response.statusCode}");
+        print("Token: ${token}");  
         throw Exception('Không thể tải hồ sơ tài xế: ${response.statusCode}');
       }
     } catch (e) {
@@ -46,6 +53,4 @@ class ProfileService {
       throw Exception('Lỗi khi tải hồ sơ tài xế: $e');
     }
   }
-
-  
 }

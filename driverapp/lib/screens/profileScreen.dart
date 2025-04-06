@@ -106,7 +106,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _buildProfileHeader(),
         const SizedBox(height: 24),
         _buildInfoSection(),
-        // Working time section removed
+        const SizedBox(height: 24),
+        _buildWorkStatisticsSection(), // Add work statistics section
       ],
     );
   }
@@ -214,6 +215,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // New method to display work statistics
+  Widget _buildWorkStatisticsSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Thống Kê Công Việc',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Divider(),
+            _buildStatisticItem(
+              icon: Icons.av_timer,
+              label: 'Tổng Thời Gian Làm Việc',
+              value: _formatWorkingTime(_driverProfile!.totalWorkingTime),
+            ),
+            _buildStatisticItem(
+              icon: Icons.date_range,
+              label: 'Thời Gian Làm Việc Tuần Này',
+              value: _formatWorkingTime(_driverProfile!.currentWeekWorkingTime),
+            ),
+            _buildStatisticItem(
+              icon: Icons.local_shipping,
+              label: 'Tổng Số Đơn Hàng',
+              value: '${_driverProfile!.totalOrder}',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper method for statistics items
+  Widget _buildStatisticItem({required IconData icon, required String label, required String value}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 22, color: ColorConstants.profileColor),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -256,6 +331,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return '${date.day}/${date.month}/${date.year}';
     } catch (e) {
       return 'Không hợp lệ';
+    }
+  }
+
+  // New helper method to format working time
+  String _formatWorkingTime(int minutes) {
+    if (minutes <= 0) return '0 phút';
+    
+    final hours = minutes ~/ 60;
+    final remainingMinutes = minutes % 60;
+    
+    if (hours > 0) {
+      return '$hours giờ ${remainingMinutes > 0 ? '$remainingMinutes phút' : ''}';
+    } else {
+      return '$minutes phút';
     }
   }
 }
