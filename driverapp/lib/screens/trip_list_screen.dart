@@ -112,8 +112,10 @@ class _TripListScreenState extends State<TripListScreen> {
     // Apply date range filter if selected
     if (_startDateFilter != null) {
       result = result.where((trip) {
-        final tripDate = trip.startTime;
-        return tripDate != null && tripDate.isAfter(_startDateFilter!);
+        final tripStartDate = trip.startTime;
+        final tripEndDate = trip.endTime;
+        return (tripStartDate != null && tripStartDate.isAfter(_startDateFilter!)) ||
+               (tripEndDate != null && tripEndDate.isAfter(_startDateFilter!));
       }).toList();
     }
     
@@ -121,8 +123,10 @@ class _TripListScreenState extends State<TripListScreen> {
       final endOfDay = DateTime(_endDateFilter!.year, _endDateFilter!.month, 
                                _endDateFilter!.day, 23, 59, 59);
       result = result.where((trip) {
-        final tripDate = trip.startTime;
-        return tripDate != null && tripDate.isBefore(endOfDay);
+        final tripStartDate = trip.startTime;
+        final tripEndDate = trip.endTime;
+        return (tripStartDate != null && tripStartDate.isBefore(endOfDay)) ||
+               (tripEndDate != null && tripEndDate.isBefore(endOfDay));
       }).toList();
     }
     
@@ -478,7 +482,7 @@ class _TripCardState extends State<TripCard> {
         statusIcon = Icons.check_circle;
         break;
       case 'delaying':
-        statusColor = const Color.fromARGB(255, 119, 89, 0);
+        statusColor = const Color.fromARGB(255, 241, 188, 27);
         statusIcon = Icons.hourglass_bottom;
         break;
       case 'canceled':
@@ -753,7 +757,7 @@ class _TripCardState extends State<TripCard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Trip: ${widget.trip.tripId}',
+                            widget.trip.tripId,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -768,10 +772,6 @@ class _TripCardState extends State<TripCard> {
                             ),
                           ),
                         ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        onPressed: () => Navigator.of(context).pop(),
                       ),
                     ],
                   ),
@@ -1036,7 +1036,7 @@ class _TripCardState extends State<TripCard> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Cập nhật trạng thái thất bại: ${result['message'] ?? 'Unknown error'}'),
+              content: Text('${result['message']}'),
               backgroundColor: Colors.red,
             ),
           );

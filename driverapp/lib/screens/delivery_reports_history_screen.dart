@@ -7,7 +7,7 @@ import 'package:driverapp/screens/delivery_report_detail_screen.dart';
 class DeliveryReportsScreen extends StatefulWidget {
   final String driverId;
 
-  const DeliveryReportsScreen({Key? key, required this.driverId}) : super(key: key);
+  const DeliveryReportsScreen({super.key, required this.driverId});
 
   @override
   _DeliveryReportsScreenState createState() => _DeliveryReportsScreenState();

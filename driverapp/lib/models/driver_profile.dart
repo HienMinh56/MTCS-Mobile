@@ -11,6 +11,7 @@ class DriverProfile {
   final String? modifiedBy;
   final int totalWorkingTime;
   final int currentWeekWorkingTime;
+  final int totalOrder;
   final List<String> fileUrls;
 
   DriverProfile({
@@ -26,6 +27,7 @@ class DriverProfile {
     this.modifiedBy,
     required this.totalWorkingTime,
     required this.currentWeekWorkingTime,
+    required this.totalOrder,
     required this.fileUrls,
   });
 
@@ -56,6 +58,7 @@ class DriverProfile {
       modifiedBy: json['modifiedBy'],
       totalWorkingTime: json['totalWorkingTime'] ?? 0,
       currentWeekWorkingTime: json['currentWeekWorkingTime'] ?? 0,
+      totalOrder: json['totalOrder'] ?? 0,
       fileUrls: extractedFileUrls,
     );
   }

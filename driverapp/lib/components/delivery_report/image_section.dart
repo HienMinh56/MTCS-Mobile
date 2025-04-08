@@ -13,7 +13,7 @@ class ImageSection extends StatelessWidget {
   final int crossAxisCount;
 
   const ImageSection({
-    Key? key,
+    super.key,
     required this.imageFiles,
     required this.onTakePhoto,
     required this.onPickImage,
@@ -23,7 +23,7 @@ class ImageSection extends StatelessWidget {
     this.cameraButtonColor = Colors.blue,
     this.galleryButtonColor = Colors.amber,
     this.crossAxisCount = 3,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +99,7 @@ class ImageSection extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.add_photo_alternate, size: 50, color: Colors.grey),
+              const Icon(Icons.add_photo_alternate, size: 50, color: Colors.grey),
               const SizedBox(height: 8),
               Text(
                 emptyMessage,
