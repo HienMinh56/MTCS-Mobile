@@ -26,12 +26,12 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
   Future<void> _pickImages() async {
     try {
       final List<File> pickedFiles = await ImageUtils.pickMultipleImages();
-      
+
       if (pickedFiles.isNotEmpty) {
         setState(() {
           _selectedImages.addAll(pickedFiles);
         });
-        
+
         // Show confirmation
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -54,12 +54,12 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
   Future<void> _takePicture() async {
     try {
       final File? photo = await ImageUtils.takePhoto();
-      
+
       if (photo != null) {
         setState(() {
           _selectedImages.add(photo);
         });
-        
+
         // Show confirmation
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -87,7 +87,8 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
 
   Future<void> _submitReport() async {
     // Validate inputs using ValidationUtils
-    String? fuelAmountError = ValidationUtils.validateFuelAmount(_fuelAmountController.text);
+    String? fuelAmountError =
+        ValidationUtils.validateFuelAmount(_fuelAmountController.text);
     if (fuelAmountError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -97,8 +98,9 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
       );
       return;
     }
-    
-    String? fuelCostError = ValidationUtils.validateFuelCost(_priceController.text);
+
+    String? fuelCostError =
+        ValidationUtils.validateFuelCost(_priceController.text);
     if (fuelCostError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -108,8 +110,9 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
       );
       return;
     }
-    
-    String? locationError = ValidationUtils.validateLocation(_locationController.text);
+
+    String? locationError =
+        ValidationUtils.validateLocation(_locationController.text);
     if (locationError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -119,7 +122,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
       );
       return;
     }
-    
+
     String? imagesError = ValidationUtils.validateImages(_selectedImages);
     if (imagesError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -130,11 +133,11 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
       );
       return;
     }
-    
+
     // Parse values (we know they're valid at this point)
     final double refuelAmount = double.parse(_fuelAmountController.text);
     final double fuelCost = double.parse(_priceController.text);
-    
+
     // Show loading indicator
     showDialog(
       context: context,
@@ -145,7 +148,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
         );
       },
     );
-    
+
     // Submit the report using the service
     final result = await FuelReportService.submitFuelReport(
       tripId: widget.tripId,
@@ -154,10 +157,10 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
       location: _locationController.text,
       images: _selectedImages,
     );
-    
+
     // Close loading dialog
     Navigator.pop(context);
-    
+
     // Handle the result
     if (result['success']) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -200,11 +203,12 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
           return;
         }
       }
-      
+
       if (permission == LocationPermission.deniedForever) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Quyền truy cập vị trí bị từ chối vĩnh viễn, vui lòng cấp quyền trong cài đặt'),
+            content: Text(
+                'Quyền truy cập vị trí bị từ chối vĩnh viễn, vui lòng cấp quyền trong cài đặt'),
             backgroundColor: Colors.red,
           ),
         );
@@ -213,53 +217,58 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
         });
         return;
       }
-      
+
       // Get current position
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high
-      );
-      
+          desiredAccuracy: LocationAccuracy.high);
+
       // Try to get address from coordinates
       try {
         List<Placemark> placemarks = await placemarkFromCoordinates(
-          position.latitude, 
-          position.longitude
-        );
-        
+            position.latitude, position.longitude);
+
         if (placemarks.isNotEmpty) {
           Placemark place = placemarks[0];
           String address = '';
-          
+
           // Build address string from available components
           if (place.street != null && place.street!.isNotEmpty) {
             address += place.street!;
           }
           if (place.subLocality != null && place.subLocality!.isNotEmpty) {
-            address += address.isNotEmpty ? ', ${place.subLocality}' : place.subLocality!;
+            address += address.isNotEmpty
+                ? ', ${place.subLocality}'
+                : place.subLocality!;
           }
           if (place.locality != null && place.locality!.isNotEmpty) {
-            address += address.isNotEmpty ? ', ${place.locality}' : place.locality!;
+            address +=
+                address.isNotEmpty ? ', ${place.locality}' : place.locality!;
           }
-          if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
-            address += address.isNotEmpty ? ', ${place.administrativeArea}' : place.administrativeArea!;
+          if (place.administrativeArea != null &&
+              place.administrativeArea!.isNotEmpty) {
+            address += address.isNotEmpty
+                ? ', ${place.administrativeArea}'
+                : place.administrativeArea!;
           }
-          
+
           setState(() {
             _locationController.text = address;
           });
         } else {
           // If no address is found, use the coordinates
           setState(() {
-            _locationController.text = '${position.latitude}, ${position.longitude}';
+            _locationController.text =
+                '${position.latitude}, ${position.longitude}';
           });
         }
       } catch (e) {
         // If geocoding fails, fallback to coordinates
         setState(() {
-          _locationController.text = '${position.latitude}, ${position.longitude}';
+          _locationController.text =
+              '${position.latitude}, ${position.longitude}';
         });
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Đã cập nhật vị trí hiện tại'),
@@ -293,98 +302,244 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Báo Cáo Đổ Nhiên Liệu'),
+        elevation: 0,
+        backgroundColor: Colors.blue.shade800,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Chuyến đi #${widget.tripId}', 
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 24),
-              
-              // Fuel amount input
-              TextField(
-                controller: _fuelAmountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Số lít nhiên liệu đổ',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.local_gas_station),
-                  suffixText: 'lít',
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Price input
-              TextField(
-                controller: _priceController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Giá nhiên liệu',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.attach_money),
-                  suffixText: 'VND',
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Location input
-              TextField(
-                controller: _locationController,
-                decoration: InputDecoration(
-                  labelText: 'Vị trí đổ nhiên liệu',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.location_on),
-                  suffixIcon: _isLoadingLocation
-                    ? Container(
-                        margin: const EdgeInsets.all(12),
-                        width: 24,
-                        height: 24,
-                        child: const CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : IconButton(
-                        icon: const Icon(Icons.my_location),
-                        onPressed: _getCurrentLocation,
-                        tooltip: 'Lấy vị trí hiện tại',
+      body: Container(
+        color: Colors.white, // Thay đổi từ gradient sang màu trắng đơn giản
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
                       ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.directions_car,
+                          color: Colors.blue, size: 28),
+                      const SizedBox(width: 12),
+                      Text(
+                        widget.tripId,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              
-              // Replace the image upload section with the new component
-              ImageSection(
-                title: 'Ảnh hoá đơn',
-                imageFiles: _selectedImages,
-                onTakePhoto: _takePicture,
-                onPickImage: _pickImages,
-                onRemoveImage: _removeImage,
-                cameraButtonColor: Colors.blue.shade700,
-                galleryButtonColor: Colors.amber.shade700,
-                emptyMessage: 'Chưa có ảnh nào\nChọn "Chọn nhiều ảnh" để tải lên nhiều ảnh cùng lúc',
-                crossAxisCount: 2,
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Submit button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
+                const SizedBox(height: 24),
+
+                // Fuel input section
+                Card(
+                  elevation: 5,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Thông tin nhiên liệu',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Fuel amount input
+                        TextField(
+                          controller: _fuelAmountController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Số lít nhiên liệu đổ',
+                            labelStyle: TextStyle(color: Colors.blue.shade700),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  BorderSide(color: Colors.blue.shade200),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                  color: Colors.blue.shade700, width: 2),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  BorderSide(color: Colors.blue.shade200),
+                            ),
+                            prefixIcon: Icon(Icons.local_gas_station,
+                                color: Colors.blue.shade700),
+                            suffixText: 'lít',
+                            fillColor: Colors.white,
+                            filled: true,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Price input
+                        TextField(
+                          controller: _priceController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Giá nhiên liệu',
+                            labelStyle: TextStyle(color: Colors.blue.shade700),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  BorderSide(color: Colors.blue.shade200),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                  color: Colors.blue.shade700, width: 2),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  BorderSide(color: Colors.blue.shade200),
+                            ),
+                            prefixIcon: Icon(Icons.monetization_on,
+                                color: Colors.blue.shade700),
+                            suffixText: 'VND',
+                            fillColor: Colors.white,
+                            filled: true,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Location section
+                Card(
+                  elevation: 5,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Vị trí đổ nhiên liệu',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Location input
+                        TextField(
+                          controller: _locationController,
+                          decoration: InputDecoration(
+                            labelText: 'Vị trí đổ nhiên liệu',
+                            labelStyle: TextStyle(color: Colors.green.shade700),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  BorderSide(color: Colors.green.shade200),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                  color: Colors.green.shade700, width: 2),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  BorderSide(color: Colors.green.shade200),
+                            ),
+                            prefixIcon: Icon(Icons.location_on,
+                                color: Colors.green.shade700),
+                            suffixIcon: _isLoadingLocation
+                                ? Container(
+                                    margin: const EdgeInsets.all(12),
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.green.shade700),
+                                    ),
+                                  )
+                                : IconButton(
+                                    icon: Icon(Icons.my_location,
+                                        color: Colors.green.shade700),
+                                    tooltip: 'Lấy vị trí hiện tại',
+                                    onPressed: _getCurrentLocation,
+                                  ),
+                            fillColor: Colors.white,
+                            filled: true,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                ImageSection(
+                  title: 'Ảnh hoá đơn',
+                  imageFiles: _selectedImages,
+                  onTakePhoto: _takePicture,
+                  onPickImage: _pickImages,
+                  onRemoveImage: _removeImage,
+                  cameraButtonColor: Colors.blue.shade700,
+                  galleryButtonColor: Colors.amber.shade700,
+                  emptyMessage:
+                      'Chưa có ảnh nào\nChọn "Chọn nhiều ảnh" để tải lên nhiều ảnh cùng lúc',
+                  crossAxisCount: 2,
+                ),
+
+                const SizedBox(height: 32),
+
+                // Submit button
+                ElevatedButton(
                   onPressed: _submitReport,
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
                     backgroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    minimumSize: const Size(double.infinity, 50),
                   ),
-                  icon: const Icon(Icons.send),
-                  label: const Text(
+                  child: const Text(
                     'Gửi báo cáo',
-                    style: TextStyle(fontSize: 16),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),

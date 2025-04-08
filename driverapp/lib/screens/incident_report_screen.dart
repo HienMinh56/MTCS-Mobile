@@ -327,10 +327,9 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          'Chuyến đi #${widget.tripId}',
+                          widget.tripId,
                           style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
                         ),
                       ],
