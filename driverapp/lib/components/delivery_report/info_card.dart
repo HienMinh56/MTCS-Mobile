@@ -7,11 +7,11 @@ class InfoCard extends StatelessWidget {
   final DateTime reportTime;
 
   const InfoCard({
-    Key? key,
+    super.key,
     required this.tripId,
     required this.driverName,
     required this.reportTime,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

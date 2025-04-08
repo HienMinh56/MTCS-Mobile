@@ -10,14 +10,14 @@ class ImageGrid<T> extends StatelessWidget {
   final int crossAxisCount;
 
   const ImageGrid({
-    Key? key,
+    super.key,
     required this.files,
     required this.getImageUrl,
     this.getImageTitle,
     this.getUploadTime,
     required this.onImageTap,
     this.crossAxisCount = 2,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

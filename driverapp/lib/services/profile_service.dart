@@ -53,4 +53,14 @@ class ProfileService {
       throw Exception('Lỗi khi tải hồ sơ tài xế: $e');
     }
   }
+
+  Future<String> getDriverName(String driverId) async {
+    try {
+      final profile = await getDriverProfile(driverId);
+      return profile.fullName;
+    } catch (e) {
+      print("Exception in getDriverName: $e");
+      throw Exception('Lỗi khi tải tên tài xế: $e');
+    }
+  }
 }

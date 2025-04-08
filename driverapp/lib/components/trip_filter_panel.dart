@@ -47,10 +47,9 @@ class _TripFilterPanelState extends State<TripFilterPanel> {
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: ThemeData.light().copyWith(
-            colorScheme: ColorScheme.light(
+            colorScheme: const ColorScheme.light(
               primary: ColorConstants.primaryColor,
-            ),
-            dialogBackgroundColor: Colors.white,
+            ), dialogTheme: const DialogThemeData(backgroundColor: Colors.white),
           ),
           child: child!,
         );
@@ -152,7 +151,7 @@ class _TripFilterPanelState extends State<TripFilterPanel> {
                 isExpanded: true,
                 value: _statusFilter,
                 hint: const Text('Tất cả'),
-                icon: Icon(Icons.arrow_drop_down, color: ColorConstants.primaryColor),
+                icon: const Icon(Icons.arrow_drop_down, color: ColorConstants.primaryColor),
                 items: const [
                   DropdownMenuItem<String?>(
                     value: null,
@@ -182,7 +181,7 @@ class _TripFilterPanelState extends State<TripFilterPanel> {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8.0),
             child: Text(
-              "Khoảng thời gian",
+              "Thời gian bắt đầu",
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
@@ -206,7 +205,7 @@ class _TripFilterPanelState extends State<TripFilterPanel> {
                     ),
                     child: Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.calendar_today, 
                           size: 16, 
                           color: ColorConstants.primaryColor
@@ -262,7 +261,7 @@ class _TripFilterPanelState extends State<TripFilterPanel> {
                     ),
                     child: Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.calendar_today, 
                           size: 16, 
                           color: ColorConstants.primaryColor

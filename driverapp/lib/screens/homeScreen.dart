@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _totalWorkingTime = 0;
   int _currentWeekWorkingTime = 0;
   List<DeliveryStatus> _deliveryStatuses = [];
+  String _driverName = '';
   
   @override
   void initState() {
@@ -53,7 +54,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _loadUnreadNotificationCount();
       });
     } catch (e) {
-      print("Error loading initial data: $e");
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -71,7 +71,11 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      print("Error loading delivery statuses: $e");
+      if (mounted) {
+        setState(() {
+          _deliveryStatuses = [];
+        });
+      }
     }
   }
   
@@ -139,17 +143,21 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _totalWorkingTime = profile.totalWorkingTime;
           _currentWeekWorkingTime = profile.currentWeekWorkingTime;
+          _driverName = profile.fullName;
         });
       }
     } catch (e) {
-      print("Error loading driver profile: $e");
+      if (mounted) {
+        setState(() {
+          _driverName = 'Lỗi tải thông tin';
+        });
+      }
     }
   }
   
   Future<void> _loadUnreadNotificationCount() async {
     try {
       final count = await _notificationService.getUnreadNotificationCount(widget.userId);
-      print("Loaded unread notifications: $count"); // Debug print
       
       if (mounted) {
         setState(() {
@@ -164,8 +172,6 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      print("Error loading notification count: $e"); // Debug print
-      // Keep trying to refresh despite errors
       if (mounted) {
         Future.delayed(const Duration(seconds: 30), () {
           _loadUnreadNotificationCount();
@@ -178,18 +184,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUnreadNotificationCount();
   }
   
-  String _formatUserId(String userId) {
-    if (userId.length > 15) {
-      return '${userId.substring(0, 12)}...';
-    }
-    return userId;
-  }
-  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MTCS Ứng Dụng Tài Xế'),
+        leading: Image.asset(
+          'img/logo.png',
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
@@ -273,18 +274,16 @@ class _HomeScreenState extends State<HomeScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Text(
-                                  'Xin Chào, Tài Xế',
-                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                Text(
+                                  'Xin Chào, $_driverName',
+                                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 2),
-                                Text(
-                                  'ID: ${_formatUserId(widget.userId)}',
-                                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                const Text(
+                                  'Chúc bạn có một ngày làm việc hiệu quả và an toàn',
+                                  style: TextStyle(fontSize: 10, color: Color.fromARGB(255, 0, 4, 255), fontWeight: FontWeight.w500),
                                 ),
                               ],
                             ),
@@ -365,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       
                       const SizedBox(height: 20),
 
-                      Container(
+                      SizedBox(
                         height: 450,
                         child: GridView.count(
                           physics: const NeverScrollableScrollPhysics(),

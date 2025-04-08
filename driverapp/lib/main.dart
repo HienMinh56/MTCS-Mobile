@@ -57,9 +57,7 @@ void setupFirebaseMessaging() {
     showNotification(message);
   });
 
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    print("📩 Người dùng nhấn vào thông báo: ${message.notification?.title}");
-  });
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {});
 }
 
 // 🔹 Lưu userId vào SharedPreferences sau khi đăng nhập
@@ -76,26 +74,18 @@ Future<String?> getUserId() async {
 
 // 🔹 Lưu FCM Token vào Firestore
 Future<void> saveTokenToFirestore(String userId) async {
-  String? token = await FirebaseMessaging.instance.getToken();
-  if (token != null) {
-    print("📲 Lưu FCM Token vào Firestore: $token");
-  }
+  await FirebaseMessaging.instance.getToken();
 }
 
 // 🔹 Yêu cầu tất cả quyền cần thiết khi khởi động ứng dụng
 Future<void> requestPermissions() async {
   // Danh sách các quyền cần thiết
-  Map<Permission, PermissionStatus> statuses = await [
+await [
     Permission.camera,
     Permission.photos,
     Permission.location,
     Permission.notification,
   ].request();
-  
-  // In trạng thái các quyền (để debug)
-  statuses.forEach((permission, status) {
-    print('📱 Quyền ${permission.toString()}: ${status.toString()}');
-  });
 }
 
 void main() async {
@@ -142,7 +132,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
-        '/home': (context) => HomeScreen(userId: ''), // We'll replace this with dynamic userId when navigating
+        '/home': (context) => const HomeScreen(userId: ''), // We'll replace this with dynamic userId when navigating
       },
     );
   }
@@ -190,12 +180,12 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
+            Text(
               "MTCS",
               style: TextStyle(
                 fontSize: 36,
@@ -203,8 +193,8 @@ class _SplashScreenState extends State<SplashScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 24),
-            const CircularProgressIndicator(),
+            SizedBox(height: 24),
+            CircularProgressIndicator(),
           ],
         ),
       ),

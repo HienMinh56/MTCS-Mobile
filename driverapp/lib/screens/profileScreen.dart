@@ -158,6 +158,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String statusText;
     
     switch (_driverProfile!.status) {
+      case 2:
+        badgeColor = Colors.blue;
+        statusText = 'Đang giao hàng';
+        break;
       case 1:
         badgeColor = Colors.green;
         statusText = 'Đang hoạt động';
