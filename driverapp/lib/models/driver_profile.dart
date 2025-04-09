@@ -6,9 +6,6 @@ class DriverProfile {
   final String phoneNumber;
   final int status;
   final String createdDate;
-  final String? createdBy;
-  final String? modifiedDate;
-  final String? modifiedBy;
   final int totalWorkingTime;
   final int currentWeekWorkingTime;
   final int totalOrder;
@@ -22,12 +19,9 @@ class DriverProfile {
     required this.phoneNumber,
     required this.status,
     required this.createdDate,
-    this.createdBy,
-    this.modifiedDate,
-    this.modifiedBy,
-    required this.totalWorkingTime,
-    required this.currentWeekWorkingTime,
-    required this.totalOrder,
+    this.totalWorkingTime = 0,
+    this.currentWeekWorkingTime = 0,
+    this.totalOrder = 0,
     required this.fileUrls,
   });
 
@@ -53,9 +47,6 @@ class DriverProfile {
       phoneNumber: json['phoneNumber'] ?? '',
       status: json['status'] ?? 0,
       createdDate: json['createdDate'] ?? '',
-      createdBy: json['createdBy'],
-      modifiedDate: json['modifiedDate'],
-      modifiedBy: json['modifiedBy'],
       totalWorkingTime: json['totalWorkingTime'] ?? 0,
       currentWeekWorkingTime: json['currentWeekWorkingTime'] ?? 0,
       totalOrder: json['totalOrder'] ?? 0,

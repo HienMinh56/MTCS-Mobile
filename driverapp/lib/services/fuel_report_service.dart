@@ -92,22 +92,18 @@ class FuelReportService {
       var responseData = await response.stream.bytesToString();
       var jsonData = jsonDecode(responseData);
       
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'message': 'Báo cáo đổ nhiên liệu đã được gửi thành công',
-          'data': jsonData['data']
-        };
-      } else {
-        return {
-          'success': false,
-          'message': jsonData['message'] ?? 'Không thể gửi báo cáo',
-        };
-      }
+      // Return the raw response from server
+      return {
+        'success': response.statusCode == 200 && (jsonData['status'] == 200 || jsonData['status'] == 1),
+        'message': jsonData['message'] ?? 'Unknown response',
+        'data': jsonData['data'],
+        'statusCode': response.statusCode
+      };
     } catch (e) {
       return {
         'success': false,
-        'message': 'Lỗi khi gửi báo cáo: $e',
+        'message': e.toString(),
+        'statusCode': 500
       };
     }
   }

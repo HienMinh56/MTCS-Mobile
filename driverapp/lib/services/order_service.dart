@@ -18,13 +18,13 @@ class OrderService {
         if (data['status'] == 1) {
           return data['data'][0];
         } else {
-          throw Exception('API error: ${data['message']}');
+          throw Exception(data['message'] ?? 'API error occurred');
         }
       } else {
         throw Exception('Failed to load order details: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Failed to load order details: $e');
+      throw e; // Re-throw the original exception
     }
   }
   
