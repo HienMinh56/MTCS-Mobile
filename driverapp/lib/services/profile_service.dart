@@ -8,7 +8,7 @@ class ProfileService {
 
   Future<DriverProfile> getDriverProfile(String driverId) async {
     try {
-      final token =await AuthService.getAuthToken();
+      final token = await AuthService.getAuthToken();
       
       // Use updated API endpoint
       final response = await http.get(
@@ -44,13 +44,11 @@ class ProfileService {
           throw Exception(profileResponse.message);
         }
       } else {
-        print("API error: HTTP status ${response.statusCode}");
-        print("Token: ${token}");  
-        throw Exception('Không thể tải hồ sơ tài xế: ${response.statusCode}');
+        throw Exception('Server returned status code: ${response.statusCode}');
       }
     } catch (e) {
       print("Exception in getDriverProfile: $e");
-      throw Exception('Lỗi khi tải hồ sơ tài xế: $e');
+      throw e; // Re-throw the original exception
     }
   }
 
@@ -61,6 +59,57 @@ class ProfileService {
     } catch (e) {
       print("Exception in getDriverName: $e");
       throw Exception('Lỗi khi tải tên tài xế: $e');
+    }
+  }
+
+  Future<DriverProfile> updateDriverProfile(
+    String driverId, 
+    String fullName, 
+    String email, 
+    String phoneNumber, 
+    String? dateOfBirth,
+    {String? password}
+  ) async {
+    final url = Uri.parse('${baseUrl}/Driver/$driverId');
+    
+    // Create multipart request
+    final request = http.MultipartRequest('PUT', url);
+    
+    // Add authorization header
+    final authToken = await AuthService.getAuthToken();
+    request.headers['Authorization'] = 'Bearer $authToken';
+    
+    // Add form fields
+    request.fields['FullName'] = fullName;
+    request.fields['Email'] = email;
+    request.fields['PhoneNumber'] = phoneNumber;
+    
+    if (dateOfBirth != null && dateOfBirth.isNotEmpty) {
+      request.fields['DateOfBirth'] = dateOfBirth;
+    }
+    
+    if (password != null && password.isNotEmpty) {
+      request.fields['Password'] = password;
+    }
+    
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+        
+        if (jsonResponse['success'] == true) {
+          return DriverProfile.fromJson(jsonResponse['data']);
+        } else {
+          throw Exception(jsonResponse['messageVN'] ?? 'Lỗi khi cập nhật thông tin');
+        }
+      } else {
+        final jsonResponse = jsonDecode(response.body);
+        throw Exception(jsonResponse['messageVN'] ?? 'Lỗi khi cập nhật thông tin');
+      }
+    } catch (e) {
+      throw Exception('Không thể cập nhật hồ sơ: $e');
     }
   }
 }

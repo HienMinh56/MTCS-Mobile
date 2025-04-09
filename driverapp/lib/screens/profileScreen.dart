@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:driverapp/models/driver_profile.dart';
 import 'package:driverapp/services/profile_service.dart';
+import 'package:driverapp/services/auth_service.dart';
 import 'package:driverapp/utils/color_constants.dart';
+import 'package:intl/intl.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String driverId;
@@ -14,9 +16,21 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final ProfileService _profileService = ProfileService();
+  final _formKey = GlobalKey<FormState>();
   bool _isLoading = true;
+  bool _isEditing = false;
+  bool _isUpdating = false;
   DriverProfile? _driverProfile;
   String _errorMessage = '';
+  String? _updateMessage;
+  bool _updateSuccess = false;
+
+  // Form controllers
+  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _dobController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   @override
   void initState() {
@@ -24,17 +38,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadDriverProfile();
   }
 
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _dobController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadDriverProfile() async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
-    
+
     try {
       final profile = await _profileService.getDriverProfile(widget.driverId);
       setState(() {
         _driverProfile = profile;
         _isLoading = false;
+
+        // Initialize form controllers
+        _fullNameController.text = profile.fullName;
+        _emailController.text = profile.email;
+        _phoneController.text = profile.phoneNumber;
+        if (profile.dateOfBirth != null && profile.dateOfBirth!.isNotEmpty) {
+          try {
+            final date = DateTime.parse(profile.dateOfBirth!);
+            _dobController.text = DateFormat('yyyy-MM-dd').format(date);
+          } catch (e) {
+            _dobController.text = '';
+          }
+        }
       });
     } catch (e) {
       setState(() {
@@ -42,6 +79,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _updateProfile() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isUpdating = true;
+      _updateMessage = null;
+    });
+
+    try {
+      final updatedProfile = await _profileService.updateDriverProfile(
+        widget.driverId,
+        _fullNameController.text,
+        _emailController.text,
+        _phoneController.text,
+        _dobController.text,
+        password: _passwordController.text.isNotEmpty ? _passwordController.text : null,
+      );
+
+      setState(() {
+        _driverProfile = updatedProfile;
+        _isUpdating = false;
+        _isEditing = false;
+        _updateSuccess = true;
+        _updateMessage = 'Cập nhật thông tin thành công';
+        _passwordController.clear();
+      });
+
+      // Show success message and logout confirmation
+      _showUpdateSuccessAndLogoutDialog();
+    } catch (e) {
+      setState(() {
+        _isUpdating = false;
+        _updateSuccess = false;
+        _updateMessage = 'Lỗi: ${e.toString()}';
+      });
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_updateMessage!),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showUpdateSuccessAndLogoutDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return WillPopScope(
+          onWillPop: () async => false, // Prevent dialog dismissal with back button
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.blue, size: 28),
+                SizedBox(width: 8),
+                Text('Thành công', style: TextStyle(color: Colors.blue)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Thông tin hồ sơ của bạn đã được cập nhật thành công.'),
+                const SizedBox(height: 12),
+                Text(
+                  'Bạn cần đăng nhập lại để áp dụng thay đổi.',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            actions: [
+              
+              ElevatedButton.icon(
+                icon: const Icon(Icons.logout, size: 18),
+                label: const Text('Đăng xuất'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+                onPressed: () async {
+                  await AuthService.logout();
+                  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -53,6 +189,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          if (!_isLoading && _driverProfile != null && !_isEditing)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () {
+                setState(() {
+                  _isEditing = true;
+                });
+              },
+            ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadDriverProfile,
@@ -60,7 +207,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ? const Center(child: CircularProgressIndicator())
             : _errorMessage.isNotEmpty
                 ? _buildErrorView()
-                : _buildProfileView(),
+                : _isEditing
+                    ? _buildEditProfileView()
+                    : _buildProfileView(),
       ),
     );
   }
@@ -107,84 +256,380 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 24),
         _buildInfoSection(),
         const SizedBox(height: 24),
-        _buildWorkStatisticsSection(), // Add work statistics section
+        _buildWorkStatisticsSection(),
       ],
     );
   }
 
-  Widget _buildProfileHeader() {
-    return Column(
-      children: [
-        Container(
-          width: 120,
-          height: 120,
-          decoration: BoxDecoration(
-            color: ColorConstants.backgroundLight,
-            shape: BoxShape.circle,
-            border: Border.all(width: 4, color: Theme.of(context).primaryColor.withOpacity(0.2)),
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.person,
-              size: 70,
-              color: ColorConstants.profileColor,
+  Widget _buildEditProfileView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.edit_note, color: Colors.blue),
+                        SizedBox(width: 8),
+                        Text(
+                          'Chỉnh Sửa Thông Tin',
+                          style: TextStyle(
+                            fontSize: 20, 
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Full Name Field
+                    TextFormField(
+                      controller: _fullNameController,
+                      decoration: InputDecoration(
+                        labelText: 'Họ và Tên',
+                        prefixIcon: Icon(Icons.person, color: Colors.blue),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.blue, width: 2),
+                        ),
+                        labelStyle: TextStyle(color: Colors.grey[700]),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Vui lòng nhập họ tên';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Email Field
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: Icon(Icons.email, color: Colors.blue),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.blue, width: 2),
+                        ),
+                        labelStyle: TextStyle(color: Colors.grey[700]),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Vui lòng nhập email';
+                        }
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                          return 'Vui lòng nhập email hợp lệ';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Phone Field
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: InputDecoration(
+                        labelText: 'Số Điện Thoại',
+                        prefixIcon: Icon(Icons.phone, color: Colors.blue),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.blue, width: 2),
+                        ),
+                        labelStyle: TextStyle(color: Colors.grey[700]),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Vui lòng nhập số điện thoại';
+                        }
+                        if (!RegExp(r'^[0-9]{10,11}$').hasMatch(value)) {
+                          return 'Số điện thoại không hợp lệ';
+                        }
+                        return null;
+                      },
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Date of Birth Field
+                    TextFormField(
+                      controller: _dobController,
+                      decoration: InputDecoration(
+                        labelText: 'Ngày Sinh (YYYY-MM-DD)',
+                        hintText: 'YYYY-MM-DD',
+                        prefixIcon: Icon(Icons.cake, color: Colors.blue),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.blue, width: 2),
+                        ),
+                        labelStyle: TextStyle(color: Colors.grey[700]),
+                        suffixIcon: IconButton(
+                          icon: Icon(Icons.calendar_today, color: Colors.blue),
+                          onPressed: () async {
+                            final DateTime? picked = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(1900),
+                              lastDate: DateTime.now(),
+                              builder: (context, child) {
+                                return Theme(
+                                  data: Theme.of(context).copyWith(
+                                    colorScheme: ColorScheme.light(
+                                      primary: Colors.blue,
+                                      onPrimary: Colors.white,
+                                      onSurface: Colors.black,
+                                    ),
+                                  ),
+                                  child: child!,
+                                );
+                              },
+                            );
+                            if (picked != null) {
+                              setState(() {
+                                _dobController.text = DateFormat('yyyy-MM-dd').format(picked);
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value != null && value.isNotEmpty) {
+                          try {
+                            DateTime.parse(value);
+                          } catch (e) {
+                            return 'Ngày không hợp lệ. Vui lòng sử dụng định dạng YYYY-MM-DD';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Password Field (Optional)
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: InputDecoration(
+                        labelText: 'Mật Khẩu (Để trống nếu không thay đổi)',
+                        prefixIcon: Icon(Icons.lock, color: Colors.blue),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.blue, width: 2),
+                        ),
+                        labelStyle: TextStyle(color: Colors.grey[700]),
+                      ),
+                      obscureText: true,
+                      validator: (value) {
+                        if (value != null && value.isNotEmpty && value.length < 6) {
+                          return 'Mật khẩu phải có ít nhất 6 ký tự';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
+            const SizedBox(height: 24),
+            
+            // Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _isUpdating 
+                    ? null 
+                    : () {
+                        setState(() {
+                          _isEditing = false;
+                          // Reset form data
+                          _fullNameController.text = _driverProfile!.fullName;
+                          _emailController.text = _driverProfile!.email;
+                          _phoneController.text = _driverProfile!.phoneNumber;
+                          if (_driverProfile!.dateOfBirth != null) {
+                            try {
+                              final date = DateTime.parse(_driverProfile!.dateOfBirth!);
+                              _dobController.text = DateFormat('yyyy-MM-dd').format(date);
+                            } catch (e) {
+                              _dobController.text = '';
+                            }
+                          }
+                          _passwordController.clear();
+                        });
+                      },
+                  icon: const Icon(Icons.cancel),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[400],
+                    foregroundColor: Colors.black87,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    elevation: 2,
+                  ),
+                  label: const Text('Hủy'),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: _isUpdating ? null : _updateProfile,
+                  icon: _isUpdating 
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.save),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    elevation: 3,
+                  ),
+                  label: const Text('Lưu Thay Đổi'),
+                ),
+              ],
+            ),
+          ],
         ),
-        const SizedBox(height: 16),
-        Text(
-          _driverProfile!.fullName.isNotEmpty ? _driverProfile!.fullName : 'Không có tên',
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: ColorConstants.backgroundLight,
+                shape: BoxShape.circle,
+                border: Border.all(width: 4, color: Theme.of(context).primaryColor.withOpacity(0.2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.person,
+                  size: 70,
+                  color: Colors.blue,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _driverProfile!.fullName.isNotEmpty ? _driverProfile!.fullName : 'Không có tên',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.badge, size: 14, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  'ID: ${_driverProfile!.driverId}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _buildStatusBadge(),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          'ID: ${_driverProfile!.driverId}',
-          style: TextStyle(
-            fontSize: 13,
-            color: Colors.grey[600],
-          ),
-        ),
-        const SizedBox(height: 4),
-        _buildStatusBadge(),
-      ],
+      ),
     );
   }
 
   Widget _buildStatusBadge() {
     Color badgeColor;
     String statusText;
-    
+    IconData statusIcon;
+
     switch (_driverProfile!.status) {
       case 2:
         badgeColor = Colors.blue;
         statusText = 'Đang giao hàng';
+        statusIcon = Icons.local_shipping;
         break;
       case 1:
         badgeColor = Colors.green;
         statusText = 'Đang hoạt động';
+        statusIcon = Icons.check_circle;
         break;
       case 0:
         badgeColor = Colors.grey;
         statusText = 'Không hoạt động';
+        statusIcon = Icons.do_not_disturb_on;
         break;
       default:
         badgeColor = Colors.orange;
         statusText = 'Không xác định';
+        statusIcon = Icons.help_outline;
     }
-    
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(16),
+        color: badgeColor.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: badgeColor),
       ),
-      child: Text(
-        statusText,
-        style: TextStyle(color: badgeColor, fontWeight: FontWeight.bold),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(statusIcon, size: 16, color: badgeColor),
+          const SizedBox(width: 6),
+          Text(
+            statusText,
+            style: TextStyle(color: badgeColor, fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }
@@ -198,28 +643,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Thông Tin Liên Hệ',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: const [
+                Icon(Icons.contact_mail, size: 18, color: Colors.blue),
+                SizedBox(width: 8),
+                Text(
+                  'Thông Tin Liên Hệ',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
-            const Divider(),
+            const Divider(height: 24),
             _buildInfoRow(Icons.email, 'Email', _driverProfile!.email.isNotEmpty ? _driverProfile!.email : 'Không có'),
             _buildInfoRow(Icons.phone, 'Số Điện Thoại', _driverProfile!.phoneNumber.isNotEmpty ? _driverProfile!.phoneNumber : 'Không có'),
             _buildInfoRow(
-              Icons.calendar_today, 
-              'Ngày Tham Gia', 
-              _formatDate(_driverProfile!.createdDate)
+              Icons.calendar_today,
+              'Ngày Tham Gia',
+              _formatDate(_driverProfile!.createdDate),
             ),
+            if (_driverProfile!.dateOfBirth != null && _driverProfile!.dateOfBirth!.isNotEmpty)
+              _buildInfoRow(
+                Icons.cake,
+                'Ngày Sinh',
+                _formatDate(_driverProfile!.dateOfBirth),
+              ),
           ],
         ),
       ),
     );
   }
 
-  // New method to display work statistics
   Widget _buildWorkStatisticsSection() {
     return Card(
       elevation: 2,
@@ -258,13 +714,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Helper method for statistics items
   Widget _buildStatisticItem({required IconData icon, required String label, required String value}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [
-          Icon(icon, size: 22, color: ColorConstants.profileColor),
+          Icon(icon, size: 22, color: Colors.blue),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -329,7 +784,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (dateString == null || dateString.isEmpty) {
       return 'Không có';
     }
-    
+
     try {
       final date = DateTime.parse(dateString);
       return '${date.day}/${date.month}/${date.year}';
@@ -338,13 +793,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // New helper method to format working time
   String _formatWorkingTime(int minutes) {
     if (minutes <= 0) return '0 phút';
-    
+
     final hours = minutes ~/ 60;
     final remainingMinutes = minutes % 60;
-    
+
     if (hours > 0) {
       return '$hours giờ ${remainingMinutes > 0 ? '$remainingMinutes phút' : ''}';
     } else {

@@ -17,14 +17,14 @@ class DeliveryStatusService {
               .map((item) => DeliveryStatus.fromJson(item))
               .toList();
         } else {
-          throw Exception('Failed to load delivery statuses: ${responseData['message']}');
+          throw Exception(responseData['message'] ?? 'Failed to load delivery statuses');
         }
       } else {
-        throw Exception('Failed to load delivery statuses. Status code: ${response.statusCode}');
+        throw Exception('Server returned status code: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching delivery statuses: $e');
-      return []; // Return empty list on error
+      throw e; // Re-throw the original exception
     }
   }
   

@@ -97,33 +97,25 @@ class IncidentReportService {
       } catch (e) {
         return IncidentReportResponse(
           success: false,
-          message: 'Lỗi phân tích dữ liệu: $responseBody',
+          message: 'Response parsing error: $responseBody',
         );
       }
       
-      // Check response status
-      if (response.statusCode == 200 && jsonResponse['status'] == 1) {
-        return IncidentReportResponse(
-          success: true,
-          message: jsonResponse['message'] ?? 'Báo cáo đã được gửi thành công',
-          data: jsonResponse['data'],
-        );
-      } else {
-        return IncidentReportResponse(
-          success: false,
-          message: jsonResponse['message'] ?? 'Lỗi khi gửi báo cáo',
-          data: jsonResponse['data'],
-        );
-      }
+      // Return the response directly from server
+      return IncidentReportResponse(
+        success: response.statusCode == 200 && jsonResponse['status'] == 1,
+        message: jsonResponse['message'] ?? 'Unknown server response',
+        data: jsonResponse['data'],
+      );
     } on SocketException {
       return IncidentReportResponse(
         success: false,
-        message: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.',
+        message: 'Network connection error',
       );
     } catch (e) {
       return IncidentReportResponse(
         success: false,
-        message: 'Đã xảy ra lỗi: $e',
+        message: e.toString(),
       );
     }
   }

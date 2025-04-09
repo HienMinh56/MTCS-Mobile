@@ -39,10 +39,15 @@ class StatusManager {
           }
           
           _isInitialized = true;
+        } else {
+          throw Exception(responseData['message'] ?? 'Failed to fetch status data');
         }
+      } else {
+        throw Exception('Failed to fetch delivery statuses: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching delivery statuses: $e');
+      throw e; // Re-throw to propagate the original error
     }
   }
 }

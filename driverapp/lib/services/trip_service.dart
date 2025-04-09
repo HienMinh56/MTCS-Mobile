@@ -14,17 +14,10 @@ class TripService {
       headers: ApiUtils.headers,
     );
 
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> data = json.decode(response.body);
-      if (data['status'] == 200) {
-        final List<dynamic> tripsJson = data['data'];
-        return tripsJson.map((json) => Trip.fromJson(json)).toList();
-      } else {
-        throw Exception('API error: ${data['message']}');
-      }
-    } else {
-      throw Exception('Failed to load trips: ${response.statusCode}');
-    }
+    return ApiUtils.handleResponse(response, (data) {
+      final List<dynamic> tripsJson = data['data'];
+      return tripsJson.map((json) => Trip.fromJson(json)).toList();
+    });
   }
 
   // Method to get detailed information about a specific trip

@@ -15,10 +15,17 @@ class ApiUtils {
       if (data['status'] == 200 || data['status'] == 1) {
         return onSuccess(data);
       } else {
-        throw Exception('API error: ${data['message']}');
+        throw Exception(data['message'] ?? 'API error occurred');
       }
     } else {
-      throw Exception('Request failed: ${response.statusCode}');
+      try {
+        // Try to parse error response as JSON
+        final Map<String, dynamic> errorData = json.decode(response.body);
+        throw Exception(errorData['message'] ?? 'Request failed: ${response.statusCode}');
+      } catch (e) {
+        // If not valid JSON, return the status code
+        throw Exception('Request failed: ${response.statusCode}');
+      }
     }
   }
 }

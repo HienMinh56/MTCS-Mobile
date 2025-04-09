@@ -833,7 +833,7 @@ class _TripCardState extends State<TripCard> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
                             _isLoadingStatuses
                                 ? const Center(
                                     child: Padding(
@@ -1011,6 +1011,9 @@ class _TripCardState extends State<TripCard> {
             widget.trip.status = newStatus;
             widget.trip.statusName = statusName;
           });
+          
+          // Recalculate the next status after updating the current status
+          _determineNextStatus();
           
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
