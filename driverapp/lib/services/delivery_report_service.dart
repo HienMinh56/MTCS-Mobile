@@ -54,9 +54,14 @@ class DeliveryReportService {
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
     
-    // Return the raw response from server
+    // Process response
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      final jsonResponse = json.decode(response.body);
+      return {
+        'success': jsonResponse['status'] == 200,
+        'message': jsonResponse['message'] ?? '',
+        'data': jsonResponse['data']
+      };
     } else {
       throw Exception('Server returned status code: ${response.statusCode}');
     }
@@ -80,12 +85,17 @@ class DeliveryReportService {
       );
       
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final jsonResponse = json.decode(response.body);
+        return jsonResponse;
       } else {
-        throw Exception('Server returned status code: ${response.statusCode}');
+        throw Exception('Failed to load delivery reports. Status: ${response.statusCode}');
       }
     } catch (e) {
-      throw e; // Re-throw the original exception
+      return {
+        'status': 0, 
+        'message': 'Error loading delivery reports: $e',
+        'data': []
+      };
     }
   }
 }

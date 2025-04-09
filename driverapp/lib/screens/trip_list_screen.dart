@@ -906,7 +906,10 @@ class _TripCardState extends State<TripCard> {
                         },
                       ),
                       
-                      if (widget.trip.status != 'not_started' && widget.trip.status != 'completed') ...[
+                      // Show report options only for trips that are not completed and not canceled
+                      if (widget.trip.status != 'not_started' && 
+                          widget.trip.status != 'completed' && 
+                          widget.trip.status != 'canceled') ...[
                         const SizedBox(height: 12),
                         _buildActionButton(
                           label: 'Báo cáo đổ nhiên liệu',
