@@ -4,6 +4,7 @@ import 'package:driverapp/services/profile_service.dart';
 import 'package:driverapp/services/auth_service.dart';
 import 'package:driverapp/utils/color_constants.dart';
 import 'package:intl/intl.dart';
+import 'package:driverapp/services/working_time_service.dart'; // Add this import
 
 class ProfileScreen extends StatefulWidget {
   final String driverId;
@@ -16,6 +17,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final ProfileService _profileService = ProfileService();
+  final WorkingTimeService _workingTimeService = WorkingTimeService(); // Add this line
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = true;
   bool _isEditing = false;
@@ -24,6 +26,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _errorMessage = '';
   String? _updateMessage;
   bool _updateSuccess = false;
+
+  // Add these properties
+  String _weeklyWorkingTime = '0 giờ 0 phút';
+  String _dailyWorkingTime = '0 giờ 0 phút';
+  bool _isLoadingWorkingTime = true;
+
+  // Add these properties for date range working time
+  DateTime _fromDate = DateTime.now().subtract(const Duration(days: 7));
+  DateTime _toDate = DateTime.now();
+  String _rangeWorkingTime = '';
+  bool _isLoadingRangeTime = false;
 
   // Form controllers
   final TextEditingController _fullNameController = TextEditingController();
@@ -51,6 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadDriverProfile() async {
     setState(() {
       _isLoading = true;
+      _isLoadingWorkingTime = true;
       _errorMessage = '';
     });
 
@@ -73,11 +87,96 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
         }
       });
+
+      // Load the working time data
+      _loadWorkingTimeData();
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
+        _isLoadingWorkingTime = false;
       });
+    }
+  }
+
+  // Add this method to load working time data
+  Future<void> _loadWorkingTimeData() async {
+    try {
+      final weeklyTime = await _workingTimeService.getWeeklyWorkingTime(widget.driverId);
+      final dailyTime = await _workingTimeService.getDailyWorkingTime(widget.driverId);
+
+      setState(() {
+        _weeklyWorkingTime = weeklyTime;
+        _dailyWorkingTime = dailyTime;
+        _isLoadingWorkingTime = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingWorkingTime = false;
+      });
+    }
+  }
+
+  // Add this method to fetch working time for a specific range
+  Future<void> _loadRangeWorkingTime() async {
+    setState(() {
+      _isLoadingRangeTime = true;
+    });
+
+    try {
+      final rangeTime = await _workingTimeService.getWorkingTimeRange(
+        widget.driverId,
+        _fromDate,
+        _toDate,
+      );
+
+      setState(() {
+        _rangeWorkingTime = rangeTime;
+        _isLoadingRangeTime = false;
+      });
+    } catch (e) {
+      setState(() {
+        _rangeWorkingTime = 'Lỗi: ${e.toString()}';
+        _isLoadingRangeTime = false;
+      });
+    }
+  }
+
+  // Show date range picker dialog
+  Future<void> _showDateRangeDialog() async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: DateTimeRange(
+        start: _fromDate,
+        end: _toDate,
+      ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.blue,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.blue,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _fromDate = picked.start;
+        _toDate = picked.end;
+      });
+      _loadRangeWorkingTime();
     }
   }
 
@@ -158,7 +257,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
             actions: [
-              
               ElevatedButton.icon(
                 icon: const Icon(Icons.logout, size: 18),
                 label: const Text('Đăng xuất'),
@@ -284,7 +382,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Text(
                           'Chỉnh Sửa Thông Tin',
                           style: TextStyle(
-                            fontSize: 20, 
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
                             color: Colors.blue,
                           ),
@@ -292,7 +390,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    
+
                     // Full Name Field
                     TextFormField(
                       controller: _fullNameController,
@@ -316,7 +414,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Email Field
                     TextFormField(
                       controller: _emailController,
@@ -343,7 +441,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Phone Field
                     TextFormField(
                       controller: _phoneController,
@@ -371,7 +469,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Date of Birth Field
                     TextFormField(
                       controller: _dobController,
@@ -428,7 +526,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Password Field (Optional)
                     TextFormField(
                       controller: _passwordController,
@@ -457,32 +555,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            
+
             // Buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton.icon(
-                  onPressed: _isUpdating 
-                    ? null 
-                    : () {
-                        setState(() {
-                          _isEditing = false;
-                          // Reset form data
-                          _fullNameController.text = _driverProfile!.fullName;
-                          _emailController.text = _driverProfile!.email;
-                          _phoneController.text = _driverProfile!.phoneNumber;
-                          if (_driverProfile!.dateOfBirth != null) {
-                            try {
-                              final date = DateTime.parse(_driverProfile!.dateOfBirth!);
-                              _dobController.text = DateFormat('yyyy-MM-dd').format(date);
-                            } catch (e) {
-                              _dobController.text = '';
+                  onPressed: _isUpdating
+                      ? null
+                      : () {
+                          setState(() {
+                            _isEditing = false;
+                            // Reset form data
+                            _fullNameController.text = _driverProfile!.fullName;
+                            _emailController.text = _driverProfile!.email;
+                            _phoneController.text = _driverProfile!.phoneNumber;
+                            if (_driverProfile!.dateOfBirth != null) {
+                              try {
+                                final date = DateTime.parse(_driverProfile!.dateOfBirth!);
+                                _dobController.text = DateFormat('yyyy-MM-dd').format(date);
+                              } catch (e) {
+                                _dobController.text = '';
+                              }
                             }
-                          }
-                          _passwordController.clear();
-                        });
-                      },
+                            _passwordController.clear();
+                          });
+                        },
                   icon: const Icon(Icons.cancel),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey[400],
@@ -496,7 +594,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(width: 16),
                 ElevatedButton.icon(
                   onPressed: _isUpdating ? null : _updateProfile,
-                  icon: _isUpdating 
+                  icon: _isUpdating
                       ? const SizedBox(
                           width: 20,
                           height: 20,
@@ -685,29 +783,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Thống Kê Công Việc',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Thống Kê Công Việc',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _showDateRangeDialog,
+                  icon: const Icon(Icons.date_range, size: 18),
+                  label: const Text('Ngày'),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const Divider(),
-            _buildStatisticItem(
-              icon: Icons.av_timer,
-              label: 'Tổng Thời Gian Làm Việc',
-              value: "${_driverProfile!.totalWorkingTime} giờ",
-            ),
-            _buildStatisticItem(
-              icon: Icons.date_range,
-              label: 'Thời Gian Làm Việc Tuần Này',
-              value: "${_driverProfile!.currentWeekWorkingTime} giờ",
-            ),
-            _buildStatisticItem(
-              icon: Icons.local_shipping,
-              label: 'Tổng Số Đơn Hàng',
-              value: '${_driverProfile!.totalOrder}',
-            ),
+            _isLoadingWorkingTime
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20.0),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      _buildStatisticItem(
+                        icon: Icons.date_range,
+                        label: 'Thời Gian Làm Việc Tuần Này',
+                        value: _weeklyWorkingTime,
+                      ),
+                      _buildStatisticItem(
+                        icon: Icons.access_time,
+                        label: 'Thời Gian Làm Việc Hôm Nay',
+                        value: _dailyWorkingTime,
+                      ),
+                      if (_rangeWorkingTime.isNotEmpty)
+                        _buildStatisticItem(
+                          icon: Icons.date_range_outlined,
+                          label: 'Thời gian làm việc từ ${DateFormat('dd/MM/yyyy').format(_fromDate)} đến ${DateFormat('dd/MM/yyyy').format(_toDate)}',
+                          value: _rangeWorkingTime,
+                        ),
+                      _buildStatisticItem(
+                        icon: Icons.local_shipping,
+                        label: 'Tổng Số Đơn Hàng',
+                        value: '${_driverProfile!.totalOrder}',
+                      ),
+                    ],
+                  ),
           ],
         ),
       ),
