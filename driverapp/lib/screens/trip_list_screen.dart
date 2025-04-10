@@ -764,13 +764,6 @@ class _TripCardState extends State<TripCard> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          Text(
-                            'Order: ${widget.trip.orderId}',
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
                         ],
                       ),
                     ],
@@ -931,14 +924,37 @@ class _TripCardState extends State<TripCard> {
                           label: 'Báo cáo sự cố',
                           icon: Icons.report_problem,
                           color: Colors.red,
-                          onPressed: () {
+                          onPressed: () async {
                             Navigator.pop(context); // Close sheet
-                            Navigator.push(
+                            final Map<String, dynamic>? result = await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => IncidentReportScreen(tripId: widget.trip.tripId),
                               ),
                             );
+                            
+                            // Check if we got a result with updated status
+                            if (result != null && 
+                                result.containsKey('newStatus') && 
+                                result.containsKey('newStatusName')) {
+                              // Update trip status locally
+                              setState(() {
+                                widget.trip.status = result['newStatus'];
+                                widget.trip.statusName = result['newStatusName'];
+                              });
+                              
+                              // Notify parent widget about the status change
+                              if (widget.onStatusUpdated != null) {
+                                widget.onStatusUpdated!(
+                                  widget.trip.tripId, 
+                                  result['newStatus'], 
+                                  result['newStatusName']
+                                );
+                              }
+                              
+                              // Recalculate next status
+                              _determineNextStatus();
+                            }
                           },
                         ),
                       ],
@@ -977,7 +993,7 @@ class _TripCardState extends State<TripCard> {
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         ),
-      ),
+      )
     );
   }
   

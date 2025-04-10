@@ -1,3 +1,7 @@
+import 'dart:ffi';
+
+import 'package:flutter/material.dart';
+
 class Order {
   final String orderId;
   final String customerName;
@@ -11,10 +15,13 @@ class Order {
   final double? orderWeight;
   final String? pickupDate;
   final String? pickupLocation;
+  final int? deliveryType; // 1: "nhập", 2: "xuất"
   final String? containerReturnLocation;
   final String? transportationType; // "nhập" or "xuất"
   final String? containerId;
   final String? partnerName;
+  final TimeOfDay? completionTime;
+  final Double? distance;
   final String? partnerPhone;
   final bool? isPaid;
 
@@ -31,10 +38,13 @@ class Order {
     this.orderWeight,
     this.pickupDate,
     this.pickupLocation,
+    this.deliveryType,
     this.containerReturnLocation,
     this.transportationType,
     this.containerId,
     this.partnerName,
+    this.completionTime,
+    this.distance,
     this.partnerPhone,
     this.isPaid,
   });
@@ -53,10 +63,13 @@ class Order {
       orderWeight: json['orderWeight']?.toDouble(),
       pickupDate: json['pickupDate'],
       pickupLocation: json['pickupLocation'],
+      deliveryType: json['deliveryType'],
       containerReturnLocation: json['containerReturnLocation'],
       transportationType: json['transportationType'],
       containerId: json['containerId'],
       partnerName: json['partnerName'],
+      completionTime: json['completionTime'],
+      distance: json['distance'],
       partnerPhone: json['partnerPhone'],
       isPaid: json['isPaid'],
     );

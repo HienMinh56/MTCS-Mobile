@@ -925,17 +925,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return 'Không hợp lệ';
     }
   }
-
-  String _formatWorkingTime(int minutes) {
-    if (minutes <= 0) return '0 phút';
-
-    final hours = minutes ~/ 60;
-    final remainingMinutes = minutes % 60;
-
-    if (hours > 0) {
-      return '$hours giờ ${remainingMinutes > 0 ? '$remainingMinutes phút' : ''}';
-    } else {
-      return '$minutes phút';
-    }
-  }
 }
