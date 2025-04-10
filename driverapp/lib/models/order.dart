@@ -1,5 +1,7 @@
 import 'dart:ffi';
 
+import 'package:flutter/material.dart';
+
 class Order {
   final String orderId;
   final String customerName;
@@ -18,7 +20,7 @@ class Order {
   final String? transportationType; // "nhập" or "xuất"
   final String? containerId;
   final String? partnerName;
-  final String? completionTime;
+  final TimeOfDay? completionTime;
   final Double? distance;
   final String? partnerPhone;
   final bool? isPaid;

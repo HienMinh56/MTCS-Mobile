@@ -120,7 +120,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             children: [
               InfoRow(label: 'Ngày lấy hàng:', value: _formatDate(_orderDetails!['pickUpDate'])),
               InfoRow(label: 'Ngày giao hàng:', value: _formatDate(_orderDetails!['deliveryDate'])),
-              InfoRow(label: 'Dự kiến hoàn thành:', value: _formatDate(_orderDetails!['completionTime'])),
+              InfoRow(label: 'Hoàn thành cần:', value: _orderDetails!['completionTime']),
             ],
           ),
           
