@@ -696,12 +696,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildStatisticItem(
               icon: Icons.av_timer,
               label: 'Tổng Thời Gian Làm Việc',
-              value: _formatWorkingTime(_driverProfile!.totalWorkingTime),
+              value: "${_driverProfile!.totalWorkingTime} giờ",
             ),
             _buildStatisticItem(
               icon: Icons.date_range,
               label: 'Thời Gian Làm Việc Tuần Này',
-              value: _formatWorkingTime(_driverProfile!.currentWeekWorkingTime),
+              value: "${_driverProfile!.currentWeekWorkingTime} giờ",
             ),
             _buildStatisticItem(
               icon: Icons.local_shipping,
