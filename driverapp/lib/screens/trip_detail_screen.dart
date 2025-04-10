@@ -1485,10 +1485,10 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: report['status'] == 'Resolved' ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12), 
                       ),
                       child: Text(
-                        report['status'] ?? 'N/A',
+                        (report['status'] == 'Resolved') ? 'Đã giải quyết' : 'Chưa giải quyết',
                         style: TextStyle(
                           color: report['status'] == 'Resolved' ? Colors.green : Colors.orange,
                           fontWeight: FontWeight.bold,

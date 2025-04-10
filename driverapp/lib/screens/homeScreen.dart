@@ -6,6 +6,7 @@ import 'package:driverapp/services/delivery_status_service.dart';
 import 'package:driverapp/services/navigation_service.dart';
 import 'package:driverapp/services/notification_service.dart';
 import 'package:driverapp/services/profile_service.dart';
+import 'package:driverapp/services/working_time_service.dart';
 import 'package:driverapp/utils/color_constants.dart';
 import 'package:flutter/material.dart';
 
@@ -23,11 +24,12 @@ class _HomeScreenState extends State<HomeScreen> {
   final NotificationService _notificationService = NotificationService();
   final ProfileService _profileService = ProfileService();
   final DeliveryStatusService _deliveryStatusService = DeliveryStatusService();
+  final WorkingTimeService _workingTimeService = WorkingTimeService();
   
   int _unreadNotifications = 0;
   bool _isLoading = true;
-  int _totalWorkingTime = 0;
-  int _currentWeekWorkingTime = 0;
+  String _weeklyWorkingTime = '0 giờ 0 phút';
+  String _dailyWorkingTime = '0 giờ 0 phút';
   List<DeliveryStatus> _deliveryStatuses = [];
   String _driverName = '';
   
@@ -42,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
       await Future.wait([
         _loadDriverProfile(),
         _loadDeliveryStatuses(),
+        _loadWorkingTimes(),
       ]);
       
       if (mounted) {
@@ -57,6 +60,27 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadWorkingTimes() async {
+    try {
+      final weeklyTime = await _workingTimeService.getWeeklyWorkingTime(widget.userId);
+      final dailyTime = await _workingTimeService.getDailyWorkingTime(widget.userId);
+      
+      if (mounted) {
+        setState(() {
+          _weeklyWorkingTime = weeklyTime;
+          _dailyWorkingTime = dailyTime;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _weeklyWorkingTime = '0 giờ 0 phút';
+          _dailyWorkingTime = '0 giờ 0 phút';
         });
       }
     }
@@ -79,16 +103,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
   
-  // Helper methods to get status lists for each category
   List<String> _getNotStartedStatuses() {
     if (_deliveryStatuses.isEmpty) return ["not_started"];
     
-    // Find the minimum status index
     final minIndex = _deliveryStatuses
         .map((s) => s.statusIndex)
         .reduce((a, b) => a < b ? a : b);
     
-    // Return statuses with the minimum index
     return _deliveryStatuses
         .where((status) => status.statusIndex == minIndex)
         .map((status) => status.statusId)
@@ -98,12 +119,10 @@ class _HomeScreenState extends State<HomeScreen> {
   List<String> _getCompletedStatuses() {
     if (_deliveryStatuses.isEmpty) return ["completed", "canceled"];
     
-    // Find the maximum status index
     final maxIndex = _deliveryStatuses
         .map((s) => s.statusIndex)
         .reduce((a, b) => a > b ? a : b);
     
-    // Return statuses with the maximum index or "canceled" status
     return _deliveryStatuses
         .where((status) => 
           status.statusIndex == maxIndex || status.statusId == "canceled")
@@ -122,11 +141,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ];
     }
     
-    // Get not started and completed status IDs
     final notStartedIds = _getNotStartedStatuses();
     final completedIds = _getCompletedStatuses();
     
-    // Return all other status IDs
     return _deliveryStatuses
         .map((status) => status.statusId)
         .where((statusId) => 
@@ -135,14 +152,11 @@ class _HomeScreenState extends State<HomeScreen> {
         .toList();
   }
   
-  // Existing methods
   Future<void> _loadDriverProfile() async {
     try {
       final profile = await _profileService.getDriverProfile(widget.userId);
       if (mounted) {
         setState(() {
-          _totalWorkingTime = profile.totalWorkingTime;
-          _currentWeekWorkingTime = profile.currentWeekWorkingTime;
           _driverName = profile.fullName;
         });
       }
@@ -165,7 +179,6 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
       
-      // Refresh more frequently if needed
       if (mounted) {
         Future.delayed(const Duration(seconds: 30), () {
           _loadUnreadNotificationCount();
@@ -200,7 +213,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 IconButton(
                   icon: const Icon(Icons.notifications, size: 28),
                   onPressed: () {
-                    // Force refresh before navigating
                     _forceRefreshNotifications();
                     Navigator.push(
                       context,
@@ -208,7 +220,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         builder: (context) => NotificationsScreen(userId: widget.userId),
                       ),
                     ).then((_) {
-                      // After returning from notifications screen
                       _forceRefreshNotifications();
                     });
                   },
@@ -249,6 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _loadUnreadNotificationCount(),
             _loadDriverProfile(),
             _loadDeliveryStatuses(),
+            _loadWorkingTimes(),
           ]);
         },
         child: Padding(
@@ -259,7 +271,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Driver welcome section
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -293,7 +304,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       
                       const SizedBox(height: 20),
                       
-                      // Working time summary
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -318,7 +328,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '$_currentWeekWorkingTime giờ',
+                                    _weeklyWorkingTime,
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -339,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Text(
-                                      'Tổng thời gian làm việc',
+                                      'Thời gian làm việc hôm nay',
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w500,
@@ -348,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '$_totalWorkingTime giờ',
+                                      _dailyWorkingTime,
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
