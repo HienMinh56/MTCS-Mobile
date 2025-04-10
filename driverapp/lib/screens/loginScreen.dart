@@ -84,13 +84,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Text(
-                      "MTCS",
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontStyle: FontStyle.italic,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    const Image(
+                      image: AssetImage("img/logo.png"),
+                      width: 120,
                     ),
                     const SizedBox(height: 32),
                     FormFields.buildEmailField(

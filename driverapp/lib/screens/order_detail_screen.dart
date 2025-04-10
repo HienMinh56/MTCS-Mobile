@@ -85,6 +85,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               InfoRow(label: 'Tracking Code:', value: _orderDetails!['trackingCode'] ?? 'N/A'),
               InfoRow(label: 'Số Container:', value: _orderDetails!['containerNumber'] ?? 'N/A'),
               InfoRow(label: 'Giá:', value: CurrencyFormatter.formatVND(_orderDetails!['price'])),
+              InfoRow(label: 'Loại:', value: _orderDetails!['deliveryType'] == 1 ? "Nhập" : "Xuất"),
             ],
           ),
           
@@ -96,6 +97,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               InfoRow(label: 'Điểm lấy hàng:', value: _orderDetails!['pickUpLocation'] ?? 'N/A'),
               InfoRow(label: 'Điểm giao hàng:', value: _orderDetails!['deliveryLocation'] ?? 'N/A'),
               InfoRow(label: 'Điểm trả rỗng:', value: _orderDetails!['conReturnLocation'] ?? 'N/A'),
+              InfoRow(label: 'Khoảng cách:', value: '${_orderDetails!['distance']} km'),
             ],
           ),
           
@@ -118,6 +120,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             children: [
               InfoRow(label: 'Ngày lấy hàng:', value: _formatDate(_orderDetails!['pickUpDate'])),
               InfoRow(label: 'Ngày giao hàng:', value: _formatDate(_orderDetails!['deliveryDate'])),
+              InfoRow(label: 'Dự kiến hoàn thành:', value: _formatDate(_orderDetails!['completionTime'])),
             ],
           ),
           
