@@ -32,17 +32,6 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
   // Incident report service
   final _incidentReportService = IncidentReportService();
   
-  // Incident types for auto-complete
-  final List<String> _incidentTypes = [
-    'Xe hỏng động cơ',
-    'Xe bị nổ lốp',
-    'Tai nạn giao thông',
-    'Hàng hóa hư hỏng',
-    'Giao hàng muộn',
-    'Vấn đề giấy tờ',
-    'Khác'
-  ];
-
   // Update image picking to support multiple images
   Future<void> _pickImages() async {
     final List<File> images = await ImageUtils.pickMultipleImages();
@@ -341,50 +330,36 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                 
                 // Incident Type
                 _buildSectionTitle('Loại sự cố'),
-                Autocomplete<String>(
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    if (textEditingValue.text == '') {
-                      return const Iterable<String>.empty();
-                    }
-                    return _incidentTypes.where((option) {
-                      return option.toLowerCase().contains(
-                            textEditingValue.text.toLowerCase());
-                    });
-                  },
-                  onSelected: (String selection) {
+                TextFormField(
+                  initialValue: _selectedIncidentType,
+                  onChanged: (value) {
                     setState(() {
-                      _selectedIncidentType = selection;
+                      _selectedIncidentType = value;
                     });
                   },
-                  fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-                    return TextFormField(
-                      controller: textEditingController,
-                      focusNode: focusNode,
-                      decoration: InputDecoration(
-                        hintText: 'Chọn hoặc nhập loại sự cố',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.blue.shade200),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.blue.shade200),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        prefixIcon: Icon(Icons.category, color: Colors.blue.shade700),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Vui lòng chọn loại sự cố';
-                        }
-                        return null;
-                      },
-                    );
+                  decoration: InputDecoration(
+                    hintText: 'Nhập loại sự cố',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.blue.shade200),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.blue.shade200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    prefixIcon: Icon(Icons.category, color: Colors.blue.shade700),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Vui lòng nhập loại sự cố';
+                    }
+                    return null;
                   },
                 ),
                 
