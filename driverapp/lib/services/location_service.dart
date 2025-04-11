@@ -15,43 +15,39 @@ Future<void> init(String userId) async {
   if (_isInitialized) return;
   _userId = userId;
 
-  // Check permission như cũ
+
   LocationPermission permission = await Geolocator.checkPermission();
   if (permission == LocationPermission.denied) {
     permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied) {
-      return;
-    }
+    if (permission == LocationPermission.denied) return;
   }
+  if (permission == LocationPermission.deniedForever) return;
 
-  if (permission == LocationPermission.deniedForever) {
-    return;
-  }
 
-  // Kết nối WebSocket
-  print("🔌 Connecting WebSocket...");
-  _channel = IOWebSocketChannel.connect("wss://mtcs-server.azurewebsites.net/ws");
+  final token = await AuthService.getAuthToken();
+
+
+  final uri = Uri.parse("wss://mtcs-server.azurewebsites.net/ws?userId=$_userId&token=$token&action=send");
+  _channel = IOWebSocketChannel.connect(uri.toString());
   _isInitialized = true;
-  print("✅ WebSocket connected");
 
-  // Gửi vị trí mỗi 5 phút
-  _locationTimer = Timer.periodic(Duration(minutes: 1), (_) async {
+
+  _locationTimer = Timer.periodic(Duration(seconds: 10), (_) async {
     Position position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
-      final token = await AuthService.getAuthToken();
+
     final data = {
       'type': 'location_update',
       'userId': _userId,
-      'lat': position.latitude,
-      'lng': position.longitude,
-      'token':token,
+      'Latitude': position.latitude,
+      'Longitude': position.longitude,
     };
 
-    print('📡 Sending location: $data');
     _channel.sink.add(jsonEncode(data));
   });
 }
+
 
 void dispose() {
   if (_isInitialized) {
