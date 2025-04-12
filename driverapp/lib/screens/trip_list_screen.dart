@@ -6,7 +6,7 @@ import 'package:driverapp/services/delivery_status_service.dart';
 import 'package:driverapp/utils/color_constants.dart';
 import 'package:driverapp/utils/formatters.dart';
 import 'package:driverapp/components/info_row.dart';
-import 'package:driverapp/components/trip_filter_panel.dart';  // Import the new component
+import 'package:driverapp/components/trip_filter_panel.dart';
 import 'package:driverapp/screens/trip_detail_screen.dart';
 import 'package:driverapp/screens/order_detail_screen.dart';
 import 'package:driverapp/screens/fuel_report_screen.dart';
@@ -32,15 +32,14 @@ class TripListScreen extends StatefulWidget {
 class _TripListScreenState extends State<TripListScreen> {
   final TripService _tripService = TripService();
   List<Trip> _trips = [];
-  List<Trip> _filteredTrips = []; // Store filtered trips
+  List<Trip> _filteredTrips = [];
   bool _isLoading = true;
   String _errorMessage = '';
-  
-  // Filter state variables
+
   String? _statusFilter;
   DateTime? _startDateFilter;
   DateTime? _endDateFilter;
-  bool _showFilterPanel = false; // Control filter panel visibility
+  bool _showFilterPanel = false;
 
   @override
   void initState() {
@@ -56,7 +55,6 @@ class _TripListScreenState extends State<TripListScreen> {
 
     try {
       if (widget.statusList != null && widget.statusList!.isNotEmpty) {
-        // Load multiple statuses for "in_progress"
         final List<Trip> allTrips = [];
         for (final status in widget.statusList!) {
           final trips = await _tripService.getDriverTrips(
@@ -65,27 +63,26 @@ class _TripListScreenState extends State<TripListScreen> {
           );
           allTrips.addAll(trips);
         }
-        
+
         if (mounted) {
           setState(() {
             _trips = allTrips;
             _trips.sort((a, b) => b.startTime!.compareTo(a.startTime!));
-            _applyFilters(); // Apply filters after loading
+            _applyFilters();
             _isLoading = false;
           });
         }
       } else {
-        // Load single status
         final trips = await _tripService.getDriverTrips(
           widget.driverId,
           status: widget.status,
         );
-        
+
         if (mounted) {
           setState(() {
             _trips = trips;
             _trips.sort((a, b) => b.startTime!.compareTo(a.startTime!));
-            _applyFilters(); // Apply filters after loading
+            _applyFilters();
             _isLoading = false;
           });
         }
@@ -100,42 +97,38 @@ class _TripListScreenState extends State<TripListScreen> {
     }
   }
 
-  // Apply filters to the trips list
   void _applyFilters() {
     List<Trip> result = List.from(_trips);
-    
-    // Apply status filter if selected
+
     if (_statusFilter != null && _statusFilter!.isNotEmpty) {
       result = result.where((trip) => trip.status == _statusFilter).toList();
     }
-    
-    // Apply date range filter if selected
+
     if (_startDateFilter != null) {
       result = result.where((trip) {
         final tripStartDate = trip.startTime;
         final tripEndDate = trip.endTime;
         return (tripStartDate != null && tripStartDate.isAfter(_startDateFilter!)) ||
-               (tripEndDate != null && tripEndDate.isAfter(_startDateFilter!));
+            (tripEndDate != null && tripEndDate.isAfter(_startDateFilter!));
       }).toList();
     }
-    
+
     if (_endDateFilter != null) {
-      final endOfDay = DateTime(_endDateFilter!.year, _endDateFilter!.month, 
-                               _endDateFilter!.day, 23, 59, 59);
+      final endOfDay = DateTime(_endDateFilter!.year, _endDateFilter!.month,
+          _endDateFilter!.day, 23, 59, 59);
       result = result.where((trip) {
         final tripStartDate = trip.startTime;
         final tripEndDate = trip.endTime;
         return (tripStartDate != null && tripStartDate.isBefore(endOfDay)) ||
-               (tripEndDate != null && tripEndDate.isBefore(endOfDay));
+            (tripEndDate != null && tripEndDate.isBefore(endOfDay));
       }).toList();
     }
-    
+
     setState(() {
       _filteredTrips = result;
     });
   }
 
-  // Reset all filters
   void _resetFilters() {
     setState(() {
       _statusFilter = null;
@@ -145,7 +138,6 @@ class _TripListScreenState extends State<TripListScreen> {
     });
   }
 
-  // Handle filter changes from the filter component
   void _handleFilterChange(String? status, DateTime? startDate, DateTime? endDate) {
     setState(() {
       _statusFilter = status;
@@ -155,19 +147,15 @@ class _TripListScreenState extends State<TripListScreen> {
     });
   }
 
-  // Update a specific trip in the list or remove it if it no longer matches filter
   void _updateTripInList(String tripId, String newStatus, String newStatusName) {
-    // Check if the updated trip should remain in the current list based on filter criteria
     bool shouldKeepInList = _shouldKeepInList(newStatus);
-    
+
     if (!shouldKeepInList) {
-      // If the trip should no longer be in this list, remove it
       setState(() {
         _trips.removeWhere((trip) => trip.tripId == tripId);
-        _applyFilters(); // Reapply filters after updating
+        _applyFilters();
       });
     } else {
-      // Just update the status
       setState(() {
         for (int i = 0; i < _trips.length; i++) {
           if (_trips[i].tripId == tripId) {
@@ -176,18 +164,15 @@ class _TripListScreenState extends State<TripListScreen> {
             break;
           }
         }
-        _applyFilters(); // Reapply filters after updating
+        _applyFilters();
       });
     }
   }
-  
-  // Determine if a trip with the given status should be in the current list
+
   bool _shouldKeepInList(String status) {
-    // If we're showing multiple statuses (for in_progress trips)
     if (widget.statusList != null && widget.statusList!.isNotEmpty) {
       return widget.statusList!.contains(status);
     }
-    // If we're showing a single status
     return widget.status == status;
   }
 
@@ -210,7 +195,6 @@ class _TripListScreenState extends State<TripListScreen> {
         elevation: 0,
         backgroundColor: ColorConstants.primaryColor,
         actions: [
-          // Only show filter toggle button on completed trips screen
           if (widget.status == 'completed')
             IconButton(
               icon: Icon(_showFilterPanel ? Icons.filter_list_off : Icons.filter_list),
@@ -225,7 +209,6 @@ class _TripListScreenState extends State<TripListScreen> {
       ),
       body: Column(
         children: [
-          // Use the new filter component - only visible for completed trips and when toggle is on
           if (widget.status == 'completed' && _showFilterPanel)
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
@@ -238,7 +221,6 @@ class _TripListScreenState extends State<TripListScreen> {
                 onResetFilter: _resetFilters,
               ),
             ),
-            
           Expanded(
             child: RefreshIndicator(
               onRefresh: _loadTrips,
@@ -278,7 +260,6 @@ class _TripListScreenState extends State<TripListScreen> {
                                       color: Colors.grey[600],
                                     ),
                                   ),
-                                  // Show reset filters button if filters are active
                                   if (_statusFilter != null || _startDateFilter != null || _endDateFilter != null)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 16),
@@ -330,47 +311,38 @@ class TripCard extends StatefulWidget {
 class _TripCardState extends State<TripCard> {
   final TripService _tripService = TripService();
   final DeliveryStatusService _statusService = DeliveryStatusService();
-  
-  // Cache all statuses instead of just next status
+
   static List<DeliveryStatus>? _allStatuses;
-  
-  // Add state variables to track loading status and next status
+
   bool _isLoadingStatuses = false;
   DeliveryStatus? _nextStatus;
   bool _isFinalStatus = false;
-  
+
   @override
   void initState() {
     super.initState();
-    // Load all statuses if not already cached
     if (_allStatuses == null) {
       _loadAllStatuses();
     } else {
       _determineNextStatus();
     }
   }
-  
-  // Method to load all delivery statuses
+
   Future<void> _loadAllStatuses() async {
     if (widget.trip.status == 'completed') return;
-    
+
     setState(() {
       _isLoadingStatuses = true;
     });
-    
+
     try {
-      // Use the delivery status service to get all statuses
       final statuses = await _statusService.getDeliveryStatuses();
-      
-      // Store all statuses in cache
       _allStatuses = statuses;
-      
+
       if (mounted) {
         setState(() {
           _isLoadingStatuses = false;
         });
-        
-        // Determine next status based on all statuses
         _determineNextStatus();
       }
     } catch (e) {
@@ -381,15 +353,13 @@ class _TripCardState extends State<TripCard> {
       }
     }
   }
-  
-  // Method to determine next status based on statusIndex
+
   void _determineNextStatus() {
     if (_allStatuses == null || widget.trip.status == 'completed') {
       _isFinalStatus = (widget.trip.status == 'completed');
       return;
     }
-    
-    // Find current status in the list
+
     DeliveryStatus? currentStatus;
     for (var status in _allStatuses!) {
       if (status.statusId == widget.trip.status) {
@@ -397,40 +367,35 @@ class _TripCardState extends State<TripCard> {
         break;
       }
     }
-    
+
     if (currentStatus == null) return;
-    
-    // Current status index
+
     int currentIndex = currentStatus.statusIndex;
-    
-    // Find the next status with the next index
+
     DeliveryStatus? nextStatus;
     for (var status in _allStatuses!) {
-      // Find normal flow status (not canceled or delaying) with next index
-      if (status.statusId != 'canceled' && 
-          status.statusId != 'delaying' && 
+      if (status.statusId != 'canceled' &&
+          status.statusId != 'delaying' &&
           status.statusIndex == currentIndex + 1) {
         nextStatus = status;
         break;
       }
     }
-    
+
     if (mounted) {
       setState(() {
         _nextStatus = nextStatus;
-        // If current status is the highest index or is completed
-        // Also check if the next status is 'completed'
-        _isFinalStatus = (nextStatus == null || 
-                         widget.trip.status == 'completed' || 
-                         (nextStatus.statusId == 'completed'));
+        _isFinalStatus = (nextStatus == null ||
+            widget.trip.status == 'completed' ||
+            (nextStatus.statusId == 'completed'));
       });
     }
   }
-  
+
   Future<void> _navigateToDeliveryReportScreen() async {
-    final _TripListScreenState? parentState = 
+    final _TripListScreenState? parentState =
         context.findAncestorStateOfType<_TripListScreenState>();
-    
+
     if (parentState == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -440,38 +405,51 @@ class _TripCardState extends State<TripCard> {
       );
       return;
     }
-    
+
     final String driverId = parentState.widget.driverId;
-    
+
     final bool? reportSubmitted = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => DeliveryReportScreen(
           tripId: widget.trip.tripId,
-          userId: driverId, // Use the driverId from parent widget
+          userId: driverId,
           onReportSubmitted: (success) {
             Navigator.pop(context, success);
           },
         ),
       ),
     );
-    
+
     if (reportSubmitted == true && context.mounted && _nextStatus != null) {
       _updateTripStatus(
-        context, 
+        context,
         _nextStatus!.statusId,
         _nextStatus!.statusName,
         bypassDeliveryReportCheck: true,
       );
     }
   }
-  
+
+  Future<void> _navigateWithRefresh(Widget screen) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
+
+    final _TripListScreenState? parentState =
+        context.findAncestorStateOfType<_TripListScreenState>();
+
+    if (parentState != null && mounted) {
+      parentState._loadTrips();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     Color statusColor;
     IconData statusIcon;
-    
-    // Determine status color and icon based on trip status
+
     switch (widget.trip.status) {
       case 'not_started':
         statusColor = Colors.blue;
@@ -493,7 +471,7 @@ class _TripCardState extends State<TripCard> {
         statusColor = const Color.fromARGB(255, 0, 17, 255);
         statusIcon = Icons.directions_car;
     }
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16.0),
       elevation: 2,
@@ -503,7 +481,6 @@ class _TripCardState extends State<TripCard> {
       ),
       child: Column(
         children: [
-          // Header with status indicator
           Container(
             decoration: BoxDecoration(
               color: statusColor.withOpacity(0.1),
@@ -542,21 +519,16 @@ class _TripCardState extends State<TripCard> {
               ],
             ),
           ),
-          
-          // Trip details
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Fix: Remove custom styling parameters from InfoRow
                 InfoRow(
-                  label: 'Order ID:', 
+                  label: 'Order ID:',
                   value: widget.trip.orderId,
                 ),
                 const SizedBox(height: 8),
-                
-                // Fix: Replace InfoRow with custom Row for start time
                 Row(
                   children: [
                     const Icon(Icons.access_time, color: Colors.green, size: 16),
@@ -576,8 +548,6 @@ class _TripCardState extends State<TripCard> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                
-                // Fix: Replace InfoRow with custom Row for end time
                 Row(
                   children: [
                     const Icon(Icons.access_time, color: Colors.red, size: 16),
@@ -596,21 +566,13 @@ class _TripCardState extends State<TripCard> {
                     ),
                   ],
                 ),
-                
-                // Add buttons row - smaller and more harmonious design
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    // Order details button - compact styling
                     Expanded(
                       child: InkWell(
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => OrderDetailScreen(tripId: widget.trip.tripId),
-                            ),
-                          );
+                          _navigateWithRefresh(OrderDetailScreen(tripId: widget.trip.tripId));
                         },
                         borderRadius: BorderRadius.circular(8),
                         child: Container(
@@ -649,10 +611,7 @@ class _TripCardState extends State<TripCard> {
                         ),
                       ),
                     ),
-                    
                     const SizedBox(width: 10),
-                    
-                    // Trip details and update button - compact styling
                     Expanded(
                       child: InkWell(
                         onTap: () {
@@ -697,7 +656,6 @@ class _TripCardState extends State<TripCard> {
                     ),
                   ],
                 ),
-                
               ],
             ),
           ),
@@ -707,13 +665,12 @@ class _TripCardState extends State<TripCard> {
   }
 
   void _showTripDetailAndUpdateOptions() {
-    // Update this section to use the new approach
     if (_allStatuses == null && widget.trip.status != 'completed' && !_isLoadingStatuses) {
       _loadAllStatuses();
     } else if (_allStatuses != null && _nextStatus == null && widget.trip.status != 'completed') {
       _determineNextStatus();
     }
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -730,7 +687,6 @@ class _TripCardState extends State<TripCard> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Handle bar for dragging
                 Center(
                   child: Container(
                     margin: const EdgeInsets.only(top: 8, bottom: 4),
@@ -742,8 +698,6 @@ class _TripCardState extends State<TripCard> {
                     ),
                   ),
                 ),
-                
-                // Header with trip ID
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                   decoration: BoxDecoration(
@@ -769,14 +723,11 @@ class _TripCardState extends State<TripCard> {
                     ],
                   ),
                 ),
-                
-                // Trip info and actions
                 Expanded(
                   child: ListView(
                     controller: scrollController,
                     padding: const EdgeInsets.all(20),
                     children: [
-                      // Current status
                       const Text(
                         'Trạng thái hiện tại:',
                         style: TextStyle(
@@ -809,12 +760,9 @@ class _TripCardState extends State<TripCard> {
                           ],
                         ),
                       ),
-                      
                       const SizedBox(height: 24),
-                      
-                      // Update status button (if not completed)
-                      if (widget.trip.status != 'completed' && 
-                          widget.trip.status != 'delaying' && 
+                      if (widget.trip.status != 'completed' &&
+                          widget.trip.status != 'delaying' &&
                           widget.trip.status != 'canceled')
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -851,7 +799,7 @@ class _TripCardState extends State<TripCard> {
                                         width: double.infinity,
                                         child: ElevatedButton.icon(
                                           onPressed: () => _updateTripStatus(
-                                            context, 
+                                            context,
                                             _nextStatus!.statusId,
                                             _nextStatus!.statusName,
                                           ),
@@ -861,7 +809,7 @@ class _TripCardState extends State<TripCard> {
                                             backgroundColor: ColorConstants.accentColor,
                                             padding: const EdgeInsets.symmetric(vertical: 14),
                                             textStyle: const TextStyle(
-                                              fontSize: 16, 
+                                              fontSize: 16,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -869,11 +817,9 @@ class _TripCardState extends State<TripCard> {
                                       ),
                           ],
                         ),
-                      
                       const SizedBox(height: 16),
                       const Divider(),
                       const SizedBox(height: 8),
-                      
                       const Text(
                         'Tuỳ chọn khác:',
                         style: TextStyle(
@@ -881,27 +827,18 @@ class _TripCardState extends State<TripCard> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      
                       const SizedBox(height: 16),
-                      
                       _buildActionButton(
                         label: 'Xem chi tiết đầy đủ',
                         icon: Icons.visibility,
                         color: Colors.blue,
                         onPressed: () {
-                          Navigator.pop(context); // Close sheet
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => TripDetailScreen(tripId: widget.trip.tripId),
-                            ),
-                          );
+                          Navigator.pop(context);
+                          _navigateWithRefresh(TripDetailScreen(tripId: widget.trip.tripId));
                         },
                       ),
-                      
-                      // Show report options only for trips that are not completed and not canceled
-                      if (widget.trip.status != 'not_started' && 
-                          widget.trip.status != 'completed' && 
+                      if (widget.trip.status != 'not_started' &&
+                          widget.trip.status != 'completed' &&
                           widget.trip.status != 'canceled') ...[
                         const SizedBox(height: 12),
                         _buildActionButton(
@@ -909,52 +846,18 @@ class _TripCardState extends State<TripCard> {
                           icon: Icons.local_gas_station,
                           color: Colors.orange,
                           onPressed: () {
-                            Navigator.pop(context); // Close sheet
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => FuelReportScreen(tripId: widget.trip.tripId),
-                              ),
-                            );
+                            Navigator.pop(context);
+                            _navigateWithRefresh(FuelReportScreen(tripId: widget.trip.tripId));
                           },
                         ),
-                        
                         const SizedBox(height: 12),
                         _buildActionButton(
                           label: 'Báo cáo sự cố',
                           icon: Icons.report_problem,
                           color: Colors.red,
-                          onPressed: () async {
-                            Navigator.pop(context); // Close sheet
-                            final Map<String, dynamic>? result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => IncidentReportScreen(tripId: widget.trip.tripId),
-                              ),
-                            );
-                            
-                            // Check if we got a result with updated status
-                            if (result != null && 
-                                result.containsKey('newStatus') && 
-                                result.containsKey('newStatusName')) {
-                              // Update trip status locally
-                              setState(() {
-                                widget.trip.status = result['newStatus'];
-                                widget.trip.statusName = result['newStatusName'];
-                              });
-                              
-                              // Notify parent widget about the status change
-                              if (widget.onStatusUpdated != null) {
-                                widget.onStatusUpdated!(
-                                  widget.trip.tripId, 
-                                  result['newStatus'], 
-                                  result['newStatusName']
-                                );
-                              }
-                              
-                              // Recalculate next status
-                              _determineNextStatus();
-                            }
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _navigateWithRefresh(IncidentReportScreen(tripId: widget.trip.tripId));
                           },
                         ),
                       ],
@@ -968,8 +871,7 @@ class _TripCardState extends State<TripCard> {
       },
     );
   }
-  
-  // Helper method for building action buttons - renamed to avoid conflicts
+
   Widget _buildActionButton({
     required String label,
     required IconData icon,
@@ -993,17 +895,16 @@ class _TripCardState extends State<TripCard> {
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         ),
-      )
+      ),
     );
   }
-  
+
   Future<void> _updateTripStatus(
-    BuildContext context, 
-    String newStatus, 
-    String statusName,
-    {bool bypassDeliveryReportCheck = false}
-  ) async {
-    // Check if the next status is 'completed' and we need to show delivery report
+    BuildContext context,
+    String newStatus,
+    String statusName, {
+    bool bypassDeliveryReportCheck = false,
+  }) async {
     if ((_isFinalStatus || newStatus == 'completed') && !bypassDeliveryReportCheck) {
       _navigateToDeliveryReportScreen();
       return;
@@ -1019,35 +920,30 @@ class _TripCardState extends State<TripCard> {
 
     try {
       final result = await _tripService.updateTripStatus(widget.trip.tripId, newStatus);
-      
+
       if (context.mounted) {
         Navigator.pop(context);
       }
-      
+
       if (context.mounted) {
         if (result['success'] == true) {
           setState(() {
             widget.trip.status = newStatus;
             widget.trip.statusName = statusName;
           });
-          
-          // Recalculate the next status after updating the current status
           _determineNextStatus();
-          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Cập nhật thành công sang trạng thái: $statusName'),
               backgroundColor: Colors.green,
             ),
           );
-
           Navigator.pop(context);
-
           if (widget.onStatusUpdated != null) {
             widget.onStatusUpdated!(widget.trip.tripId, newStatus, statusName);
           }
-
-          final _TripListScreenState? parentState = context.findAncestorStateOfType<_TripListScreenState>();
+          final _TripListScreenState? parentState =
+              context.findAncestorStateOfType<_TripListScreenState>();
           if (parentState != null && parentState._shouldKeepInList(newStatus)) {
             Future.delayed(Duration.zero, () {
               if (context.mounted) {
