@@ -81,15 +81,16 @@ Future<void> saveTokenToFirestore(String userId) async {
 Future<void> requestPermissions() async {
   // Danh sách các quyền cần thiết
 await [
-    Permission.camera,
-    Permission.photos,
     Permission.location,
+    Permission.locationAlways,
     Permission.notification,
   ].request();
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize the foreground task
   
   // Yêu cầu tất cả quyền cần thiết khi khởi động
   await requestPermissions();
@@ -114,7 +115,9 @@ void main() async {
     await saveTokenToFirestore(userId);
   }
 
-  runApp(const MyApp());
+  runApp(
+      const MyApp(),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -158,6 +161,18 @@ class _SplashScreenState extends State<SplashScreen> {
     
     if (!mounted) return;
     
+    // Check if permissions were granted
+    bool hasLocationAlways = await Permission.locationAlways.isGranted;
+    bool hasNotification = await Permission.notification.isGranted;
+    
+    // If permissions not granted, show explanation dialog
+    if (!hasLocationAlways || !hasNotification) {
+      if (!mounted) return;
+      await _showPermissionExplanationDialog();
+      return;
+    }
+    
+    // If we have all permissions, proceed with login check
     final bool isLoggedIn = await AuthService.isLoggedIn();
     final String? userId = await AuthService.getUserId();
     
@@ -176,6 +191,53 @@ class _SplashScreenState extends State<SplashScreen> {
         MaterialPageRoute(builder: (context) => const LoginScreen())
       );
     }
+  }
+  
+  Future<void> _showPermissionExplanationDialog() async {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Cấp quyền bắt buộc'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                'Ứng dụng cần các quyền sau để hoạt động chính xác:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 10),
+              Text('• Quyền vị trí "Luôn cho phép": để theo dõi vị trí của tài xế khi giao hàng, ngay cả khi ứng dụng đang chạy nền'),
+              SizedBox(height: 8),
+              Text('• Quyền thông báo: để nhận thông báo về đơn hàng mới và cập nhật quan trọng'),
+              SizedBox(height: 15),
+              Text('Vui lòng cấp tất cả các quyền này trong phần Cài đặt ứng dụng để tiếp tục sử dụng.'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                
+                // First request permissions within app
+                await Permission.locationAlways.request();
+                await Permission.notification.request();
+                
+                // Then open settings for full control
+                await openAppSettings();
+                
+                // Wait a moment and check again after returning from settings
+                await Future.delayed(const Duration(seconds: 2));
+                _checkLoginStatus();
+              },
+              child: const Text('Đi đến Cài đặt'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override

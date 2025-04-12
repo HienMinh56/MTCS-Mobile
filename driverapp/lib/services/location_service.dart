@@ -24,7 +24,7 @@ Future<void> init(String userId) async {
   if (permission == LocationPermission.deniedForever) return;
 
 
-  final token = await AuthService.getAuthToken();
+  final token = await AuthService.getAuthToken( );
 
 
   final uri = Uri.parse("wss://mtcs-server.azurewebsites.net/ws?userId=$_userId&token=$token&action=send");
@@ -43,7 +43,7 @@ Future<void> init(String userId) async {
       'Latitude': position.latitude,
       'Longitude': position.longitude,
     };
-
+    print('Sending location update: $data');
     _channel.sink.add(jsonEncode(data));
   });
 }
