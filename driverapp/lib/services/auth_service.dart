@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:driverapp/services/location_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -126,6 +127,7 @@ class AuthService {
     await prefs.remove('userId');
     await prefs.remove('authToken');
     await FirebaseMessaging.instance.deleteToken();
+    LocationService().dispose();
     print("🔴 Đã đăng xuất!");
   }
 
