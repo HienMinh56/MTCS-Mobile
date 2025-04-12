@@ -33,10 +33,66 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
   bool _isLoading = false;
   DateTime _reportTime = DateTime.now();
 
+  // Validation constants
+  static const int _maxNoteLength = 500;
+  static const int _minNoteLength = 10;
+  static const int _maxImageCount = 10;
+
+  // Validation state variables
+  String? _noteError;
+  String? _imageError;
+  bool _isFormValid = false;
+
   @override
   void initState() {
     super.initState();
     _loadDriverName();
+    _noteController.addListener(_validateForm);
+  }
+
+  @override
+  void dispose() {
+    _noteController.removeListener(_validateForm);
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  void _validateForm() {
+    _validateNote();
+    _validateImages();
+
+    setState(() {
+      _isFormValid = (_noteError == null && _imageError == null) &&
+          (_noteController.text.trim().isNotEmpty || _imageFiles.isNotEmpty);
+    });
+  }
+
+  void _validateNote() {
+    final note = _noteController.text.trim();
+
+    setState(() {
+      if (note.isEmpty) {
+        _noteError = null;
+      } else if (note.length < _minNoteLength) {
+        _noteError = 'Ghi chú quá ngắn (tối thiểu $_minNoteLength ký tự)';
+      } else if (note.length > _maxNoteLength) {
+        _noteError = 'Ghi chú quá dài (tối đa $_maxNoteLength ký tự)';
+      } else {
+        _noteError = null;
+      }
+    });
+  }
+
+  void _validateImages() {
+    setState(() {
+      if (_imageFiles.isEmpty) {
+        _imageError = null;
+      } else if (_imageFiles.length > _maxImageCount) {
+        _imageError = 'Số lượng ảnh tối đa là $_maxImageCount';
+      } else {
+        _imageError = null;
+      }
+    });
   }
 
   Future<void> _loadDriverName() async {
@@ -71,6 +127,7 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
       setState(() {
         _imageFiles.add(image);
       });
+      _validateForm();
     }
   }
 
@@ -80,6 +137,7 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
       setState(() {
         _imageFiles.addAll(images);
       });
+      _validateForm();
     }
   }
 
@@ -87,23 +145,25 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
     setState(() {
       _imageFiles.removeAt(index);
     });
+    _validateForm();
   }
 
   Future<void> _submitReport() async {
-    if (_noteController.text.trim().isEmpty && _imageFiles.isEmpty) {
+    _validateForm();
+
+    if (!_isFormValid) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Vui lòng nhập ghi chú hoặc thêm ảnh trước khi gửi báo cáo'),
+          content: Text('Vui lòng kiểm tra lại thông tin trước khi gửi báo cáo'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
-    // Show confirmation dialog before submitting
     final bool confirmed = await _showConfirmationDialog();
     if (!confirmed) {
-      return; // User cancelled the submission
+      return;
     }
 
     setState(() {
@@ -111,13 +171,12 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
     });
 
     try {
-      // Use the service to submit the report
       final result = await _reportService.submitDeliveryReport(
         tripId: widget.tripId,
         notes: _noteController.text.trim().isNotEmpty ? _noteController.text.trim() : null,
         imageFiles: _imageFiles.isNotEmpty ? _imageFiles : null,
       );
-      
+
       if (result['success']) {
         if (mounted) {
           _onReportSuccess();
@@ -138,43 +197,34 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
     }
   }
 
-  // When report is successfully submitted
   void _onReportSuccess() {
-    // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Báo cáo đã được gửi thành công'),
         backgroundColor: Colors.green,
       ),
     );
-    
-    // Call the callback if provided
+
     if (widget.onReportSubmitted != null) {
       widget.onReportSubmitted!(true);
     } else {
-      // Default behavior if no callback
       Navigator.pop(context);
     }
   }
 
-  // When report submission fails
   void _onReportFailure(String message) {
-    // Show error message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Lỗi gửi báo cáo: $message'),
         backgroundColor: Colors.red,
       ),
     );
-    
-    // Call the callback if provided
+
     if (widget.onReportSubmitted != null) {
       widget.onReportSubmitted!(false);
     }
-    // Don't navigate away on failure
   }
 
-  // Add this method for showing the confirmation dialog
   Future<bool> _showConfirmationDialog() async {
     return await showDialog<bool>(
       context: context,
@@ -201,7 +251,7 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
           ],
         );
       },
-    ) ?? false; // Return false if dialog is dismissed without a choice
+    ) ?? false;
   }
 
   @override
@@ -255,7 +305,7 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
 
   Widget _buildInfoCard() {
     String formattedDate = AppDateUtils.formatDateTime(_reportTime);
-    
+
     return InfoCard(
       title: 'Thông tin báo cáo',
       children: [
@@ -282,22 +332,58 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
               borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide(color: Colors.purple.shade700, width: 2),
             ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Colors.red, width: 2),
+            ),
+            errorText: _noteError,
+            helperText: 'Tối thiểu $_minNoteLength ký tự, tối đa $_maxNoteLength ký tự',
+            counterText: '${_noteController.text.length}/$_maxNoteLength',
           ),
+          onChanged: (_) => _validateForm(),
         ),
+        if (_noteController.text.isEmpty && _imageFiles.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 8.0),
+            child: Text(
+              'Vui lòng nhập ghi chú hoặc thêm ảnh',
+              style: TextStyle(color: Colors.amber, fontSize: 12),
+            ),
+          ),
       ],
     );
   }
 
   Widget _buildImageSection() {
-    return ImageSection(
-      title: 'Hình ảnh biên bản',
-      imageFiles: _imageFiles,
-      onTakePhoto: _takePhoto,
-      onPickImage: _pickImage,
-      onRemoveImage: _removeImage,
-      cameraButtonColor: Colors.blue.shade700,
-      galleryButtonColor: Colors.amber.shade700,
-      emptyMessage: 'Chưa có ảnh nào\nChọn "Chọn nhiều ảnh" để tải lên nhiều ảnh cùng lúc',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ImageSection(
+          title: 'Hình ảnh biên bản',
+          imageFiles: _imageFiles,
+          onTakePhoto: _takePhoto,
+          onPickImage: _pickImage,
+          onRemoveImage: _removeImage,
+          cameraButtonColor: Colors.blue.shade700,
+          galleryButtonColor: Colors.amber.shade700,
+          emptyMessage: 'Chưa có ảnh nào\nChọn "Chọn nhiều ảnh" để tải lên nhiều ảnh cùng lúc',
+        ),
+        if (_imageError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0, left: 12.0),
+            child: Text(
+              _imageError!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.only(top: 8.0, left: 12.0),
+          child: Text(
+            'Tối đa $_maxImageCount ảnh',
+            style: const TextStyle(color: Colors.grey, fontSize: 12),
+          ),
+        ),
+      ],
     );
   }
 }

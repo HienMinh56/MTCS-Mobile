@@ -78,6 +78,13 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
 
   Future<void> _submitReport() async {
     if (!_formKey.currentState!.validate()) {
+      // Show a message when validation fails
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng điền đầy đủ thông tin theo yêu cầu'),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
     
@@ -90,7 +97,17 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
       );
       return;
     }
-
+    
+    if (_images.length > 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Số lượng hình ảnh không được vượt quá 10 ảnh'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
     setState(() {
       _isSubmitting = true;
     });
@@ -359,6 +376,12 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Vui lòng nhập loại sự cố';
                     }
+                    if (value.length < 3) {
+                      return 'Loại sự cố phải có ít nhất 3 ký tự';
+                    }
+                    if (value.length > 100) {
+                      return 'Loại sự cố không được quá 100 ký tự';
+                    }
                     return null;
                   },
                 ),
@@ -444,6 +467,12 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Vui lòng nhập địa điểm xảy ra sự cố';
                     }
+                    if (value.length < 5) {
+                      return 'Địa điểm phải có ít nhất 5 ký tự';
+                    }
+                    if (value.length > 200) {
+                      return 'Địa điểm không được quá 200 ký tự';
+                    }
                     return null;
                   },
                 ),
@@ -474,6 +503,12 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Vui lòng nhập mô tả sự cố';
+                    }
+                    if (value.length < 10) {
+                      return 'Mô tả phải có ít nhất 10 ký tự';
+                    }
+                    if (value.length > 500) {
+                      return 'Mô tả không được quá 500 ký tự';
                     }
                     return null;
                   },

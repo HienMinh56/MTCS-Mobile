@@ -11,6 +11,7 @@ class ImageSection extends StatelessWidget {
   final Color cameraButtonColor;
   final Color galleryButtonColor;
   final int crossAxisCount;
+  final String? errorText; // Add this parameter
 
   const ImageSection({
     super.key,
@@ -23,6 +24,7 @@ class ImageSection extends StatelessWidget {
     this.cameraButtonColor = Colors.blue,
     this.galleryButtonColor = Colors.amber,
     this.crossAxisCount = 3,
+    this.errorText, // Add this parameter
   });
 
   @override
@@ -85,6 +87,17 @@ class ImageSection extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _buildImageGrid(),
+            if (errorText != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  errorText!,
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

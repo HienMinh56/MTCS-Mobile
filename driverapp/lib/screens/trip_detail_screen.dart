@@ -911,94 +911,6 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     );
   }
 
-  // New method to build fuel report card
-  // Widget _buildFuelReportCard(Map<String, dynamic> report) {
-  //   return Card(
-  //     margin: const EdgeInsets.only(bottom: 16.0),
-  //     elevation: 2,
-  //     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-  //     child: Padding(
-  //       padding: const EdgeInsets.all(16.0),
-  //       child: Column(
-  //         crossAxisAlignment: CrossAxisAlignment.start,
-  //         children: [
-  //           InfoRow(
-  //               label: 'Số lượng xăng:',
-  //               value: '${report['refuelAmount']} lít'),
-  //           InfoRow(
-  //             label: 'Chi phí:',
-  //             value:
-  //                 '${NumberFormatter.formatCurrency(report['fuelCost'])} VNĐ',
-  //           ),
-  //           InfoRow(label: 'Địa điểm:', value: report['location'] ?? 'N/A'),
-  //           InfoRow(
-  //             label: 'Thời gian báo cáo:',
-  //             value:
-  //                 DateFormatter.formatDateTimeFromString(report['reportTime']),
-  //           ),
-  //           const SizedBox(height: 12),
-  //           const Text(
-  //             'Hình ảnh:',
-  //             style: TextStyle(fontWeight: FontWeight.bold),
-  //           ),
-  //           const SizedBox(height: 8),
-  //           if (report['fuelReportFiles'] != null &&
-  //               (report['fuelReportFiles'] as List).isNotEmpty)
-  //             SizedBox(
-  //               height: 100,
-  //               child: ListView.builder(
-  //                 scrollDirection: Axis.horizontal,
-  //                 itemCount: (report['fuelReportFiles'] as List).length,
-  //                 itemBuilder: (context, index) {
-  //                   final file = report['fuelReportFiles'][index];
-  //                   return GestureDetector(
-  //                     onTap: () => _showFullScreenImage(file['fileUrl']),
-  //                     child: Container(
-  //                       margin: const EdgeInsets.only(right: 8),
-  //                       width: 100,
-  //                       child: ClipRRect(
-  //                         borderRadius: BorderRadius.circular(8),
-  //                         child: Image.network(
-  //                           file['fileUrl'],
-  //                           fit: BoxFit.cover,
-  //                           loadingBuilder: (context, child, loadingProgress) {
-  //                             if (loadingProgress == null) return child;
-  //                             return const Center(
-  //                                 child: CircularProgressIndicator());
-  //                           },
-  //                           errorBuilder: (context, error, stackTrace) =>
-  //                               const Center(child: Icon(Icons.error)),
-  //                         ),
-  //                       ),
-  //                     ),
-  //                   );
-  //                 },
-  //               ),
-  //             )
-  //           else
-  //             const Text('Không có hình ảnh'),
-  //           const SizedBox(height: 16),
-  //           Center(
-  //             child: ElevatedButton(
-  //               onPressed: _tripDetails!['endTime'] != null
-  //                   ? null
-  //                   : () => _showEditFuelReportDialog(report),
-  //               child: Text(
-  //                 'Chỉnh sửa báo cáo',
-  //                 style: TextStyle(
-  //                   color: _tripDetails!['endTime'] != null
-  //                       ? Colors.grey[600]
-  //                       : null,
-  //                 ),
-  //               ),
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
-
   void _showFullScreenImage(String imageUrl) {
     Navigator.push(
       context,
@@ -1771,12 +1683,61 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
         List<Map<String, dynamic>>.from(report['incidentReportsFiles'] ?? []);
     final Set<String> fileIdsToRemove = {};
     final List<File> newFiles = [];
+    
+    // Add validation state variables
+    bool isIncidentTypeValid = true;
+    bool isDescriptionValid = true;
+    bool isLocationValid = true;
+    
+    // Validation error messages
+    String incidentTypeError = '';
+    String descriptionError = '';
+    String locationError = '';
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            
+            // Validate function
+            void validateFields() {
+              setState(() {
+                // Validate incident type
+                if (incidentTypeController.text.trim().isEmpty) {
+                  isIncidentTypeValid = false;
+                  incidentTypeError = 'Vui lòng nhập loại sự cố';
+                } else if (incidentTypeController.text.trim().length < 3) {
+                  isIncidentTypeValid = false;
+                  incidentTypeError = 'Loại sự cố quá ngắn';
+                } else {
+                  isIncidentTypeValid = true;
+                  incidentTypeError = '';
+                }
+                
+                // Validate description
+                if (descriptionController.text.trim().isEmpty) {
+                  isDescriptionValid = false;
+                  descriptionError = 'Vui lòng nhập mô tả sự cố';
+                } else if (descriptionController.text.trim().length < 10) {
+                  isDescriptionValid = false;
+                  descriptionError = 'Mô tả cần ít nhất 10 ký tự';
+                } else {
+                  isDescriptionValid = true;
+                  descriptionError = '';
+                }
+                
+                // Validate location
+                if (locationController.text.trim().isEmpty) {
+                  isLocationValid = false;
+                  locationError = 'Vui lòng nhập địa điểm';
+                } else {
+                  isLocationValid = true;
+                  locationError = '';
+                }
+              });
+            }
+            
             return AlertDialog(
               title: const Text('Chỉnh sửa báo cáo sự cố'),
               content: SingleChildScrollView(
@@ -1786,129 +1747,91 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   children: [
                     TextField(
                       controller: incidentTypeController,
-                      decoration: const InputDecoration(
-                          labelText: 'Loại sự cố'),
+                      decoration: InputDecoration(
+                        labelText: 'Loại sự cố',
+                        errorText: isIncidentTypeValid ? null : incidentTypeError,
+                        errorBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: ColorConstants.primaryColor, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onChanged: (value) {
+                        if (!isIncidentTypeValid) {
+                          validateFields();
+                        }
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: descriptionController,
-                      decoration:
-                          const InputDecoration(labelText: 'Mô tả'),
+                      decoration: InputDecoration(
+                        labelText: 'Mô tả',
+                        errorText: isDescriptionValid ? null : descriptionError,
+                        errorBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: ColorConstants.primaryColor, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        alignLabelWithHint: true,
+                      ),
                       maxLines: 3,
+                      onChanged: (value) {
+                        if (!isDescriptionValid) {
+                          validateFields();
+                        }
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: locationController,
-                      decoration: const InputDecoration(labelText: 'Địa điểm'),
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // Add incident resolution type selector with horizontal layout
-                    const Text(
-                      'Cách xử lý sự cố:',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                        color: Colors.grey.shade50,
+                      decoration: InputDecoration(
+                        labelText: 'Địa điểm',
+                        errorText: isLocationValid ? null : locationError,
+                        errorBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: ColorConstants.primaryColor, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                      child: Row(
-                        children: [
-                          // Option 1: Xử lý tại chỗ
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedIncidentType = 1;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                                decoration: BoxDecoration(
-                                  color: selectedIncidentType == 1 ? Colors.blue.shade100 : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: selectedIncidentType == 1 ? Colors.blue : Colors.transparent,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Radio<int>(
-                                      value: 1,
-                                      groupValue: selectedIncidentType,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          selectedIncidentType = value!;
-                                        });
-                                      },
-                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Flexible(
-                                      child: Text(
-                                        'Xử lý tại chỗ',
-                                        style: TextStyle(fontSize: 13),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          
-                          const SizedBox(width: 8),
-                          
-                          // Option 2: Thay xe
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedIncidentType = 2;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                                decoration: BoxDecoration(
-                                  color: selectedIncidentType == 2 ? Colors.orange.shade100 : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: selectedIncidentType == 2 ? Colors.orange : Colors.transparent,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Radio<int>(
-                                      value: 2,
-                                      groupValue: selectedIncidentType,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          selectedIncidentType = value!;
-                                        });
-                                      },
-                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Flexible(
-                                      child: Text(
-                                        'Thay xe',
-                                        style: TextStyle(fontSize: 13),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      onChanged: (value) {
+                        if (!isLocationValid) {
+                          validateFields();
+                        }
+                      },
                     ),
                     const SizedBox(height: 16),
                     
@@ -2077,6 +2000,21 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
+                    // Validate fields before submission
+                    validateFields();
+                    
+                    // Check if all fields are valid
+                    if (!isIncidentTypeValid || !isDescriptionValid || !isLocationValid) {
+                      // Show error message
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Vui lòng điền đầy đủ thông tin'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    
                     try {
                       // Show loading dialog
                       showDialog(
@@ -2168,6 +2106,10 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     
     final TextEditingController resolutionController = TextEditingController();
     final List<File> resolutionImages = []; // Type 2 (resolution proof)
+    
+    // Add validation state variables
+    bool isResolutionValid = true;
+    String resolutionError = '';
 
     // Open dialog with simple content first, then expand it with setState
     showDialog(
@@ -2175,6 +2117,23 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            
+            // Add validation function
+            void validateResolution() {
+              setDialogState(() {
+                if (resolutionController.text.trim().isEmpty) {
+                  isResolutionValid = false;
+                  resolutionError = 'Vui lòng nhập chi tiết giải quyết';
+                } else if (resolutionController.text.trim().length < 10) {
+                  isResolutionValid = false;
+                  resolutionError = 'Chi tiết giải quyết cần ít nhất 10 ký tự';
+                } else {
+                  isResolutionValid = true;
+                  resolutionError = '';
+                }
+              });
+            }
+            
             return Dialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -2205,15 +2164,39 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Resolution details input
+                              // Resolution details input with validation
                               TextField(
                                 controller: resolutionController,
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   labelText: 'Chi tiết giải quyết',
                                   hintText: 'Mô tả cách giải quyết sự cố',
-                                  border: OutlineInputBorder(),
+                                  errorText: isResolutionValid ? null : resolutionError,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  errorBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(color: Colors.red),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  focusedErrorBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(color: Colors.red, width: 2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(color: Colors.grey.shade400),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(color: ColorConstants.primaryColor, width: 2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
                                 maxLines: 3,
+                                onChanged: (value) {
+                                  if (!isResolutionValid) {
+                                    validateResolution();
+                                  }
+                                },
                               ),
                               const SizedBox(height: 16),
 
@@ -2288,12 +2271,28 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                             // Only enable if incident hasn't been resolved yet
                             onPressed: report['status'] == 'Resolved' 
                                 ? null 
-                                : () => _confirmIncidentResolution(
-                              context,
-                              report,
-                              resolutionController.text,
-                              resolutionImages,
-                            ),
+                                : () {
+                                    // Validate resolution before submitting
+                                    validateResolution();
+                                    
+                                    if (!isResolutionValid) {
+                                      // // Show error message
+                                      // ScaffoldMessenger.of(context).showSnackBar(
+                                      //   const SnackBar(
+                                      //     content: Text('Vui lòng nhập đầy đủ thông tin giải quyết'),
+                                      //     backgroundColor: Colors.red,
+                                      //   ),
+                                      // );
+                                      return;
+                                    }
+                                    
+                                    _confirmIncidentResolution(
+                                      context,
+                                      report,
+                                      resolutionController.text,
+                                      resolutionImages,
+                                    );
+                                  },
                             child: const Text('Xác nhận'),
                           ),
                         ],
@@ -2406,7 +2405,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
 
       if (response['status'] == 1 || response['status'] == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Xác nhận giải quyết sự cố thành công')),
+          const SnackBar(content: Text('Xác nhận giải quyết sự cố thành công', style: TextStyle(color: Colors.green))),
         );
         // Reload trip details
         _loadDetails();

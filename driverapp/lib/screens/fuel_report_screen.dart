@@ -23,6 +23,61 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
   final List<File> _selectedImages = [];
   bool _isLoadingLocation = false;
 
+  // Add state variables for validation errors
+  String? _fuelAmountError;
+  String? _priceError;
+  String? _locationError;
+  String? _imagesError;
+
+  @override
+  void initState() {
+    super.initState();
+    // Add listeners to validate on text changes
+    _fuelAmountController.addListener(_validateFuelAmount);
+    _priceController.addListener(_validatePrice);
+    _locationController.addListener(_validateLocation);
+  }
+
+  // Validation methods
+  void _validateFuelAmount() {
+    setState(() {
+      _fuelAmountError =
+          ValidationUtils.validateFuelAmount(_fuelAmountController.text);
+    });
+  }
+
+  void _validatePrice() {
+    setState(() {
+      _priceError = ValidationUtils.validateFuelCost(_priceController.text);
+    });
+  }
+
+  void _validateLocation() {
+    setState(() {
+      _locationError =
+          ValidationUtils.validateLocation(_locationController.text);
+    });
+  }
+
+  void _validateImages() {
+    setState(() {
+      _imagesError = ValidationUtils.validateImages(_selectedImages);
+    });
+  }
+
+  // Validate all fields at once
+  bool _validateAllFields() {
+    _validateFuelAmount();
+    _validatePrice();
+    _validateLocation();
+    _validateImages();
+
+    return _fuelAmountError == null &&
+        _priceError == null &&
+        _locationError == null &&
+        _imagesError == null;
+  }
+
   Future<void> _pickImages() async {
     try {
       final List<File> pickedFiles = await ImageUtils.pickMultipleImages();
@@ -31,6 +86,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
         setState(() {
           _selectedImages.addAll(pickedFiles);
         });
+        _validateImages();
 
         // Show confirmation
         ScaffoldMessenger.of(context).showSnackBar(
@@ -59,6 +115,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
         setState(() {
           _selectedImages.add(photo);
         });
+        _validateImages();
 
         // Show confirmation
         ScaffoldMessenger.of(context).showSnackBar(
@@ -83,51 +140,15 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
     setState(() {
       _selectedImages.removeAt(index);
     });
+    _validateImages();
   }
 
   Future<void> _submitReport() async {
-    // Validate inputs using ValidationUtils
-    String? fuelAmountError =
-        ValidationUtils.validateFuelAmount(_fuelAmountController.text);
-    if (fuelAmountError != null) {
+    // Validate all fields before submitting
+    if (!_validateAllFields()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(fuelAmountError),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    String? fuelCostError =
-        ValidationUtils.validateFuelCost(_priceController.text);
-    if (fuelCostError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(fuelCostError),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    String? locationError =
-        ValidationUtils.validateLocation(_locationController.text);
-    if (locationError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(locationError),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    String? imagesError = ValidationUtils.validateImages(_selectedImages);
-    if (imagesError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(imagesError),
+        const SnackBar(
+          content: Text('Vui lòng điền đầy đủ thông tin hợp lệ'),
           backgroundColor: Colors.red,
         ),
       );
@@ -291,6 +312,9 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
 
   @override
   void dispose() {
+    _fuelAmountController.removeListener(_validateFuelAmount);
+    _priceController.removeListener(_validatePrice);
+    _locationController.removeListener(_validateLocation);
     _fuelAmountController.dispose();
     _priceController.dispose();
     _locationController.dispose();
@@ -366,7 +390,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Fuel amount input
+                        // Fuel amount input with validation
                         TextField(
                           controller: _fuelAmountController,
                           keyboardType: TextInputType.number,
@@ -381,23 +405,32 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                               borderSide: BorderSide(
-                                  color: Colors.blue.shade700, width: 2),
+                                  color: _fuelAmountError != null
+                                      ? Colors.red
+                                      : Colors.blue.shade700,
+                                  width: 2),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide:
-                                  BorderSide(color: Colors.blue.shade200),
+                              borderSide: BorderSide(
+                                  color: _fuelAmountError != null
+                                      ? Colors.red
+                                      : Colors.blue.shade200),
                             ),
                             prefixIcon: Icon(Icons.local_gas_station,
-                                color: Colors.blue.shade700),
+                                color: _fuelAmountError != null
+                                    ? Colors.red
+                                    : Colors.blue.shade700),
                             suffixText: 'lít',
                             fillColor: Colors.white,
                             filled: true,
+                            errorText: _fuelAmountError,
                           ),
+                          onChanged: (value) => _validateFuelAmount(),
                         ),
                         const SizedBox(height: 16),
 
-                        // Price input
+                        // Price input with validation
                         TextField(
                           controller: _priceController,
                           keyboardType: TextInputType.number,
@@ -412,19 +445,28 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                               borderSide: BorderSide(
-                                  color: Colors.blue.shade700, width: 2),
+                                  color: _priceError != null
+                                      ? Colors.red
+                                      : Colors.blue.shade700,
+                                  width: 2),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide:
-                                  BorderSide(color: Colors.blue.shade200),
+                              borderSide: BorderSide(
+                                  color: _priceError != null
+                                      ? Colors.red
+                                      : Colors.blue.shade200),
                             ),
                             prefixIcon: Icon(Icons.monetization_on,
-                                color: Colors.blue.shade700),
+                                color: _priceError != null
+                                    ? Colors.red
+                                    : Colors.blue.shade700),
                             suffixText: 'VND',
                             fillColor: Colors.white,
                             filled: true,
+                            errorText: _priceError,
                           ),
+                          onChanged: (value) => _validatePrice(),
                         ),
                       ],
                     ),
@@ -432,7 +474,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Location section
+                // Location section with validation
                 Card(
                   elevation: 5,
                   shape: RoundedRectangleBorder(
@@ -453,7 +495,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Location input
+                        // Location input with validation
                         TextField(
                           controller: _locationController,
                           decoration: InputDecoration(
@@ -467,15 +509,22 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                               borderSide: BorderSide(
-                                  color: Colors.green.shade700, width: 2),
+                                  color: _locationError != null
+                                      ? Colors.red
+                                      : Colors.green.shade700,
+                                  width: 2),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide:
-                                  BorderSide(color: Colors.green.shade200),
+                              borderSide: BorderSide(
+                                  color: _locationError != null
+                                      ? Colors.red
+                                      : Colors.green.shade200),
                             ),
                             prefixIcon: Icon(Icons.location_on,
-                                color: Colors.green.shade700),
+                                color: _locationError != null
+                                    ? Colors.red
+                                    : Colors.green.shade700),
                             suffixIcon: _isLoadingLocation
                                 ? Container(
                                     margin: const EdgeInsets.all(12),
@@ -489,13 +538,17 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                                   )
                                 : IconButton(
                                     icon: Icon(Icons.my_location,
-                                        color: Colors.green.shade700),
+                                        color: _locationError != null
+                                            ? Colors.red
+                                            : Colors.green.shade700),
                                     tooltip: 'Lấy vị trí hiện tại',
                                     onPressed: _getCurrentLocation,
                                   ),
                             fillColor: Colors.white,
                             filled: true,
+                            errorText: _locationError,
                           ),
+                          onChanged: (value) => _validateLocation(),
                         ),
                       ],
                     ),
@@ -506,14 +559,22 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                 ImageSection(
                   title: 'Ảnh hoá đơn',
                   imageFiles: _selectedImages,
-                  onTakePhoto: _takePicture,
-                  onPickImage: _pickImages,
-                  onRemoveImage: _removeImage,
+                  onTakePhoto: () {
+                    _takePicture().then((_) => _validateImages());
+                  },
+                  onPickImage: () {
+                    _pickImages().then((_) => _validateImages());
+                  },
+                  onRemoveImage: (index) {
+                    _removeImage(index);
+                    _validateImages();
+                  },
                   cameraButtonColor: Colors.blue.shade700,
                   galleryButtonColor: Colors.amber.shade700,
                   emptyMessage:
                       'Chưa có ảnh nào\nChọn "Chọn nhiều ảnh" để tải lên nhiều ảnh cùng lúc',
                   crossAxisCount: 2,
+                  errorText: _imagesError,
                 ),
 
                 const SizedBox(height: 32),
