@@ -3,7 +3,6 @@ import 'package:driverapp/models/delivery_status.dart';
 import 'package:driverapp/screens/notificationScreen.dart';
 import 'package:driverapp/services/auth_service.dart';
 import 'package:driverapp/services/delivery_status_service.dart';
-import 'package:driverapp/services/location_service.dart';
 import 'package:driverapp/services/MyTaskHandler.dart';
 import 'package:driverapp/services/navigation_service.dart';
 import 'package:driverapp/services/notification_service.dart';
@@ -30,7 +29,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final ProfileService _profileService = ProfileService();
   final DeliveryStatusService _deliveryStatusService = DeliveryStatusService();
   final WorkingTimeService _workingTimeService = WorkingTimeService();
-  final LocationService _locationService = LocationService();
 
   int _unreadNotifications = 0;
   bool _isLoading = true;
@@ -44,7 +42,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadInitialData();
-    _initLocationService();
     _checkIfForegroundServiceRunning();
   }
 
@@ -182,13 +179,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _initLocationService() async {
-    await _locationService.init(widget.userId);
-  }
-
   @override
   void dispose() {
-    _locationService.dispose();
     super.dispose();
   }
 
