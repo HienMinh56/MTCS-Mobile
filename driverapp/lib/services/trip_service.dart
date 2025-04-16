@@ -8,20 +8,47 @@ import 'package:shared_preferences/shared_preferences.dart';
 class TripService {
   final String _baseUrl = Constants.apiBaseUrl;
   
-  Future<List<Trip>> getDriverTrips(String driverId, {required String status}) async {
+  // Thêm tham số để lấy dữ liệu order từ API nếu không có sẵn
+  Future<List<Trip>> getDriverTrips(String driverId, {required String status, bool loadOrderDetails = true}) async {
     final response = await http.get(
       Uri.parse('$_baseUrl/api/trips?driverId=$driverId&status=$status'),
       headers: ApiUtils.headers,
     );
 
-    return ApiUtils.handleResponse(response, (data) {
+    List<Trip> trips = await ApiUtils.handleResponse(response, (data) {
       final List<dynamic> tripsJson = data['data'];
       return tripsJson.map((json) => Trip.fromJson(json)).toList();
     });
+
+    // Nếu cần tải thông tin order và trip không có thông tin order
+    if (loadOrderDetails) {
+      for (int i = 0; i < trips.length; i++) {
+        if (trips[i].order == null) {
+          try {
+            // Gọi API riêng để lấy thông tin order nếu không có sẵn trong trip
+            final orderData = await getOrderByTripId(trips[i].tripId);
+            trips[i].order = Order(
+              orderId: orderData['orderId'] ?? '',
+              trackingCode: orderData['trackingCode'] ?? '',
+              pickUpLocation: orderData['pickUpLocation'] ?? '',
+              deliveryLocation: orderData['deliveryLocation'] ?? '',
+              conReturnLocation: orderData['conReturnLocation'] ?? '',
+              containerNumber: orderData['containerNumber'] ?? '',
+              contactPerson: orderData['contactPerson'] ?? '',
+              contactPhone: orderData['contactPhone'] ?? '',
+            );
+          } catch (e) {
+            print('Lỗi tải trip ${trips[i].tripId}: $e');
+          }
+        }
+      }
+    }
+
+    return trips;
   }
 
   // Method to get detailed information about a specific trip
-  Future<Map<String, dynamic>> getTripDetail(String tripId) async {
+  Future<Trip> getTripDetail(String tripId) async {
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl/api/trips?tripId=$tripId'),
@@ -29,7 +56,13 @@ class TripService {
       );
       
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        if (responseData['status'] == 200 && responseData['data'] != null && responseData['data'].isNotEmpty) {
+          // API trả về một mảng, lấy phần tử đầu tiên
+          return Trip.fromJson(responseData['data'][0]);
+        } else {
+          throw Exception('Không tìm thấy thông tin trip');
+        }
       } else {
         throw Exception('Failed to load trip details: ${response.statusCode}');
       }
@@ -38,22 +71,39 @@ class TripService {
     }
   }
 
+  // Phương thức này không cần thiết nữa vì thông tin order đã được bao gồm trong trip
+  // Chỉ giữ lại cho khả năng tương thích với mã hiện tại
   Future<Map<String, dynamic>> getOrderByTripId(String tripId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/order/orders?tripId=$tripId'),
-        headers: ApiUtils.headers,
-      );
-      
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        if (data['status'] == 1) {
-          return data['data'][0];
-        } else {
-          throw Exception('API error: ${data['message']}');
-        }
+      final trip = await getTripDetail(tripId);
+      if (trip.order != null) {
+        return {
+          'orderId': trip.order!.orderId,
+          'trackingCode': trip.order!.trackingCode,
+          'pickUpLocation': trip.order!.pickUpLocation,
+          'deliveryLocation': trip.order!.deliveryLocation,
+          'conReturnLocation': trip.order!.conReturnLocation,
+          'containerNumber': trip.order!.containerNumber,
+          'contactPerson': trip.order!.contactPerson,
+          'contactPhone': trip.order!.contactPhone,
+        };
       } else {
-        throw Exception('Failed to load order details: ${response.statusCode}');
+        // Gọi API cũ để tương thích ngược
+        final response = await http.get(
+          Uri.parse('$_baseUrl/api/order/orders?tripId=$tripId'),
+          headers: ApiUtils.headers,
+        );
+        
+        if (response.statusCode == 200) {
+          final Map<String, dynamic> data = json.decode(response.body);
+          if (data['status'] == 1) {
+            return data['data'][0];
+          } else {
+            throw Exception('API error: ${data['message']}');
+          }
+        } else {
+          throw Exception('Failed to load order details: ${response.statusCode}');
+        }
       }
     } catch (e) {
       throw Exception('Failed to load order details: $e');

@@ -3,17 +3,20 @@ import 'package:driverapp/models/delivery_status.dart';
 import 'package:driverapp/screens/notificationScreen.dart';
 import 'package:driverapp/services/auth_service.dart';
 import 'package:driverapp/services/delivery_status_service.dart';
-import 'package:driverapp/services/location_service.dart';
+import 'package:driverapp/services/MyTaskHandler.dart';
 import 'package:driverapp/services/navigation_service.dart';
 import 'package:driverapp/services/notification_service.dart';
 import 'package:driverapp/services/profile_service.dart';
 import 'package:driverapp/services/working_time_service.dart';
 import 'package:driverapp/utils/color_constants.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userId;
-  
+
   const HomeScreen({super.key, required this.userId});
 
   @override
@@ -26,33 +29,161 @@ class _HomeScreenState extends State<HomeScreen> {
   final ProfileService _profileService = ProfileService();
   final DeliveryStatusService _deliveryStatusService = DeliveryStatusService();
   final WorkingTimeService _workingTimeService = WorkingTimeService();
-  final LocationService _locationService = LocationService();
-  
+
   int _unreadNotifications = 0;
   bool _isLoading = true;
   String _weeklyWorkingTime = '0 giờ 0 phút';
   String _dailyWorkingTime = '0 giờ 0 phút';
   List<DeliveryStatus> _deliveryStatuses = [];
   String _driverName = '';
-  
+  bool _isTrackingActive = false;
+
   @override
   void initState() {
     super.initState();
     _loadInitialData();
-    _initLocationService();
-    
+    _checkIfForegroundServiceRunning();
   }
-  
-  Future<void> _initLocationService() async {
-    await _locationService.init(widget.userId);
+
+  Future<void> _checkIfForegroundServiceRunning() async {
+    bool isRunning = await FlutterForegroundTask.isRunningService;
+    setState(() {
+      _isTrackingActive = isRunning;
+    });
   }
-  
+
+  Future<void> _initForegroundTask() async {
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'location_tracking_service',
+        channelName: 'Location Tracking Service',
+        channelDescription: 'Theo dõi vị trí',
+        channelImportance: NotificationChannelImportance.HIGH,
+        priority: NotificationPriority.HIGH,
+        iconData: const NotificationIconData(
+          resType: ResourceType.mipmap,
+          resPrefix: ResourcePrefix.ic,
+          name: 'launcher',
+        ),
+      ),
+      iosNotificationOptions: const IOSNotificationOptions(
+        showNotification: true,
+        playSound: false,
+      ),
+      foregroundTaskOptions: const ForegroundTaskOptions(
+        interval: 5000,
+        isOnceEvent: false,
+        autoRunOnBoot: false,
+        allowWifiLock: true,
+      ),
+    );
+  }
+
+  Future<bool> _checkRequiredPermissions() async {
+    try {
+      // Check and request location permission
+      final locationPermission = await Geolocator.checkPermission();
+      
+      if (locationPermission == LocationPermission.denied) {
+        final requestResult = await Geolocator.requestPermission();
+        if (requestResult == LocationPermission.denied || 
+            requestResult == LocationPermission.deniedForever) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Quyền truy cập vị trí bị từ chối. Không thể bắt đầu làm việc.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return false;
+        }
+      } else if (locationPermission == LocationPermission.deniedForever) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Quyền truy cập vị trí bị từ chối vĩnh viễn. Vui lòng vào cài đặt để bật quyền.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return false;
+      }
+      
+      // For Android 12+, check notification permission
+      if (await Permission.notification.status.isDenied) {
+        final status = await Permission.notification.request();
+        if (status.isDenied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Quyền thông báo bị từ chối. Không thể hiển thị thông báo.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          // Continue even if notification permission is denied
+        }
+      }
+      
+      return true;
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi khi kiểm tra quyền: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+  }
+
+  Future<void> startForegroundLocationService() async {
+    try {
+      // Check permissions before starting
+      final hasPermissions = await _checkRequiredPermissions();
+      if (!hasPermissions) return;
+      
+      await _initForegroundTask();
+      
+      bool reqResult = await FlutterForegroundTask.startService(
+        notificationTitle: 'Dịch vụ theo dõi vị trí đang hoạt động',
+        notificationText: 'Đang chia sẻ vị trí',
+        callback: startCallback,
+      );
+      
+      if (reqResult) {
+        setState(() {
+          _isTrackingActive = true;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không thể bắt đầu dịch vụ theo dõi vị trí'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> stopForegroundLocationService() async {
+    bool reqResult = await FlutterForegroundTask.stopService();
+    if (reqResult) {
+      setState(() {
+        _isTrackingActive = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
-    _locationService.dispose();
     super.dispose();
   }
-  
+
   Future<void> _loadInitialData() async {
     try {
       await Future.wait([
@@ -60,13 +191,13 @@ class _HomeScreenState extends State<HomeScreen> {
         _loadDeliveryStatuses(),
         _loadWorkingTimes(),
       ]);
-      
+
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
-      
+
       Future.delayed(const Duration(milliseconds: 500), () {
         _loadUnreadNotificationCount();
       });
@@ -83,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final weeklyTime = await _workingTimeService.getWeeklyWorkingTime(widget.userId);
       final dailyTime = await _workingTimeService.getDailyWorkingTime(widget.userId);
-      
+
       if (mounted) {
         setState(() {
           _weeklyWorkingTime = weeklyTime;
@@ -99,7 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
   }
-  
+
   Future<void> _loadDeliveryStatuses() async {
     try {
       final statuses = await _deliveryStatusService.getDeliveryStatuses();
@@ -116,34 +247,37 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
   }
-  
+
   List<String> _getNotStartedStatuses() {
     if (_deliveryStatuses.isEmpty) return ["not_started"];
-    
+
     final minIndex = _deliveryStatuses
+        .where((s) => s.isActive == 1) // Chỉ xem xét trạng thái active
         .map((s) => s.statusIndex)
         .reduce((a, b) => a < b ? a : b);
-    
+
     return _deliveryStatuses
-        .where((status) => status.statusIndex == minIndex)
+        .where((status) => status.statusIndex == minIndex && status.isActive == 1)
         .map((status) => status.statusId)
         .toList();
   }
-  
+
   List<String> _getCompletedStatuses() {
     if (_deliveryStatuses.isEmpty) return ["completed", "canceled"];
-    
+
     final maxIndex = _deliveryStatuses
+        .where((s) => s.isActive == 1) // Chỉ xem xét trạng thái active
         .map((s) => s.statusIndex)
         .reduce((a, b) => a > b ? a : b);
-    
+
     return _deliveryStatuses
-        .where((status) => 
-          status.statusIndex == maxIndex || status.statusId == "canceled")
+        .where((status) =>
+            (status.statusIndex == maxIndex || status.statusId == "canceled") && 
+            status.isActive == 1)
         .map((status) => status.statusId)
         .toList();
   }
-  
+
   List<String> _getInProgressStatuses() {
     if (_deliveryStatuses.isEmpty) {
       return [
@@ -154,18 +288,19 @@ class _HomeScreenState extends State<HomeScreen> {
         "delaying",
       ];
     }
-    
+
     final notStartedIds = _getNotStartedStatuses();
     final completedIds = _getCompletedStatuses();
-    
+
     return _deliveryStatuses
+        .where((status) => status.isActive == 1) // Chỉ xem xét trạng thái active
         .map((status) => status.statusId)
-        .where((statusId) => 
-          !notStartedIds.contains(statusId) && 
-          !completedIds.contains(statusId))
+        .where((statusId) =>
+            !notStartedIds.contains(statusId) &&
+            !completedIds.contains(statusId))
         .toList();
   }
-  
+
   Future<void> _loadDriverProfile() async {
     try {
       final profile = await _profileService.getDriverProfile(widget.userId);
@@ -182,17 +317,17 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
   }
-  
+
   Future<void> _loadUnreadNotificationCount() async {
     try {
       final count = await _notificationService.getUnreadNotificationCount(widget.userId);
-      
+
       if (mounted) {
         setState(() {
           _unreadNotifications = count;
         });
       }
-      
+
       if (mounted) {
         Future.delayed(const Duration(seconds: 30), () {
           _loadUnreadNotificationCount();
@@ -206,11 +341,11 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
   }
-  
+
   void _forceRefreshNotifications() {
     _loadUnreadNotificationCount();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -387,6 +522,39 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       
                       const SizedBox(height: 20),
+                      
+                      Container(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: Icon(
+                            _isTrackingActive ? Icons.location_on : Icons.location_off,
+                            color: Colors.white,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _isTrackingActive ? Colors.green : Colors.blue,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          onPressed: () async {
+                            if (_isTrackingActive) {
+                              stopForegroundLocationService();
+                            } else {
+                              await startForegroundLocationService();
+                            }
+                          },
+                          label: Text(
+                            _isTrackingActive 
+                                ? "Dừng chia sẻ vị trí" 
+                                : "Bắt đầu làm việc",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
 
                       SizedBox(
                         height: 450,
@@ -462,4 +630,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+@pragma('vm:entry-point')
+void startCallback() {
+  FlutterForegroundTask.setTaskHandler(MyTaskHandler());
 }

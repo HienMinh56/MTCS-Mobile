@@ -32,10 +32,12 @@ class StatusManager {
           final List<dynamic> data = responseData['data'];
           final statuses = data.map((item) => DeliveryStatus.fromJson(item)).toList();
           
-          // Update status map
+          // Update status map - only include active statuses (isActive = 1)
           _statusMap.clear();
           for (var status in statuses) {
-            _statusMap[status.statusId] = status.statusName;
+            if (status.isActive == 1) {
+              _statusMap[status.statusId] = status.statusName;
+            }
           }
           
           _isInitialized = true;

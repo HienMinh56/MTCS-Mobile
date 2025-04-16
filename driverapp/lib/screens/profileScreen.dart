@@ -209,8 +209,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _passwordController.clear();
       });
 
-      // Show success message and logout confirmation
-      _showUpdateSuccessAndLogoutDialog();
+      // Show success message based on _updateSuccess
+      if (_updateSuccess) {
+        // Show success message and logout confirmation
+        _showUpdateSuccessAndLogoutDialog();
+      }
     } catch (e) {
       setState(() {
         _isUpdating = false;
@@ -831,8 +834,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (_rangeWorkingTime.isNotEmpty)
                         _buildStatisticItem(
                           icon: Icons.date_range_outlined,
-                          label: 'Thời gian làm việc từ ${DateFormat('dd/MM/yyyy').format(_fromDate)} đến ${DateFormat('dd/MM/yyyy').format(_toDate)}',
-                          value: _rangeWorkingTime,
+                          label: _isLoadingRangeTime 
+                              ? 'Đang tải thời gian làm việc...' 
+                              : 'Thời gian làm việc từ ${DateFormat('dd/MM/yyyy').format(_fromDate)} đến ${DateFormat('dd/MM/yyyy').format(_toDate)}',
+                          value: _isLoadingRangeTime ? 'Đang tải...' : _rangeWorkingTime,
                         ),
                       _buildStatisticItem(
                         icon: Icons.local_shipping,
