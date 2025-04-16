@@ -60,6 +60,7 @@ class _TripListScreenState extends State<TripListScreen> {
           final trips = await _tripService.getDriverTrips(
             widget.driverId,
             status: status,
+            loadOrderDetails: true, // Đảm bảo tải dữ liệu order
           );
           allTrips.addAll(trips);
         }
@@ -76,6 +77,7 @@ class _TripListScreenState extends State<TripListScreen> {
         final trips = await _tripService.getDriverTrips(
           widget.driverId,
           status: widget.status,
+          loadOrderDetails: true, // Đảm bảo tải dữ liệu order
         );
 
         if (mounted) {
@@ -376,7 +378,8 @@ class _TripCardState extends State<TripCard> {
     for (var status in _allStatuses!) {
       if (status.statusId != 'canceled' &&
           status.statusId != 'delaying' &&
-          status.statusIndex == currentIndex + 1) {
+          status.statusIndex == currentIndex + 1 &&
+          status.isActive == 1) {  // Chỉ xem xét trạng thái active (isActive = 1)
         nextStatus = status;
         break;
       }
@@ -493,7 +496,9 @@ class _TripCardState extends State<TripCard> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Trip: ${widget.trip.tripId}',
+                    widget.trip.trackingCode.isNotEmpty 
+                        ? 'Mã vận đơn: ${widget.trip.trackingCode}'
+                        : 'Trip: ${widget.trip.tripId}',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -524,10 +529,88 @@ class _TripCardState extends State<TripCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                InfoRow(
-                  label: 'Order ID:',
-                  value: widget.trip.orderId,
-                ),
+                if (widget.trip.order?.containerNumber != null && 
+                    widget.trip.order!.containerNumber.isNotEmpty)
+                  InfoRow(
+                    label: 'Container:',
+                    value: widget.trip.order!.containerNumber,
+                  ),
+                  
+                if (widget.trip.order?.pickUpLocation != null && 
+                    widget.trip.order!.pickUpLocation.isNotEmpty)
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, color: Colors.green, size: 16),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Điểm lấy cont:',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.trip.order!.pickUpLocation,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                
+                if (widget.trip.order?.deliveryLocation != null && 
+                    widget.trip.order!.deliveryLocation.isNotEmpty)
+                  const SizedBox(height: 8),
+                  if (widget.trip.order?.deliveryLocation != null && 
+                      widget.trip.order!.deliveryLocation.isNotEmpty)
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on, color: Colors.red, size: 16),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Điểm giao:',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            widget.trip.order!.deliveryLocation,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                
+                if (widget.trip.order?.conReturnLocation != null && 
+                    widget.trip.order!.conReturnLocation.isNotEmpty)
+                  const SizedBox(height: 8),
+                  if (widget.trip.order?.conReturnLocation != null && 
+                      widget.trip.order!.conReturnLocation.isNotEmpty)
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on, color: Colors.amber, size: 16),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Điểm trả cont:',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            widget.trip.order!.conReturnLocation,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                
                 const SizedBox(height: 8),
                 Row(
                   children: [

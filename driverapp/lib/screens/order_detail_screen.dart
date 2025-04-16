@@ -5,7 +5,6 @@ import 'package:driverapp/components/info_row.dart';
 import 'package:driverapp/components/section_card.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:dio/dio.dart'; // Add this import for Dio
 import 'dart:io';
 
@@ -170,197 +169,103 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   
   List<Widget> _buildFilesList(List<dynamic> files) {
     return files.map<Widget>((file) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: Row(
-          children: [
-            Icon(
-              _getFileIcon(file['fileType']),
-              color: Theme.of(context).primaryColor,
-              size: 24,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      // Extract file details
+      final String fileName = file['fileName'] ?? 'Tệp đính kèm';
+      final String? description = file['description'];
+      final bool hasDescription = description != null && description.toString().isNotEmpty;
+
+      return Card(
+        margin: const EdgeInsets.symmetric(vertical: 8.0),
+        elevation: 2,
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // File header with icon and name
+              Row(
                 children: [
-                  Text(
-                    file['fileName'] ?? 'Tệp đính kèm',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  Icon(
+                    _getFileIcon(file['fileType']),
+                    color: Theme.of(context).primaryColor,
+                    size: 24,
                   ),
-                  if (file['description'] != null && file['description'].toString().isNotEmpty)
-                    Text(
-                      file['description'],
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      fileName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
                     ),
+                  ),
                 ],
               ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.download, size: 20),
-                  tooltip: 'Tải về',
-                  onPressed: () => _downloadFile(file['fileUrl'], file['fileName']),
+              
+              // Description section if available
+              if (hasDescription)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0, left: 36.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Mô tả:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.open_in_browser, size: 20),
-                  tooltip: 'Mở trong trình duyệt',
-                  onPressed: () => _openFileUrl(file['fileUrl']),
+              
+              // Action buttons
+              Padding(
+                padding: const EdgeInsets.only(top: 12.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Preview button if file is an image
+                    if (_isImageFile(file['fileUrl']))
+                      TextButton.icon(
+                        icon: const Icon(Icons.visibility, size: 18),
+                        label: const Text('Xem trước'),
+                        onPressed: () => _openFileUrl(file['fileUrl'], preview: true),
+                      ),
+                    const SizedBox(width: 8),
+                    // Open file button
+                    TextButton.icon(
+                      icon: const Icon(Icons.open_in_browser, size: 18),
+                      label: const Text('Mở tệp'),
+                      onPressed: () => _openFileUrl(file['fileUrl']),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       );
     }).toList();
   }
   
-  Future<void> _downloadFile(String? url, String? fileName) async {
-    if (url == null || url.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không thể tải về tệp này')),
-      );
-      return;
-    }
-
-    var status = await Permission.storage.request();
-    if (!status.isGranted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cần quyền lưu trữ để tải tệp')),
-      );
-      return;
-    }
-
-    bool downloading = true;
-    double progress = 0;
+  // Helper method to check if a file is an image based on URL extension
+  bool _isImageFile(String? url) {
+    if (url == null || url.isEmpty) return false;
     
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text('Đang tải ${fileName ?? 'tệp'}'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  LinearProgressIndicator(value: progress),
-                  const SizedBox(height: 10),
-                  Text('${(progress * 100).toInt()}%'),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  child: const Text('Hủy'),
-                  onPressed: () {
-                    downloading = false;
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    try {
-      final Directory? appDocDir = await getExternalStorageDirectory();
-      if (appDocDir == null) {
-        throw 'Không thể truy cập thư mục lưu trữ';
-      }
-      
-      String savePath = '${appDocDir.path}/${fileName ?? 'downloaded_file'}';
-      
-      if (!savePath.contains('.') && url.contains('.')) {
-        final extension = url.split('.').last.split('?').first;
-        savePath = '$savePath.$extension';
-      }
-      
-      Dio dio = Dio();
-      
-      await dio.download(
-        url,
-        savePath,
-        onReceiveProgress: (received, total) {
-          if (total != -1) {
-            setState(() {
-              progress = received / total;
-            });
-            
-            if (downloading && mounted && Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text('Đang tải ${fileName ?? 'tệp'}'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        LinearProgressIndicator(value: progress),
-                        const SizedBox(height: 10),
-                        Text('${(progress * 100).toInt()}%'),
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                        child: const Text('Hủy'),
-                        onPressed: () {
-                          downloading = false;
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                    ],
-                  );
-                },
-              );
-            }
-          }
-        },
-      );
-      
-      if (downloading && mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${fileName ?? 'Tệp'} đã tải thành công'),
-            action: SnackBarAction(
-              label: 'Mở',
-              onPressed: () async {
-                final file = File(savePath);
-                if (file.existsSync()) {
-                  final Uri uri = Uri.file(savePath);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri);
-                  }
-                }
-              },
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (downloading && mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi khi tải xuống: $e')),
-        );
-      }
-    }
+    final extension = url.split('.').last.split('?').first.toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(extension);
   }
 
   IconData _getFileIcon(String? fileType) {
@@ -391,68 +296,283 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       return;
     }
     
-    final Uri uri = Uri.parse(url);
-    
-    if (preview) {
-      _showPreviewDialog(url);
-    } else {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    try {
+      // Hiển thị dialog đang tải
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Đang chuẩn bị liên kết...'),
+              ],
+            ),
+          );
+        },
+      );
+      
+      // Xử lý URL Firebase
+      String formattedUrl = url;
+      
+      // Kiểm tra xem URL có phải là URL Firebase Storage không
+      bool isFirebaseStorage = formattedUrl.contains('firebasestorage.googleapis.com') || 
+                              formattedUrl.contains('storage.googleapis.com');
+      
+      // Đảm bảo URL có giao thức
+      if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+        formattedUrl = 'https://$formattedUrl';
+      }
+      
+      // Xử lý trường hợp đặc biệt cho URL Firebase Storage
+      if (isFirebaseStorage) {
+        // Đóng dialog
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+        
+        // Đối với Firebase Storage, chuyển hướng qua trình duyệt web
+        final bool result = await _downloadAndOpen(formattedUrl);
+        if (!result) {
+          // Nếu không thể tải và mở, thử mở trực tiếp
+          _openInExternalBrowser(formattedUrl);
+        }
+        return;
+      }
+      
+      // Parse URL cho các URL không phải Firebase Storage
+      final Uri uri = Uri.parse(formattedUrl);
+      
+      if (preview) {
+        // Đóng dialog
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+        _showPreviewDialog(url);
+        return;
+      }
+      
+      // Kiểm tra xem có thể mở URL không
+      bool canLaunch = await canLaunchUrl(uri);
+      
+      // Đóng dialog
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      if (canLaunch) {
+        // Thử các phương pháp khác nhau để mở URL
+        await _tryLaunchUrlWithMultipleMethods(uri);
       } else {
+        // Hiển thị thông báo lỗi và cung cấp tùy chọn để mở trong trình duyệt
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không thể mở liên kết')),
+          SnackBar(
+            content: const Text('Không thể mở liên kết trực tiếp'),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Mở trong trình duyệt',
+              onPressed: () => _openInExternalBrowser(formattedUrl),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      // Đóng dialog nếu còn mở
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      // Hiển thị thông báo lỗi
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: $e'),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Thử lại',
+              onPressed: () => _openFileUrl(url, preview: preview),
+            ),
+          ),
         );
       }
     }
   }
   
-  void _showPreviewDialog(String url) {
-    final bool isImage = url.toLowerCase().endsWith('.jpg') || 
-                          url.toLowerCase().endsWith('.jpeg') || 
-                          url.toLowerCase().endsWith('.png') ||
-                          url.toLowerCase().endsWith('.gif');
+  // Hàm mới: Mở URL trong trình duyệt bên ngoài
+  void _openInExternalBrowser(String url) async {
+    if (url.isEmpty) return;
+
+    try {
+      // Sử dụng Intent để mở trình duyệt bên ngoài
+      final Uri uri = Uri.parse(url);
+      final bool opened = await launchUrl(
+        uri,
+        mode: LaunchMode.externalNonBrowserApplication,
+      );
+      
+      if (!opened) {
+        // Nếu không thể mở bằng ứng dụng không phải trình duyệt, thử với trình duyệt
+        await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+      }
+    } catch (e) {
+      // Hiển thị thông báo lỗi nếu không thể mở URL
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể mở trình duyệt: $e'),
+          ),
+        );
+      }
+    }
+  }
+  
+  // Hàm mới: Thử nhiều cách khác nhau để mở URL
+  Future<void> _tryLaunchUrlWithMultipleMethods(Uri uri) async {
+    try {
+      // Phương pháp 1: LaunchMode.platformDefault
+      bool launched = await launchUrl(uri, mode: LaunchMode.platformDefault);
+      
+      if (!launched) {
+        // Phương pháp 2: LaunchMode.externalApplication
+        launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        
+        if (!launched) {
+          // Phương pháp 3: LaunchMode.externalNonBrowserApplication
+          launched = await launchUrl(uri, mode: LaunchMode.externalNonBrowserApplication);
+          
+          if (!launched) {
+            // Phương pháp cuối cùng: LaunchMode.inAppWebView
+            launched = await launchUrl(uri, mode: LaunchMode.inAppWebView);
+            
+            if (!launched) {
+              throw Exception('Không thể mở URL sau khi thử tất cả các phương pháp');
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Hiển thị thông báo lỗi
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi mở URL: $e'),
+            action: SnackBarAction(
+              label: 'Mở trong trình duyệt',
+              onPressed: () => _openInExternalBrowser(uri.toString()),
+            ),
+          ),
+        );
+      }
+    }
+  }
+  
+  // Hàm mới: Tải và mở tệp từ Firebase Storage
+  Future<bool> _downloadAndOpen(String url) async {
+    if (url.isEmpty) return false;
+    
+    try {
+      // Hiển thị dialog đang tải
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Đang tạo liên kết tạm thời...'),
+            ],
+          ),
+        ),
+      );
+      
+      // Tên tệp tạm thời
+      final fileName = url.split('/').last.split('?').first;
+      
+      // Lấy thư mục tạm
+      final Directory tempDir = await getTemporaryDirectory();
+      final String tempPath = '${tempDir.path}/$fileName';
+      
+      // Tải tệp
+      final Dio dio = Dio();
+      await dio.download(url, tempPath);
+      
+      // Đóng dialog
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      // Mở tệp đã tải
+      final File file = File(tempPath);
+      if (await file.exists()) {
+        final Uri fileUri = Uri.file(tempPath);
+        if (await canLaunchUrl(fileUri)) {
+          return await launchUrl(fileUri);
+        }
+      }
+      
+      return false;
+    } catch (e) {
+      // Đóng dialog nếu còn mở
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      // Hiển thị thông báo lỗi
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi khi tải tệp: $e')),
+        );
+      }
+      return false;
+    }
+  }
+  
+  void _showPreviewDialog(String? url) {
+    if (url == null || url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không thể xem trước tệp này')),
+      );
+      return;
+    }
+
+    final extension = url.split('.').last.split('?').first.toLowerCase();
+    final bool isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(extension);
     
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.7,
-              maxWidth: MediaQuery.of(context).size.width * 0.9,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Xem trước tài liệu',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.open_in_browser),
-                        tooltip: 'Mở trong trình duyệt',
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          _openFileUrl(url);
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                    ],
-                  ),
+          insetPadding: const EdgeInsets.all(10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppBar(
+                title: const Text('Xem trước tài liệu', style: TextStyle(fontSize: 16)),
+                centerTitle: true,
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black87,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
-                Flexible(
-                  child: isImage
-                      ? Image.network(
+              ),
+              Flexible(
+                child: isImage
+                    ? InteractiveViewer(
+                        panEnabled: true,
+                        boundaryMargin: const EdgeInsets.all(20),
+                        minScale: 0.5,
+                        maxScale: 4,
+                        child: Image.network(
                           url,
                           fit: BoxFit.contain,
                           loadingBuilder: (context, child, loadingProgress) {
@@ -466,36 +586,71 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                               ),
                             );
                           },
-                        )
-                      : Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.article_outlined,
-                                size: 48,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(height: 16),
-                              const Text('Không thể xem trước định dạng này'),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  _openFileUrl(url);
-                                },
-                                child: const Text('Mở trong trình duyệt'),
-                              ),
-                            ],
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Center(child: Icon(Icons.error, color: Colors.red, size: 50)),
                         ),
-                ),
-              ],
-            ),
+                      )
+                    : Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _getFileIconByExtension(extension),
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text('Không thể xem trước định dạng này'),
+                          ],
+                        ),
+                      ),
+              ),
+            ],
           ),
         );
       },
     );
+  }
+
+  IconData _getFileIconByExtension(String? extension) {
+    if (extension == null) return Icons.insert_drive_file;
+    
+    final ext = extension.toLowerCase();
+    
+    // Tài liệu văn bản
+    if (ext == 'pdf') {
+      return Icons.picture_as_pdf;
+    } else if (['doc', 'docx', 'odt', 'rtf'].contains(ext)) {
+      return Icons.description;
+    } else if (['xls', 'xlsx', 'csv'].contains(ext)) {
+      return Icons.table_chart;
+    } else if (['ppt', 'pptx'].contains(ext)) {
+      return Icons.slideshow;
+    } else if (['txt', 'md'].contains(ext)) {
+      return Icons.text_snippet;
+    }
+    
+    // Hình ảnh
+    else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff'].contains(ext)) {
+      return Icons.image;
+    }
+    
+    // Audio/Video
+    else if (['mp3', 'wav', 'ogg', 'flac'].contains(ext)) {
+      return Icons.audio_file;
+    } else if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv'].contains(ext)) {
+      return Icons.video_file;
+    }
+    
+    // Nén
+    else if (['zip', 'rar', '7z', 'tar', 'gz'].contains(ext)) {
+      return Icons.folder_zip;
+    }
+    
+    // Mặc định
+    else {
+      return Icons.insert_drive_file;
+    }
   }
 
   String _formatDate(String? dateStr) {

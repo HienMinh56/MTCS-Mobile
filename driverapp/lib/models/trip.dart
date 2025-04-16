@@ -1,8 +1,44 @@
 import '../services/status_manager.dart';
 
+class Order {
+  final String orderId;
+  final String trackingCode;
+  final String pickUpLocation;
+  final String deliveryLocation;
+  final String conReturnLocation;
+  final String containerNumber;
+  final String contactPerson;
+  final String contactPhone;
+
+  Order({
+    required this.orderId,
+    required this.trackingCode,
+    required this.pickUpLocation,
+    required this.deliveryLocation,
+    required this.conReturnLocation,
+    required this.containerNumber,
+    required this.contactPerson,
+    required this.contactPhone,
+  });
+
+  factory Order.fromJson(Map<String, dynamic> json) {
+    return Order(
+      orderId: json['orderId'] ?? '',
+      trackingCode: json['trackingCode'] ?? '',
+      pickUpLocation: json['pickUpLocation'] ?? '',
+      deliveryLocation: json['deliveryLocation'] ?? '',
+      conReturnLocation: json['conReturnLocation'] ?? '',
+      containerNumber: json['containerNumber'] ?? '',
+      contactPerson: json['contactPerson'] ?? '',
+      contactPhone: json['contactPhone'] ?? '',
+    );
+  }
+}
+
 class Trip {
   final String tripId;
   final String orderId;
+  final String trackingCode;
   final String driverId;
   final String? tractorId;
   final String? trailerId;
@@ -10,10 +46,18 @@ class Trip {
   final DateTime? endTime;
   String status;  // Changed from final to allow updates
   String statusName; // Changed from final to allow updates
+  Order? order;  // Changed from final to allow updates
+  
+  // Thêm các trường mới
+  final int? matchType;
+  final String? matchBy;
+  final DateTime? matchTime;
+  final List<dynamic>? tripStatusHistories;
 
   Trip({
     required this.tripId,
     required this.orderId,
+    this.trackingCode = '',
     required this.driverId,
     this.tractorId,
     this.trailerId,
@@ -21,12 +65,18 @@ class Trip {
     this.endTime,
     required this.status,
     required this.statusName,
+    this.order,
+    this.matchType,
+    this.matchBy, 
+    this.matchTime,
+    this.tripStatusHistories,
   });
 
   factory Trip.fromJson(Map<String, dynamic> json) {
     return Trip(
       tripId: json['tripId'] ?? '',
       orderId: json['orderId'] ?? '',
+      trackingCode: json['trackingCode'] ?? '',
       driverId: json['driverId'] ?? '',
       tractorId: json['tractorId'],
       trailerId: json['trailerId'],
@@ -35,6 +85,11 @@ class Trip {
       status: json['status'] ?? '',
       // Use StatusManager first, fall back to local mapping
       statusName: StatusManager.getStatusName(json['status']) ?? _getStatusName(json['status']),
+      order: json['order'] != null ? Order.fromJson(json['order']) : null,
+      matchType: json['matchType'],
+      matchBy: json['matchBy'],
+      matchTime: json['matchTime'] != null ? DateTime.parse(json['matchTime']) : null,
+      tripStatusHistories: json['tripStatusHistories'],
     );
   }
 

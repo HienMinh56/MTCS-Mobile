@@ -59,7 +59,7 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
 
       // Filter by trip ID
       if (_tripIdFilter.isNotEmpty &&
-          !(report.tripId?.toLowerCase().contains(_tripIdFilter.toLowerCase()) ?? false)) {
+          !(report.tripId.toLowerCase().contains(_tripIdFilter.toLowerCase()))) {
         return false;
       }
 

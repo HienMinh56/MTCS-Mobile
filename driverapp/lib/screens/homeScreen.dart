@@ -260,11 +260,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_deliveryStatuses.isEmpty) return ["not_started"];
 
     final minIndex = _deliveryStatuses
+        .where((s) => s.isActive == 1) // Chỉ xem xét trạng thái active
         .map((s) => s.statusIndex)
         .reduce((a, b) => a < b ? a : b);
 
     return _deliveryStatuses
-        .where((status) => status.statusIndex == minIndex)
+        .where((status) => status.statusIndex == minIndex && status.isActive == 1)
         .map((status) => status.statusId)
         .toList();
   }
@@ -273,12 +274,14 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_deliveryStatuses.isEmpty) return ["completed", "canceled"];
 
     final maxIndex = _deliveryStatuses
+        .where((s) => s.isActive == 1) // Chỉ xem xét trạng thái active
         .map((s) => s.statusIndex)
         .reduce((a, b) => a > b ? a : b);
 
     return _deliveryStatuses
         .where((status) =>
-            status.statusIndex == maxIndex || status.statusId == "canceled")
+            (status.statusIndex == maxIndex || status.statusId == "canceled") && 
+            status.isActive == 1)
         .map((status) => status.statusId)
         .toList();
   }
@@ -298,6 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final completedIds = _getCompletedStatuses();
 
     return _deliveryStatuses
+        .where((status) => status.isActive == 1) // Chỉ xem xét trạng thái active
         .map((status) => status.statusId)
         .where((statusId) =>
             !notStartedIds.contains(statusId) &&

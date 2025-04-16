@@ -1,3 +1,4 @@
+import 'package:driverapp/models/trip.dart';
 import 'package:flutter/material.dart';
 import 'package:driverapp/services/trip_service.dart';
 import 'package:driverapp/services/order_service.dart';
@@ -82,84 +83,109 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
 
     try {
       // Load trip details
-      final response = await _tripService.getTripDetail(widget.tripId);
+      final Trip trip = await _tripService.getTripDetail(widget.tripId);
+      
+      // Convert Trip object to map for compatibility with existing code
+      final Map<String, dynamic> tripDetails = {
+        'tripId': trip.tripId,
+        'orderId': trip.orderId,
+        'trackingCode': trip.trackingCode,
+        'driverId': trip.driverId,
+        'tractorId': trip.tractorId,
+        'trailerId': trip.trailerId,
+        'startTime': trip.startTime?.toIso8601String(),
+        'endTime': trip.endTime?.toIso8601String(),
+        'status': trip.status,
+        'statusName': trip.statusName,
+        'matchType': trip.matchType,
+        'matchBy': trip.matchBy,
+        'matchTime': trip.matchTime?.toIso8601String(),
+        'tripStatusHistories': trip.tripStatusHistories,
+      };
 
-      // Extract trip from the data array in the response
-      if (response['status'] == 200 &&
-          response['data'] is List &&
-          response['data'].isNotEmpty) {
-        final tripDetails = _convertToStringKeyMap(response['data'][0]);
-
-        // Load order details
-        final orderResponse =
-            await _orderService.getOrderByTripId(widget.tripId);
-        final orderDetails = orderResponse['data'] != null
-            ? _convertToStringKeyMap(orderResponse['data'])
-            : <String, dynamic>{};
-
-        // Load fuel reports - add more robust error handling
-        List<Map<String, dynamic>> fuelReports = [];
-        try {
-          final fuelReportsResponse =
-              await _fuelReportService.getFuelReportsByTripId(widget.tripId);
-          if (fuelReportsResponse['status'] == 200 &&
-              fuelReportsResponse['data'] is List) {
-            fuelReports = (fuelReportsResponse['data'] as List)
-                .map((item) => _convertToStringKeyMap(item))
-                .toList();
-          }
-        } catch (e) {
-          print('Error loading fuel reports: $e');
-          // Continue with empty fuel reports rather than failing the whole function
-        }
-
-        // Load incident reports - add more robust error handling
-        List<Map<String, dynamic>> incidentReports = [];
-        try {
-          final incidentReportsResponse = await _incidentReportService
-              .getIncidentReportsByTripId(widget.tripId);
-          // Check for both possible success status codes (1 and 200)
-          if ((incidentReportsResponse['status'] == 1 ||
-                  incidentReportsResponse['status'] == 200) &&
-              incidentReportsResponse['data'] is List) {
-            incidentReports = (incidentReportsResponse['data'] as List)
-                .map((item) => _convertToStringKeyMap(item))
-                .toList();
-          }
-        } catch (e) {
-          print('Error loading incident reports: $e');
-          // Continue with empty incident reports rather than failing the whole function
-        }
-        
-        // Load delivery reports
-        List<Map<String, dynamic>> deliveryReports = [];
-        try {
-          final deliveryReportsResponse = await _deliveryReportService
-              .getDeliveryReportsByTripId(widget.tripId);
-          if (deliveryReportsResponse['status'] == 200 &&
-              deliveryReportsResponse['data'] is List) {
-            deliveryReports = (deliveryReportsResponse['data'] as List)
-                .map((item) => _convertToStringKeyMap(item))
-                .toList();
-          }
-        } catch (e) {
-          print('Error loading delivery reports: $e');
-          // Continue with empty delivery reports rather than failing the whole function
-        }
-
-        if (mounted) {
-          setState(() {
-            _tripDetails = tripDetails;
-            _orderDetails = orderDetails;
-            _fuelReports = fuelReports;
-            _incidentReports = incidentReports;
-            _deliveryReports = deliveryReports; // Add this line
-            _isLoading = false;
-          });
-        }
+      // Convert Order object to map for compatibility
+      Map<String, dynamic> orderDetails = {};
+      if (trip.order != null) {
+        orderDetails = {
+          'orderId': trip.order!.orderId,
+          'trackingCode': trip.order!.trackingCode,
+          'pickUpLocation': trip.order!.pickUpLocation,
+          'deliveryLocation': trip.order!.deliveryLocation,
+          'conReturnLocation': trip.order!.conReturnLocation,
+          'containerNumber': trip.order!.containerNumber,
+          'contactPerson': trip.order!.contactPerson,
+          'contactPhone': trip.order!.contactPhone,
+        };
       } else {
-        throw Exception(
-            'Không tìm thấy dữ liệu trip hoặc định dạng dữ liệu không đúng');
+        // Load order details from API for backward compatibility
+        try {
+          final orderResponse = await _orderService.getOrderByTripId(widget.tripId);
+          orderDetails = orderResponse['data'] != null
+              ? _convertToStringKeyMap(orderResponse['data'])
+              : <String, dynamic>{};
+        } catch (e) {
+          print('Error loading order details: $e');
+          // Continue without order details
+        }
+      }
+
+      // Load fuel reports with more robust error handling
+      List<Map<String, dynamic>> fuelReports = [];
+      try {
+        final fuelReportsResponse = await _fuelReportService.getFuelReportsByTripId(widget.tripId);
+        if (fuelReportsResponse['status'] == 200 && fuelReportsResponse['data'] is List) {
+          fuelReports = (fuelReportsResponse['data'] as List)
+              .map((item) => _convertToStringKeyMap(item))
+              .toList();
+        }
+      } catch (e) {
+        print('Error loading fuel reports: $e');
+        // Continue with empty fuel reports rather than failing the whole function
+      }
+
+      // Load incident reports with more robust error handling
+      List<Map<String, dynamic>> incidentReports = [];
+      try {
+        final incidentReportsResponse = await _incidentReportService
+            .getIncidentReportsByTripId(widget.tripId);
+        // Check for both possible success status codes (1 and 200)
+        if ((incidentReportsResponse['status'] == 1 ||
+            incidentReportsResponse['status'] == 200) &&
+            incidentReportsResponse['data'] is List) {
+          incidentReports = (incidentReportsResponse['data'] as List)
+              .map((item) => _convertToStringKeyMap(item))
+              .toList();
+        }
+      } catch (e) {
+        print('Error loading incident reports: $e');
+        // Continue with empty incident reports rather than failing the whole function
+      }
+      
+      // Load delivery reports
+      List<Map<String, dynamic>> deliveryReports = [];
+      try {
+        final deliveryReportsResponse = await _deliveryReportService
+            .getDeliveryReportsByTripId(widget.tripId);
+        if (deliveryReportsResponse['status'] == 200 &&
+            deliveryReportsResponse['data'] is List) {
+          deliveryReports = (deliveryReportsResponse['data'] as List)
+              .map((item) => _convertToStringKeyMap(item))
+              .toList();
+        }
+      } catch (e) {
+        print('Error loading delivery reports: $e');
+        // Continue with empty delivery reports rather than failing the whole function
+      }
+
+      if (mounted) {
+        setState(() {
+          _tripDetails = tripDetails;
+          _orderDetails = orderDetails;
+          _fuelReports = fuelReports;
+          _incidentReports = incidentReports;
+          _deliveryReports = deliveryReports;
+          _isLoading = false;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -631,9 +657,9 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
 
     switch (matchType) {
       case 1:
-        return 'Tự động';
-      case 2:
         return 'Thủ công';
+      case 2:
+        return 'Tự động';
       default:
         return 'Loại $matchType';
     }
