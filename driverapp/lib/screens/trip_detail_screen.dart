@@ -1387,7 +1387,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                           const SnackBar(
                               content: Text('Cập nhật báo cáo thành công')),
                         );
-                        // Reload trip details to see updated fuel reports
+                        // Reload trip details to see updated fuel reports - force refresh
                         _loadDetails();
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -1821,8 +1821,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     );
 
     // Initialize incident resolution type (default to 1 if not present)
-    int selectedIncidentType = report['type'] != null ? 
-        int.tryParse(report['type'].toString()) ?? 1 : 1;
+    // int selectedIncidentType = report['type'] != null ? 
+    //     int.tryParse(report['type'].toString()) ?? 1 : 1;
         
     // Initialize vehicle type (default to 1 - tractor if not present)
     int selectedVehicleType = report['vehicleType'] != null ? 
@@ -2276,7 +2276,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                     
                     // Check if all fields are valid
                     if (!isIncidentTypeValid || !isDescriptionValid || !isLocationValid) {
-                      // Show error message
+                      // Only show the error SnackBar if there are validation errors not already
+                      // displayed in the form fields
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Vui lòng kiểm tra lại thông tin nhập'),
@@ -2324,8 +2325,6 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       // Close loading dialog
                       Navigator.pop(context);
                       
-                      // Close edit dialog
-                      Navigator.pop(context);
 
                       if (response['status'] == 1 || response['status'] == 200) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -2334,12 +2333,27 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                             backgroundColor: Colors.green,
                           ),
                         );
+                        // Reload data to show updated reports - force refresh
                         _loadDetails();
                       } else {
-                        // ...existing code...
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Lỗi: ${response['message']}'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
                       }
                     } catch (e) {
-                      // ...existing code...
+                      // Close loading dialog if still open
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Lỗi: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
                     }
                   },
                   child: const Text('Lưu'),
@@ -2541,13 +2555,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                     validateResolution();
                                     
                                     if (!isResolutionValid) {
-                                      // // Show error message
-                                      // ScaffoldMessenger.of(context).showSnackBar(
-                                      //   const SnackBar(
-                                      //     content: Text('Vui lòng nhập đầy đủ thông tin giải quyết'),
-                                      //     backgroundColor: Colors.red,
-                                      //   ),
-                                      // );
+                                      // Resolution validation errors are already shown in the input field
                                       return;
                                     }
                                     

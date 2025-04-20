@@ -65,8 +65,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
   
   void _showErrorMessage(String message) {
+    // Show error message in a SnackBar with clearer formatting
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(8),
+      ),
     );
   }
 

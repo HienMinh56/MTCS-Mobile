@@ -153,12 +153,7 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
     _validateForm();
 
     if (!_isFormValid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng kiểm tra lại thông tin trước khi gửi báo cáo'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // Form validation errors are already displayed in the UI, no need for a SnackBar
       return;
     }
 

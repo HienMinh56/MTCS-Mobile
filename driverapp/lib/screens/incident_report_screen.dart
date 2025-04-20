@@ -104,13 +104,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
 
   Future<void> _submitReport() async {
     if (!_formKey.currentState!.validate()) {
-      // Show a message when validation fails
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng điền đầy đủ thông tin theo yêu cầu'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      // Form validation errors are already shown in the input fields
       return;
     }
     

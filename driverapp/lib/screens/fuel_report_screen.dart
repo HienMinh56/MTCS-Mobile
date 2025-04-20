@@ -147,12 +147,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
   Future<void> _submitReport() async {
     // Validate all fields before submitting
     if (!_validateAllFields()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng điền đầy đủ thông tin hợp lệ'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // Error messages are already shown in the form fields, no need for an additional SnackBar
       return;
     }
 

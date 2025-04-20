@@ -222,8 +222,8 @@ class _SplashScreenState extends State<SplashScreen> {
                 Navigator.of(context).pop();
                 
                 // First request permissions within app
-                await Permission.locationAlways.request();
-                await Permission.notification.request();
+                // await Permission.locationAlways.request();
+                // await Permission.notification.request();
                 
                 // Then open settings for full control
                 await openAppSettings();
