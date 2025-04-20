@@ -1,11 +1,36 @@
 import 'dart:async';
 import 'package:driverapp/components/delivery_report/image_section.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:driverapp/utils/image_utils.dart';
 import 'package:driverapp/services/incident_report_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+
+// Tạo class TextInputFormatter để ngăn chặn khoảng trắng đầu dòng và ký tự đặc biệt
+class NoLeadingSpaceOrSpecialCharFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    // Nếu chuỗi rỗng, cho phép nhập bình thường
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+    
+    // Nếu ký tự đầu tiên là khoảng trắng, giữ nguyên giá trị cũ
+    if (newValue.text.startsWith(' ')) {
+      return oldValue;
+    }
+    
+    // Nếu ký tự đầu tiên là ký tự đặc biệt (không phải chữ cái, số, khoảng trắng hoặc chữ Việt có dấu)
+    if (RegExp(r'^[^\w\sÀ-ỹ]').hasMatch(newValue.text)) {
+      return oldValue;
+    }
+    
+    return newValue;
+  }
+}
 
 class IncidentReportScreen extends StatefulWidget {
   final String tripId;
@@ -24,7 +49,8 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   String? _selectedIncidentType;
-  int _incidentType = 1; // 1 = On Site, 2 = Change Vehicle
+  int _incidentType = 1; // 1 = On Site, 2 = Change Vehicle, 3 = Hủy chuyến trong ngày
+  int _vehicleType = 1; // 1 = Tractor, 2 = Trailer
   final List<File> _images = [];
   bool _isSubmitting = false;
   bool _isLoadingLocation = false;
@@ -107,6 +133,58 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
       );
       return;
     }
+
+    // Hiển thị dialog xác nhận trước khi gửi báo cáo
+    bool confirmSubmit = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Xác nhận gửi báo cáo'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Bạn có chắc chắn muốn gửi báo cáo sự cố này?'),
+              const SizedBox(height: 16),
+              Text('Loại sự cố: ${_selectedIncidentType ?? ""}'),
+              const SizedBox(height: 8),
+              Text('Xử lý: ${_incidentType == 1 ? "Xử lý tại chỗ" : _incidentType == 2 ? "Thay xe" : "Hủy chuyến trong ngày"}'),
+              const SizedBox(height: 8),
+              Text('Loại xe: ${_vehicleType == 1 ? "Xe đầu kéo" : "Rơ mooc"}'),
+              const SizedBox(height: 8),
+              Text('Địa điểm: ${_locationController.text}'),
+              const SizedBox(height: 8),
+              Text('Số ảnh đính kèm: ${_images.length}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false); // Không xác nhận
+              },
+              child: const Text('HỦY'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(true); // Xác nhận gửi
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+              ),
+              child: const Text('XÁC NHẬN'),
+            ),
+          ],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+        );
+      },
+    );
+    
+    // Nếu người dùng không xác nhận, dừng quá trình gửi
+    if (confirmSubmit != true) {
+      return;
+    }
     
     setState(() {
       _isSubmitting = true;
@@ -130,10 +208,11 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
         description: _descriptionController.text,
         location: _locationController.text,
         type: _incidentType,
-        status: 'Resolved', // Defaulting to Resolved as per API example
+        vehicleType: _vehicleType, // Added vehicle type parameter
+        status: 'Handling', // Defaulting to Resolved as per API example
         images: _images,
       );
-      
+      print('Response: $response');
       // Close loading indicator
       Navigator.pop(context);
       
@@ -376,19 +455,37 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Vui lòng nhập loại sự cố';
                     }
-                    if (value.length < 3) {
-                      return 'Loại sự cố phải có ít nhất 3 ký tự';
+                    
+                    // Trim value to remove leading/trailing whitespace
+                    final trimmedValue = value.trim();
+                    
+                    // Check if original value starts with whitespace
+                    if (value.startsWith(' ')) {
+                      return 'Không được bắt đầu bằng khoảng trắng';
                     }
-                    if (value.length > 100) {
+                    
+                    // Check if first character is a special character
+                    if (trimmedValue.isNotEmpty && RegExp(r'^[^\w\sÀ-ỹ]').hasMatch(trimmedValue)) {
+                      return 'Không được bắt đầu bằng ký tự đặc biệt';
+                    }
+                    
+                    // Check length after trimming
+                    if (trimmedValue.length < 3) {
+                      return 'Loại sự cố phải có ít nhất 3 ký tự (không tính khoảng trắng đầu/cuối)';
+                    }
+                    
+                    if (trimmedValue.length > 100) {
                       return 'Loại sự cố không được quá 100 ký tự';
                     }
+                    
                     return null;
                   },
+                  inputFormatters: [NoLeadingSpaceOrSpecialCharFormatter()],
                 ),
                 
                 const SizedBox(height: 20),
                 
-                // Incident Resolution Type (On Site vs Change Vehicle)
+                // Incident Resolution Type (On Site vs Change Vehicle vs Cancel Trip)
                 _buildSectionTitle('Loại xử lý sự cố'),
                 Container(
                   decoration: BoxDecoration(
@@ -418,6 +515,57 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                         onChanged: (value) {
                           setState(() {
                             _incidentType = value!;
+                          });
+                        },
+                      ),
+                      Divider(height: 1, color: Colors.blue.shade100),
+                      RadioListTile<int>(
+                        title: const Text('Hủy chuyến trong ngày (Cancel Trip)'),
+                        value: 3,
+                        groupValue: _incidentType,
+                        activeColor: Colors.blue.shade700,
+                        onChanged: (value) {
+                          setState(() {
+                            _incidentType = value!;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Vehicle Type
+                _buildSectionTitle('Loại xe'),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.blue.shade200),
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white,
+                  ),
+                  child: Column(
+                    children: [
+                      RadioListTile<int>(
+                        title: const Text('Xe đầu kéo (Tractor)'),
+                        value: 1,
+                        groupValue: _vehicleType,
+                        activeColor: Colors.blue.shade700,
+                        onChanged: (value) {
+                          setState(() {
+                            _vehicleType = value!;
+                          });
+                        },
+                      ),
+                      Divider(height: 1, color: Colors.blue.shade100),
+                      RadioListTile<int>(
+                        title: const Text('Xe rơ mooc (Trailer)'),
+                        value: 2,
+                        groupValue: _vehicleType,
+                        activeColor: Colors.blue.shade700,
+                        onChanged: (value) {
+                          setState(() {
+                            _vehicleType = value!;
                           });
                         },
                       ),
@@ -467,14 +615,32 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Vui lòng nhập địa điểm xảy ra sự cố';
                     }
-                    if (value.length < 5) {
-                      return 'Địa điểm phải có ít nhất 5 ký tự';
+                    
+                    // Trim value to remove leading/trailing whitespace
+                    final trimmedValue = value.trim();
+                    
+                    // Check if original value starts with whitespace
+                    if (value.startsWith(' ')) {
+                      return 'Không được bắt đầu bằng khoảng trắng';
                     }
-                    if (value.length > 200) {
+                    
+                    // Check if first character is a special character
+                    if (trimmedValue.isNotEmpty && RegExp(r'^[^\w\sÀ-ỹ]').hasMatch(trimmedValue)) {
+                      return 'Không được bắt đầu bằng ký tự đặc biệt';
+                    }
+                    
+                    // Check length after trimming
+                    if (trimmedValue.length < 5) {
+                      return 'Địa điểm phải có ít nhất 5 ký tự (không tính khoảng trắng đầu/cuối)';
+                    }
+                    
+                    if (trimmedValue.length > 200) {
                       return 'Địa điểm không được quá 200 ký tự';
                     }
+                    
                     return null;
                   },
+                  inputFormatters: [NoLeadingSpaceOrSpecialCharFormatter()],
                 ),
                 
                 const SizedBox(height: 20),
@@ -504,14 +670,32 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Vui lòng nhập mô tả sự cố';
                     }
-                    if (value.length < 10) {
-                      return 'Mô tả phải có ít nhất 10 ký tự';
+                    
+                    // Trim value to remove leading/trailing whitespace
+                    final trimmedValue = value.trim();
+                    
+                    // Check if original value starts with whitespace
+                    if (value.startsWith(' ')) {
+                      return 'Không được bắt đầu bằng khoảng trắng';
                     }
-                    if (value.length > 500) {
+                    
+                    // Check if first character is a special character
+                    if (trimmedValue.isNotEmpty && RegExp(r'^[^\w\sÀ-ỹ]').hasMatch(trimmedValue)) {
+                      return 'Không được bắt đầu bằng ký tự đặc biệt';
+                    }
+                    
+                    // Check length after trimming
+                    if (trimmedValue.length < 10) {
+                      return 'Mô tả phải có ít nhất 10 ký tự (không tính khoảng trắng đầu/cuối)';
+                    }
+                    
+                    if (trimmedValue.length > 500) {
                       return 'Mô tả không được quá 500 ký tự';
                     }
+                    
                     return null;
                   },
+                  inputFormatters: [NoLeadingSpaceOrSpecialCharFormatter()],
                 ),
                 
                 const SizedBox(height: 24),

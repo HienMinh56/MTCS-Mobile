@@ -5,6 +5,7 @@ import 'package:driverapp/services/auth_service.dart';
 import 'package:driverapp/utils/color_constants.dart';
 import 'package:intl/intl.dart';
 import 'package:driverapp/services/working_time_service.dart'; // Add this import
+import 'package:driverapp/utils/validation_utils.dart'; // Import validation utils
 
 class ProfileScreen extends StatefulWidget {
   final String driverId;
@@ -178,6 +179,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       _loadRangeWorkingTime();
     }
+  }
+
+  // Thêm phương thức xác nhận trước khi cập nhật
+  Future<void> _showConfirmUpdateDialog() async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.help_outline, color: Colors.amber, size: 28),
+              SizedBox(width: 8),
+              Text('Xác nhận thay đổi', style: TextStyle(color: Colors.blue)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Bạn có chắc chắn muốn cập nhật thông tin hồ sơ? Sau khi cập nhật, bạn sẽ cần đăng nhập lại để áp dụng thay đổi.'),
+              const SizedBox(height: 12),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: Text('Hủy', style: TextStyle(color: Colors.grey[600])),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text('Xác nhận'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _updateProfile();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _updateProfile() async {
@@ -409,12 +457,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         labelStyle: TextStyle(color: Colors.grey[700]),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Vui lòng nhập họ tên';
-                        }
-                        return null;
-                      },
+                      validator: ValidationUtils.validateName,
                     ),
                     const SizedBox(height: 16),
 
@@ -433,15 +476,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         labelStyle: TextStyle(color: Colors.grey[700]),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Vui lòng nhập email';
-                        }
-                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                          return 'Vui lòng nhập email hợp lệ';
-                        }
-                        return null;
-                      },
+                      validator: ValidationUtils.validateEmail,
                     ),
                     const SizedBox(height: 16),
 
@@ -460,15 +495,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         labelStyle: TextStyle(color: Colors.grey[700]),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Vui lòng nhập số điện thoại';
-                        }
-                        if (!RegExp(r'^[0-9]{10,11}$').hasMatch(value)) {
-                          return 'Số điện thoại không hợp lệ';
-                        }
-                        return null;
-                      },
+                      validator: ValidationUtils.validatePhone,
                       keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: 16),
@@ -596,7 +623,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton.icon(
-                  onPressed: _isUpdating ? null : _updateProfile,
+                  onPressed: _isUpdating ? null : _showConfirmUpdateDialog,
                   icon: _isUpdating
                       ? const SizedBox(
                           width: 20,

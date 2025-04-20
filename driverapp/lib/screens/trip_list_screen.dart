@@ -39,6 +39,7 @@ class _TripListScreenState extends State<TripListScreen> {
   String? _statusFilter;
   DateTime? _startDateFilter;
   DateTime? _endDateFilter;
+  String? _trackingCodeFilter;
   bool _showFilterPanel = false;
 
   @override
@@ -68,7 +69,7 @@ class _TripListScreenState extends State<TripListScreen> {
         if (mounted) {
           setState(() {
             _trips = allTrips;
-            _trips.sort((a, b) => b.startTime!.compareTo(a.startTime!));
+            _sortTrips();
             _applyFilters();
             _isLoading = false;
           });
@@ -83,7 +84,7 @@ class _TripListScreenState extends State<TripListScreen> {
         if (mounted) {
           setState(() {
             _trips = trips;
-            _trips.sort((a, b) => b.startTime!.compareTo(a.startTime!));
+            _sortTrips();
             _applyFilters();
             _isLoading = false;
           });
@@ -97,6 +98,21 @@ class _TripListScreenState extends State<TripListScreen> {
         });
       }
     }
+  }
+
+  void _sortTrips() {
+    _trips.sort((a, b) {
+      // Handle null startTime values
+      if (a.startTime == null && b.startTime == null) {
+        return 0;
+      } else if (a.startTime == null) {
+        return 1; // Null values go at the end
+      } else if (b.startTime == null) {
+        return -1;
+      }
+      // Sort by most recent first (descending order)
+      return b.startTime!.compareTo(a.startTime!);
+    });
   }
 
   void _applyFilters() {
@@ -126,6 +142,12 @@ class _TripListScreenState extends State<TripListScreen> {
       }).toList();
     }
 
+    if (_trackingCodeFilter != null && _trackingCodeFilter!.isNotEmpty) {
+      result = result.where((trip) => 
+        trip.trackingCode.toLowerCase().contains(_trackingCodeFilter!.toLowerCase())
+      ).toList();
+    }
+
     setState(() {
       _filteredTrips = result;
     });
@@ -136,15 +158,17 @@ class _TripListScreenState extends State<TripListScreen> {
       _statusFilter = null;
       _startDateFilter = null;
       _endDateFilter = null;
+      _trackingCodeFilter = null;
       _applyFilters();
     });
   }
 
-  void _handleFilterChange(String? status, DateTime? startDate, DateTime? endDate) {
+  void _handleFilterChange(String? status, DateTime? startDate, DateTime? endDate, String? trackingCode) {
     setState(() {
       _statusFilter = status;
       _startDateFilter = startDate;
       _endDateFilter = endDate;
+      _trackingCodeFilter = trackingCode;
       _applyFilters();
     });
   }
@@ -171,7 +195,9 @@ class _TripListScreenState extends State<TripListScreen> {
     }
   }
 
-  bool _shouldKeepInList(String status) {
+  bool _shouldKeepInList(String? status) {
+    if (status == null) return false;
+    
     if (widget.statusList != null && widget.statusList!.isNotEmpty) {
       return widget.statusList!.contains(status);
     }
@@ -197,21 +223,20 @@ class _TripListScreenState extends State<TripListScreen> {
         elevation: 0,
         backgroundColor: ColorConstants.primaryColor,
         actions: [
-          if (widget.status == 'completed')
-            IconButton(
-              icon: Icon(_showFilterPanel ? Icons.filter_list_off : Icons.filter_list),
-              onPressed: () {
-                setState(() {
-                  _showFilterPanel = !_showFilterPanel;
-                });
-              },
-              tooltip: 'Lọc danh sách',
-            ),
+          IconButton(
+            icon: Icon(_showFilterPanel ? Icons.filter_list_off : Icons.filter_list),
+            onPressed: () {
+              setState(() {
+                _showFilterPanel = !_showFilterPanel;
+              });
+            },
+            tooltip: 'Lọc danh sách',
+          ),
         ],
       ),
       body: Column(
         children: [
-          if (widget.status == 'completed' && _showFilterPanel)
+          if (_showFilterPanel)
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               height: _showFilterPanel ? null : 0,
@@ -219,8 +244,10 @@ class _TripListScreenState extends State<TripListScreen> {
                 statusFilter: _statusFilter,
                 startDateFilter: _startDateFilter,
                 endDateFilter: _endDateFilter,
+                trackingCodeFilter: _trackingCodeFilter,
                 onApplyFilter: _handleFilterChange,
                 onResetFilter: _resetFilters,
+                showStatusFilter: widget.status == 'completed', // Chỉ hiển thị bộ lọc trạng thái khi ở màn hình completed
               ),
             ),
           Expanded(
@@ -991,6 +1018,34 @@ class _TripCardState extends State<TripCard> {
     if ((_isFinalStatus || newStatus == 'completed') && !bypassDeliveryReportCheck) {
       _navigateToDeliveryReportScreen();
       return;
+    }
+
+    // Add confirmation dialog when updating from not_started status
+    if (widget.trip.status == 'not_started') {
+      final bool? confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Xác nhận bắt đầu'),
+          content: const Text('Bạn có chắc chắn muốn bắt đầu chuyến này không?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ColorConstants.primaryColor,
+              ),
+              child: const Text('Bắt đầu'),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirmed != true) {
+        return;
+      }
     }
 
     showDialog(

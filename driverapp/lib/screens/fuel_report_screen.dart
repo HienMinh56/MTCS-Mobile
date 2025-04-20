@@ -1,5 +1,6 @@
 import 'package:driverapp/components/delivery_report/image_section.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:driverapp/utils/image_utils.dart';
 import 'package:driverapp/utils/validation_utils.dart';
@@ -158,6 +159,80 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
     // Parse values (we know they're valid at this point)
     final double refuelAmount = double.parse(_fuelAmountController.text);
     final double fuelCost = double.parse(_priceController.text);
+    
+    // Hiển thị dialog xác nhận trước khi gửi báo cáo
+    bool? shouldProceed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Xác nhận thông tin',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.blue.shade800,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Vui lòng kiểm tra lại thông tin trước khi gửi:',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                SizedBox(height: 16),
+                _buildConfirmInfoRow(
+                  Icons.local_gas_station,
+                  'Số lít nhiên liệu:',
+                  '$refuelAmount lít',
+                  Colors.blue,
+                ),
+                _buildConfirmInfoRow(
+                  Icons.monetization_on,
+                  'Giá nhiên liệu:',
+                  '$fuelCost VND',
+                  Colors.orange,
+                ),
+                _buildConfirmInfoRow(
+                  Icons.location_on,
+                  'Vị trí đổ nhiên liệu:',
+                  _locationController.text,
+                  Colors.green,
+                ),
+                _buildConfirmInfoRow(
+                  Icons.image,
+                  'Số ảnh đính kèm:',
+                  '${_selectedImages.length} ảnh',
+                  Colors.purple,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                'Sửa lại',
+                style: TextStyle(color: Colors.grey.shade700),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade700,
+              ),
+              child: Text('Xác nhận gửi'),
+            ),
+          ],
+        );
+      },
+    );
+    
+    // Nếu người dùng không xác nhận, dừng quá trình gửi báo cáo
+    if (shouldProceed != true) {
+      return;
+    }
 
     // Show loading indicator
     showDialog(
@@ -199,6 +274,43 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
         ),
       );
     }
+  }
+  
+  // Helper method để tạo các dòng thông tin trong dialog xác nhận
+  Widget _buildConfirmInfoRow(
+      IconData icon, String label, String value, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 20),
+          SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _getCurrentLocation() async {
@@ -394,6 +506,9 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                         TextField(
                           controller: _fuelAmountController,
                           keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           decoration: InputDecoration(
                             labelText: 'Số lít nhiên liệu đổ',
                             labelStyle: TextStyle(color: Colors.blue.shade700),
@@ -434,6 +549,9 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                         TextField(
                           controller: _priceController,
                           keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           decoration: InputDecoration(
                             labelText: 'Giá nhiên liệu',
                             labelStyle: TextStyle(color: Colors.blue.shade700),
@@ -548,7 +666,16 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                             filled: true,
                             errorText: _locationError,
                           ),
-                          onChanged: (value) => _validateLocation(),
+                          onChanged: (value) {
+                            // Remove leading spaces immediately when typing
+                            if (value.startsWith(' ')) {
+                              _locationController.text = value.trimLeft();
+                              _locationController.selection = TextSelection.fromPosition(
+                                TextPosition(offset: _locationController.text.length),
+                              );
+                            }
+                            _validateLocation();
+                          },
                         ),
                       ],
                     ),

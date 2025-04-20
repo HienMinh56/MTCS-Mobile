@@ -23,9 +23,22 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
   // Add filter state variables
   String _locationFilter = '';
   String _tripIdFilter = '';
+  String _statusFilter = '';
   DateTime? _startDate;
   DateTime? _endDate;
   bool _isFilterVisible = false;
+
+  // Danh sách các status có thể có - chỉ 2 trạng thái (bằng tiếng Việt)
+  final List<String> _availableStatuses = [
+    'Đang xử lý',
+    'Đã xử lý'
+  ];
+
+  // Map tiếng Việt sang tiếng Anh để lọc chính xác
+  final Map<String, String> _statusMap = {
+    'Đang xử lý': 'Handling',
+    'Đã xử lý': 'Resolved'
+  };
 
   @override
   void initState() {
@@ -43,6 +56,7 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
     setState(() {
       _locationFilter = '';
       _tripIdFilter = '';
+      _statusFilter = '';
       _startDate = null;
       _endDate = null;
     });
@@ -61,6 +75,14 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
       if (_tripIdFilter.isNotEmpty &&
           !(report.tripId.toLowerCase().contains(_tripIdFilter.toLowerCase()))) {
         return false;
+      }
+
+      // Filter by status - sử dụng map ánh xạ từ tiếng Việt sang tiếng Anh
+      if (_statusFilter.isNotEmpty) {
+        String englishStatus = _statusMap[_statusFilter] ?? _statusFilter;
+        if (!report.status.toLowerCase().contains(englishStatus.toLowerCase())) {
+          return false;
+        }
       }
 
       // Filter by incident time (date range)
@@ -220,6 +242,29 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
             },
             controller: TextEditingController(text: _tripIdFilter),
           ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              labelText: 'Trạng thái',
+              prefixIcon: const Icon(Icons.info),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            ),
+            value: _statusFilter.isEmpty ? null : _statusFilter,
+            items: _availableStatuses.map((status) {
+              return DropdownMenuItem<String>(
+                value: status,
+                child: Text(status),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _statusFilter = value ?? '';
+              });
+            },
+          ),
           const SizedBox(height: 16),
           const Text(
             'Khoảng thời gian',
@@ -369,7 +414,7 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  report.status,
+                  report.status == 'Resolved' ? 'Đã xử lý' : 'Đang xử lý',
                   style: TextStyle(
                     color: statusColor,
                     fontWeight: FontWeight.bold,

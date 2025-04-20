@@ -68,14 +68,15 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
   }
 
   void _validateNote() {
-    final note = _noteController.text.trim();
+    final note = _noteController.text;
+    final trimmedNote = note.trim();
 
     setState(() {
-      if (note.isEmpty) {
+      if (trimmedNote.isEmpty) {
         _noteError = null;
-      } else if (note.length < _minNoteLength) {
+      } else if (trimmedNote.length < _minNoteLength) {
         _noteError = 'Ghi chú quá ngắn (tối thiểu $_minNoteLength ký tự)';
-      } else if (note.length > _maxNoteLength) {
+      } else if (trimmedNote.length > _maxNoteLength) {
         _noteError = 'Ghi chú quá dài (tối đa $_maxNoteLength ký tự)';
       } else {
         _noteError = null;
@@ -232,9 +233,31 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Xác nhận gửi báo cáo'),
-          content: const Text(
-            'Sau khi gửi, báo cáo không thể chỉnh sửa. Vui lòng kiểm tra kỹ nội dung trước khi xác nhận gửi.',
-            style: TextStyle(fontSize: 16),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Vui lòng xác nhận thông tin báo cáo trước khi gửi:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+                _buildConfirmationInfo('Mã chuyến đi', widget.tripId),
+                _buildConfirmationInfo('Tên tài xế', _driverName),
+                _buildConfirmationInfo('Thời gian báo cáo', AppDateUtils.formatDateTime(_reportTime)),
+                const Divider(),
+                if (_noteController.text.trim().isNotEmpty)
+                  _buildConfirmationInfo('Ghi chú', _noteController.text.trim(),
+                      maxLines: 3, overflow: TextOverflow.ellipsis),
+                _buildConfirmationInfo('Số lượng ảnh', '${_imageFiles.length} ảnh'),
+                const SizedBox(height: 8),
+                const Text(
+                  'Lưu ý: Sau khi gửi, báo cáo không thể chỉnh sửa.',
+                  style: TextStyle(color: Colors.red, fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -252,6 +275,27 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
         );
       },
     ) ?? false;
+  }
+
+  Widget _buildConfirmationInfo(String label, String value, {int? maxLines, TextOverflow? overflow}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Colors.grey, fontSize: 12),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 14),
+            maxLines: maxLines,
+            overflow: overflow,
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -340,9 +384,19 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
             helperText: 'Tối thiểu $_minNoteLength ký tự, tối đa $_maxNoteLength ký tự',
             counterText: '${_noteController.text.length}/$_maxNoteLength',
           ),
-          onChanged: (_) => _validateForm(),
+          onChanged: (value) {
+            // Nếu bắt đầu bằng khoảng trắng, xóa khoảng trắng ở đầu
+            if (value.startsWith(' ')) {
+              _noteController.text = value.trimLeft();
+              // Đặt vị trí con trỏ ở cuối văn bản sau khi đã cắt khoảng trắng
+              _noteController.selection = TextSelection.fromPosition(
+                TextPosition(offset: _noteController.text.length),
+              );
+            }
+            _validateForm();
+          },
         ),
-        if (_noteController.text.isEmpty && _imageFiles.isEmpty)
+        if (_noteController.text.trim().isEmpty && _imageFiles.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 8.0),
             child: Text(
