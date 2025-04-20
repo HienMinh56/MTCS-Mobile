@@ -52,7 +52,7 @@ class IncidentReportDetailScreen extends StatelessWidget {
     IconData statusIcon = StatusUtils.getStatusIcon(report.status);
 
     return StatusHeader(
-      title: 'Trạng thái: ${report.status}',
+      title: 'Trạng thái: ${report.status == 'Resolved' ? 'Đã xử lý' : 'Đang xử lý'}',
       subtitle: 'Cập nhật: ${report.getFormattedCreatedDate()}',
       icon: statusIcon,
       color: statusColor,
@@ -66,11 +66,31 @@ class IncidentReportDetailScreen extends StatelessWidget {
         InfoRow(label: 'Mã báo cáo:', value: report.reportId),
         InfoRow(label: 'Mã chuyến đi:', value: report.tripId),
         InfoRow(label: 'Loại sự cố:', value: report.incidentType),
+        InfoRow(label: 'Type:', value: _getTypeText(report.type)),
+        InfoRow(label: 'Loại phương tiện:', value: _getVehicleTypeText(report.vehicleType)),
         InfoRow(label: 'Vị trí:', value: report.location),
         InfoRow(label: 'Thời gian xảy ra:', value: report.getFormattedIncidentTime()),
         InfoRow(label: 'Người báo cáo:', value: report.reportedBy),
       ],
     );
+  }
+
+  String _getTypeText(int type) {
+    switch (type) {
+      case 1: return 'Xử lý tại chỗ';
+      case 2: return 'Thay xe';
+      case 3: return 'Thay xe cả ngày';
+      default: return 'Không xác định';
+    }
+  }
+
+  String _getVehicleTypeText(int? vehicleType) {
+    if (vehicleType == null) return 'Không có thông tin';
+    switch (vehicleType) {
+      case 1: return 'Đầu kéo';
+      case 2: return 'Rơ móc';
+      default: return 'Không xác định';
+    }
   }
 
   Widget _buildDescriptionCard() {

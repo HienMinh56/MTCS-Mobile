@@ -10,6 +10,7 @@ import 'package:driverapp/utils/color_constants.dart';
 import 'package:driverapp/utils/formatters.dart';
 import 'package:driverapp/components/info_row.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/services.dart'; // Add this import
 import 'dart:io';
 
 class TripDetailScreen extends StatefulWidget {
@@ -985,12 +986,73 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
         List<Map<String, dynamic>>.from(report['fuelReportFiles'] ?? []);
     final Set<String> fileIdsToRemove = {};
     final List<File> newFiles = [];
+    
+    // Add validation state variables
+    bool isRefuelAmountValid = true;
+    bool isFuelCostValid = true;
+    bool isLocationValid = true;
+    
+    // Validation error messages
+    String refuelAmountError = '';
+    String fuelCostError = '';
+    String locationError = '';
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            
+            // Validate function
+            void validateFields() {
+              setState(() {
+                // Validate refuel amount (must be a valid number)
+                final refuelAmountText = refuelAmountController.text.trim();
+                final refuelAmount = double.tryParse(refuelAmountText);
+                
+                if (refuelAmountText.isEmpty) {
+                  isRefuelAmountValid = false;
+                  refuelAmountError = 'Vui lòng nhập số lượng xăng';
+                } else if (refuelAmount == null) {
+                  isRefuelAmountValid = false;
+                  refuelAmountError = 'Số lượng xăng phải là số';
+                } else if (refuelAmount <= 0) {
+                  isRefuelAmountValid = false;
+                  refuelAmountError = 'Số lượng xăng phải lớn hơn 0';
+                } else {
+                  isRefuelAmountValid = true;
+                  refuelAmountError = '';
+                }
+                
+                // Validate fuel cost (must be a valid number greater than 0)
+                final fuelCostText = fuelCostController.text.trim();
+                final fuelCost = double.tryParse(fuelCostText);
+                
+                if (fuelCostText.isEmpty) {
+                  isFuelCostValid = false;
+                  fuelCostError = 'Vui lòng nhập chi phí';
+                } else if (fuelCost == null) {
+                  isFuelCostValid = false;
+                  fuelCostError = 'Chi phí phải là số';
+                } else if (fuelCost <= 0) {
+                  isFuelCostValid = false;
+                  fuelCostError = 'Chi phí phải lớn hơn 0';
+                } else {
+                  isFuelCostValid = true;
+                  fuelCostError = '';
+                }
+                
+                // Validate location (cannot be empty)
+                if (locationController.text.trim().isEmpty) {
+                  isLocationValid = false;
+                  locationError = 'Vui lòng nhập địa điểm';
+                } else {
+                  isLocationValid = true;
+                  locationError = '';
+                }
+              });
+            }
+            
             return AlertDialog(
               title: const Text('Chỉnh sửa báo cáo đổ xăng'),
               content: SingleChildScrollView(
@@ -1000,21 +1062,103 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   children: [
                     TextField(
                       controller: refuelAmountController,
-                      decoration: const InputDecoration(
-                          labelText: 'Số lượng xăng (lít)'),
-                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Số lượng xăng (lít)',
+                        errorText: isRefuelAmountValid ? null : refuelAmountError,
+                        errorBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: ColorConstants.primaryColor, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
+                      ],
+                      onChanged: (value) {
+                        if (!isRefuelAmountValid) {
+                          validateFields();
+                        }
+                      },
                     ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: fuelCostController,
-                      decoration:
-                          const InputDecoration(labelText: 'Chi phí (VNĐ)'),
-                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Chi phí (VNĐ)',
+                        errorText: isFuelCostValid ? null : fuelCostError,
+                        errorBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: ColorConstants.primaryColor, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
+                      ],
+                      onChanged: (value) {
+                        if (!isFuelCostValid) {
+                          validateFields();
+                        }
+                      },
                     ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: locationController,
-                      decoration: const InputDecoration(labelText: 'Địa điểm'),
+                      decoration: InputDecoration(
+                        labelText: 'Địa điểm',
+                        errorText: isLocationValid ? null : locationError,
+                        errorBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: ColorConstants.primaryColor, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.deny(RegExp(r'^\s')), // Prevents spaces at the beginning
+                      ],
+                      onChanged: (value) {
+                        if (!isLocationValid) {
+                          validateFields();
+                        }
+                      },
                     ),
                     const SizedBox(height: 16),
+                    
                     const Text(
                       'Hình ảnh hiện tại:',
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -1180,6 +1324,20 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
+                    // Validate all fields before submitting
+                    validateFields();
+                    
+                    // Check if all fields are valid
+                    if (!isRefuelAmountValid || !isFuelCostValid || !isLocationValid) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Vui lòng kiểm tra lại thông tin nhập'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    
                     try {
                       // Show loading dialog
                       showDialog(
@@ -1205,16 +1363,16 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       );
 
                       final double refuelAmount =
-                          double.tryParse(refuelAmountController.text) ?? 0;
+                          double.tryParse(refuelAmountController.text.trim()) ?? 0;
                       final double fuelCost =
-                          double.tryParse(fuelCostController.text) ?? 0;
+                          double.tryParse(fuelCostController.text.trim()) ?? 0;
 
                       final response =
                           await _fuelReportService.updateFuelReport(
                         reportId: report['reportId'],
                         refuelAmount: refuelAmount,
                         fuelCost: fuelCost,
-                        location: locationController.text,
+                        location: locationController.text.trim(),
                         fileIdsToRemove: fileIdsToRemove.toList(),
                         addedFiles: newFiles,
                       );
@@ -1334,8 +1492,13 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     final int incidentTypeValue = int.tryParse(report['type']?.toString() ?? '1') ?? 1;
     final String incidentTypeName = _getIncidentTypeName(incidentTypeValue);
     
+    // Get vehicle type info
+    final int vehicleTypeValue = int.tryParse(report['vehicleType']?.toString() ?? '1') ?? 1;
+    final String vehicleTypeName = vehicleTypeValue == 1 ? 'Xe kéo' : 'Rơ moóc';
+    
     // Choose badge color based on type
     final Color typeBadgeColor = incidentTypeValue == 2 ? Colors.orange : Colors.blue;
+    final Color vehicleTypeBadgeColor = vehicleTypeValue == 1 ? Colors.green : Colors.purple;
     
     return Card(
       margin: const EdgeInsets.only(bottom: 16.0),
@@ -1357,36 +1520,78 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '#${report['reportId']}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: report['status'] == 'Resolved' ? Colors.green.shade800 : Colors.orange.shade800,
-                    fontSize: 16,
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    '#${report['reportId']}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: report['status'] == 'Resolved' ? Colors.green.shade800 : Colors.orange.shade800,
+                      fontSize: 16,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: typeBadgeColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: typeBadgeColor),
-                  ),
+                Expanded(
+                  flex: 3,
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Icon(
-                        incidentTypeValue == 2 ? Icons.swap_horiz : Icons.handyman,
-                        color: typeBadgeColor,
-                        size: 16,
+                      // Vehicle type badge
+                      Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: vehicleTypeBadgeColor.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: vehicleTypeBadgeColor),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              vehicleTypeValue == 1 ? Icons.local_shipping : Icons.directions_railway,
+                              color: vehicleTypeBadgeColor,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              vehicleTypeName,
+                              style: TextStyle(
+                                color: vehicleTypeBadgeColor,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        incidentTypeName,
-                        style: TextStyle(
-                          color: typeBadgeColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                      // Incident type badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: typeBadgeColor.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: typeBadgeColor),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              incidentTypeValue == 2 ? Icons.swap_horiz : Icons.handyman,
+                              color: typeBadgeColor,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              incidentTypeName,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: typeBadgeColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -1428,8 +1633,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       child: Text(
                         (report['status'] == 'Resolved') ? 'Đã giải quyết' : 'Chưa giải quyết',
                         style: TextStyle(
-                          color: report['status'] == 'Resolved' ? Colors.green : Colors.orange,
                           fontWeight: FontWeight.bold,
+                          color: report['status'] == 'Resolved' ? Colors.green.shade800 : Colors.orange.shade800,
                         ),
                       ),
                     ),
@@ -1512,36 +1717,33 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // Edit button
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: (_tripDetails!['endTime'] != null || report['status'] == 'Resolved')
-                            ? null
-                            : () => _showEditIncidentDialog(report),
-                        icon: const Icon(Icons.edit),
-                        label: const Text('Chỉnh sửa'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                    // Edit button - only if not resolved
+                    if (report['status'] != 'Resolved')
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showEditIncidentDialog(report),
+                          icon: const Icon(Icons.edit, size: 18),
+                          label: const Text('Chỉnh sửa'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                          ),
                         ),
                       ),
-                    ),
                     const SizedBox(width: 8),
                     
                     // Resolve button - only if not resolved
                     if (report['status'] != 'Resolved')
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: _tripDetails!['endTime'] != null
-                              ? null
-                              : () => _showConfirmIncidentDialog(report),
+                          onPressed: () => _showConfirmIncidentDialog(report),
+                          icon: const Icon(Icons.check_circle, size: 18),
+                          label: const Text('Xác nhận giải quyết'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: ColorConstants.primaryColor,
-                            padding: const EdgeInsets.symmetric(vertical: 12.0),
-                          ),
-                          icon: const Icon(Icons.check_circle, color: Colors.white),
-                          label: const Text(
-                            'Xác nhận giải quyết',
-                            style: TextStyle(color: Colors.white),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
                           ),
                         ),
                       ),
@@ -1549,8 +1751,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                 ),
                 
                 // Add second row of action buttons for billing and resolution images
-                // Only show if incident is not resolved yet
-                if (report['status'] != 'Resolved' && _tripDetails!['endTime'] == null) ...[
+                // Only show if incident is not resolved yet - remove trip endTime condition
+                if (report['status'] != 'Resolved') ...[
                   const SizedBox(height: 16),
                   const Divider(height: 1),
                   Padding(
@@ -1558,110 +1760,28 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        // Upload billing images button - enhanced design
                         Expanded(
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () => _showUploadBillingImagesDialog(report),
-                              borderRadius: BorderRadius.circular(10),
-                              splashColor: Colors.orange.withOpacity(0.3),
-                              child: Ink(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [Colors.orange.shade200, Colors.orange.shade100],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: Colors.orange.shade300),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.orange.shade100,
-                                      offset: const Offset(0, 2),
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.receipt_long,
-                                        color: Colors.orange.shade800,
-                                        size: 28,
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        'Hóa đơn chi phí',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Colors.orange.shade800,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showUploadBillingImagesDialog(report),
+                            icon: const Icon(Icons.receipt, size: 18),
+                            label: const Text('Tải lên hóa đơn'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              side: const BorderSide(color: Colors.orange),
+                              foregroundColor: Colors.orange,
                             ),
                           ),
                         ),
-                        
-                        const SizedBox(width: 16),
-                        
-                        // Upload exchange/resolution images button - enhanced design
+                        const SizedBox(width: 8),
                         Expanded(
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () => _showUploadExchangeImagesDialog(report),
-                              borderRadius: BorderRadius.circular(10),
-                              splashColor: Colors.green.withOpacity(0.3),
-                              child: Ink(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [Colors.green.shade200, Colors.green.shade100],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: Colors.green.shade300),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.green.shade100,
-                                      offset: const Offset(0, 2),
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.photo_camera,
-                                        color: Colors.green.shade800,
-                                        size: 28,
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        'Ảnh giải quyết',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Colors.green.shade800,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showUploadExchangeImagesDialog(report),
+                            icon: const Icon(Icons.image, size: 18),
+                            label: const Text('Tải hình giải quyết'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              side: const BorderSide(color: Colors.green),
+                              foregroundColor: Colors.green,
                             ),
                           ),
                         ),
@@ -1703,6 +1823,10 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     // Initialize incident resolution type (default to 1 if not present)
     int selectedIncidentType = report['type'] != null ? 
         int.tryParse(report['type'].toString()) ?? 1 : 1;
+        
+    // Initialize vehicle type (default to 1 - tractor if not present)
+    int selectedVehicleType = report['vehicleType'] != null ? 
+        int.tryParse(report['vehicleType'].toString()) ?? 1 : 1;
 
     // Track images to keep or remove
     final List<Map<String, dynamic>> existingFiles =
@@ -1771,8 +1895,119 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Vehicle Type Selector
+                    const Text(
+                      'Loại phương tiện:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                selectedVehicleType = 1; // Tractor
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: selectedVehicleType == 1 
+                                      ? ColorConstants.primaryColor 
+                                      : Colors.grey.shade400,
+                                  width: selectedVehicleType == 1 ? 2 : 1,
+                                ),
+                                color: selectedVehicleType == 1
+                                    ? ColorConstants.primaryColor.withOpacity(0.1)
+                                    : Colors.transparent,
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.local_shipping,
+                                    color: selectedVehicleType == 1
+                                        ? ColorConstants.primaryColor
+                                        : Colors.grey.shade600,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Xe kéo',
+                                    style: TextStyle(
+                                      fontWeight: selectedVehicleType == 1
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      color: selectedVehicleType == 1
+                                          ? ColorConstants.primaryColor
+                                          : Colors.grey.shade800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                selectedVehicleType = 2; // Trailer
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: selectedVehicleType == 2
+                                      ? ColorConstants.primaryColor
+                                      : Colors.grey.shade400,
+                                  width: selectedVehicleType == 2 ? 2 : 1,
+                                ),
+                                color: selectedVehicleType == 2
+                                    ? ColorConstants.primaryColor.withOpacity(0.1)
+                                    : Colors.transparent,
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.directions_railway,
+                                    color: selectedVehicleType == 2
+                                        ? ColorConstants.primaryColor
+                                        : Colors.grey.shade600,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Rơ moóc',
+                                    style: TextStyle(
+                                      fontWeight: selectedVehicleType == 2
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      color: selectedVehicleType == 2
+                                          ? ColorConstants.primaryColor
+                                          : Colors.grey.shade800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
                     TextField(
                       controller: incidentTypeController,
+                      // Add input formatter to prevent leading spaces
+                      inputFormatters: [
+                        FilteringTextInputFormatter.deny(RegExp(r'^\s')), // Prevents spaces at the beginning
+                      ],
                       decoration: InputDecoration(
                         labelText: 'Loại sự cố',
                         errorText: isIncidentTypeValid ? null : incidentTypeError,
@@ -1800,8 +2035,14 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       },
                     ),
                     const SizedBox(height: 12),
+                    
+                    // Continue with the rest of the form
                     TextField(
                       controller: descriptionController,
+                      // Add input formatter to prevent leading spaces
+                      inputFormatters: [
+                        FilteringTextInputFormatter.deny(RegExp(r'^\s')), // Prevents spaces at the beginning
+                      ],
                       decoration: InputDecoration(
                         labelText: 'Mô tả',
                         errorText: isDescriptionValid ? null : descriptionError,
@@ -1833,6 +2074,10 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: locationController,
+                      // Add input formatter to prevent leading spaces
+                      inputFormatters: [
+                        FilteringTextInputFormatter.deny(RegExp(r'^\s')), // Prevents spaces at the beginning
+                      ],
                       decoration: InputDecoration(
                         labelText: 'Địa điểm',
                         errorText: isLocationValid ? null : locationError,
@@ -2034,7 +2279,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       // Show error message
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Vui lòng điền đầy đủ thông tin'),
+                          content: Text('Vui lòng kiểm tra lại thông tin nhập'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -2042,40 +2287,38 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                     }
                     
                     try {
+                      // Trim input values before submission to ensure no leading/trailing spaces
+                      final String trimmedIncidentType = incidentTypeController.text.trim();
+                      final String trimmedDescription = descriptionController.text.trim();
+                      final String trimmedLocation = locationController.text.trim();
+                      
                       // Show loading dialog
                       showDialog(
                         context: context,
                         barrierDismissible: false,
                         builder: (context) => AlertDialog(
-                          contentPadding: const EdgeInsets.all(20),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          content: SizedBox(
-                            width: 250,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                CircularProgressIndicator(),
-                                SizedBox(height: 16),
-                                Text('Đang cập nhật báo cáo...'),
-                              ],
-                            ),
+                          content: const Row(
+                            children: [
+                              CircularProgressIndicator(),
+                              SizedBox(width: 20),
+                              Text('Đang cập nhật...'),
+                            ],
                           ),
                         ),
                       );
 
                       final response = await _incidentReportService.updateIncidentReport(
                         reportId: report['reportId'],
-                        incidentType: incidentTypeController.text.isNotEmpty ? 
-                            incidentTypeController.text : null,
-                        description: descriptionController.text.isNotEmpty ? 
-                            descriptionController.text : null,
-                        location: locationController.text.isNotEmpty ? 
-                            locationController.text : null,
-                        type: selectedIncidentType, // Pass the selected incident type
-                        fileIdsToRemove: fileIdsToRemove.isEmpty ? null : fileIdsToRemove.toList(),
-                        addedFiles: newFiles.isEmpty ? null : newFiles,
+                        incidentType: trimmedIncidentType.isNotEmpty ? 
+                            trimmedIncidentType : null,
+                        description: trimmedDescription.isNotEmpty ? 
+                            trimmedDescription : null,
+                        location: trimmedLocation.isNotEmpty ? 
+                            trimmedLocation : null,
+                        fileIdsToRemove: fileIdsToRemove.isNotEmpty ? 
+                            fileIdsToRemove.toList() : null,
+                        addedFiles: newFiles.isNotEmpty ? newFiles : null,
+                        vehicleType: selectedVehicleType, // Add vehicle type to the update call
                       );
 
                       // Close loading dialog
@@ -2087,24 +2330,16 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       if (response['status'] == 1 || response['status'] == 200) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('Cập nhật báo cáo thành công')),
+                            content: Text('Cập nhật báo cáo sự cố thành công'),
+                            backgroundColor: Colors.green,
+                          ),
                         );
-                        // Reload trip details to see updated incident reports
                         _loadDetails();
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text('Lỗi: ${response['message']}')),
-                        );
+                        // ...existing code...
                       }
                     } catch (e) {
-                      // Close loading dialog if still open
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Lỗi: $e')),
-                      );
+                      // ...existing code...
                     }
                   },
                   child: const Text('Lưu'),
@@ -2218,6 +2453,10 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                   ),
                                 ),
                                 maxLines: 3,
+                                // Add input formatter to prevent leading spaces
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.deny(RegExp(r'^\s')), // Prevents spaces at the beginning
+                                ],
                                 onChanged: (value) {
                                   if (!isResolutionValid) {
                                     validateResolution();
@@ -2910,6 +3149,8 @@ decoration: BoxDecoration(
         return 'Xử lý tại chỗ';
       case 2:
         return 'Thay xe';
+      case 3:
+        return 'Thay xe cả ngày';
       default:
         return 'Không xác định';
     }

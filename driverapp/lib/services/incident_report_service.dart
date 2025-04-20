@@ -26,6 +26,7 @@ class IncidentReportService {
     required String description,
     required String location,
     required int type, // 1 = On Site, 2 = Change Vehicle
+    required int vehicleType, // 1 = Head, 2 = Trailer
     required String status, // 'Resolved' or 'Unresolved'
     String? resolutionDetails,
     List<File> images = const [],
@@ -51,7 +52,7 @@ class IncidentReportService {
       request.fields['Description'] = description;
       request.fields['Location'] = location;
       request.fields['Type'] = type.toString();
-      request.fields['ImageType'] = '1'; // Default to 1 as requested
+      request.fields['VehicleType'] = vehicleType.toString(); // Default to 1 as requested
       request.fields['Status'] = "Handling";
       
       // Add resolution details if provided
@@ -351,6 +352,7 @@ class IncidentReportService {
   Future<Map<String, dynamic>> updateIncidentReport({
     required String reportId,
     String? incidentType,
+    int? vehicleType,
     String? description,
     String? location,
     int? type,
@@ -379,6 +381,7 @@ class IncidentReportService {
       if (description != null) _addFormField(body, boundary, 'Description', description);
       if (location != null) _addFormField(body, boundary, 'Location', location);
       _addFormField(body, boundary, 'Type', type?.toString() ?? '1');
+      _addFormField(body, boundary, 'VehicleType', vehicleType?.toString() ?? '1'); // Default to 1 as requested
       
       // Add file IDs to remove
       if (fileIdsToRemove != null && fileIdsToRemove.isNotEmpty) {

@@ -10,6 +10,7 @@ class IncidentReport {
   final String location;
   final int type;
   final String status;
+  final int? vehicleType;
   final String? resolutionDetails;
   final String? handledBy;
   final DateTime? handledTime;
@@ -26,6 +27,7 @@ class IncidentReport {
     required this.location,
     required this.type,
     required this.status,
+    this.vehicleType,
     this.resolutionDetails,
     this.handledBy,
     this.handledTime,
@@ -54,6 +56,7 @@ class IncidentReport {
       location: json['location'] ?? '',
       type: json['type'] ?? 0,
       status: json['status'] ?? '',
+      vehicleType: json['vehicleType'] is int ? json['vehicleType'] : (json['vehicleType'] != null ? int.tryParse(json['vehicleType'].toString()) : null),
       resolutionDetails: json['resolutionDetails'],
       handledBy: json['handledBy'],
       handledTime: json['handledTime'] != null 

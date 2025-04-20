@@ -6,16 +6,20 @@ class TripFilterPanel extends StatefulWidget {
   final String? statusFilter;
   final DateTime? startDateFilter;
   final DateTime? endDateFilter;
-  final Function(String? status, DateTime? startDate, DateTime? endDate) onApplyFilter;
+  final String? trackingCodeFilter;
+  final Function(String? status, DateTime? startDate, DateTime? endDate, String? trackingCode) onApplyFilter;
   final VoidCallback onResetFilter;
+  final bool showStatusFilter; // Thêm tham số mới để điều khiển hiển thị bộ lọc trạng thái
 
   const TripFilterPanel({
     Key? key,
     this.statusFilter,
     this.startDateFilter,
     this.endDateFilter,
+    this.trackingCodeFilter,
     required this.onApplyFilter,
     required this.onResetFilter,
+    this.showStatusFilter = true, // Mặc định là hiển thị
   }) : super(key: key);
 
   @override
@@ -26,6 +30,8 @@ class _TripFilterPanelState extends State<TripFilterPanel> {
   String? _statusFilter;
   DateTime? _startDateFilter;
   DateTime? _endDateFilter;
+  String? _trackingCodeFilter;
+  final TextEditingController _trackingCodeController = TextEditingController();
 
   @override
   void initState() {
@@ -33,6 +39,16 @@ class _TripFilterPanelState extends State<TripFilterPanel> {
     _statusFilter = widget.statusFilter;
     _startDateFilter = widget.startDateFilter;
     _endDateFilter = widget.endDateFilter;
+    _trackingCodeFilter = widget.trackingCodeFilter;
+    if (_trackingCodeFilter != null) {
+      _trackingCodeController.text = _trackingCodeFilter!;
+    }
+  }
+
+  @override
+  void dispose() {
+    _trackingCodeController.dispose();
+    super.dispose();
   }
 
   // Select date range helper method
@@ -73,13 +89,18 @@ class _TripFilterPanelState extends State<TripFilterPanel> {
       _statusFilter = null;
       _startDateFilter = null;
       _endDateFilter = null;
+      _trackingCodeFilter = null;
+      _trackingCodeController.clear();
     });
     widget.onResetFilter();
   }
 
   // Apply filters
   void _applyFilters() {
-    widget.onApplyFilter(_statusFilter, _startDateFilter, _endDateFilter);
+    setState(() {
+      _trackingCodeFilter = _trackingCodeController.text.isNotEmpty ? _trackingCodeController.text.trim() : null;
+    });
+    widget.onApplyFilter(_statusFilter, _startDateFilter, _endDateFilter, _trackingCodeFilter);
   }
 
   @override
@@ -128,11 +149,11 @@ class _TripFilterPanelState extends State<TripFilterPanel> {
           
           const Divider(),
           
-          // Status filter dropdown
+          // Tracking code filter
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8.0),
             child: Text(
-              "Trạng thái",
+              "Mã vận đơn",
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
@@ -146,36 +167,78 @@ class _TripFilterPanelState extends State<TripFilterPanel> {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.grey.shade200),
             ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String?>(
-                isExpanded: true,
-                value: _statusFilter,
-                hint: const Text('Tất cả'),
-                icon: const Icon(Icons.arrow_drop_down, color: ColorConstants.primaryColor),
-                items: const [
-                  DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('Tất cả'),
-                  ),
-                  DropdownMenuItem<String>(
-                    value: 'completed',
-                    child: Text('Hoàn thành'),
-                  ),
-                  DropdownMenuItem<String>(
-                    value: 'canceled',
-                    child: Text('Đã hủy'),
-                  ),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _statusFilter = value;
-                  });
-                },
+            child: TextField(
+              controller: _trackingCodeController,
+              decoration: InputDecoration(
+                hintText: 'Nhập mã vận đơn...',
+                border: InputBorder.none,
+                suffixIcon: _trackingCodeController.text.isNotEmpty
+                    ? GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _trackingCodeController.clear();
+                          });
+                        },
+                        child: Icon(Icons.clear, size: 18, color: Colors.grey.shade600),
+                      )
+                    : null,
               ),
+              style: const TextStyle(fontSize: 14),
             ),
           ),
           
           const SizedBox(height: 16),
+          
+          // Status filter dropdown
+          if (widget.showStatusFilter) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.0),
+              child: Text(
+                "Trạng thái",
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String?>(
+                  isExpanded: true,
+                  value: _statusFilter,
+                  hint: const Text('Tất cả'),
+                  icon: const Icon(Icons.arrow_drop_down, color: ColorConstants.primaryColor),
+                  items: const [
+                    DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Tất cả'),
+                    ),
+                    DropdownMenuItem<String>(
+                      value: 'completed',
+                      child: Text('Hoàn thành'),
+                    ),
+                    DropdownMenuItem<String>(
+                      value: 'canceled',
+                      child: Text('Đã hủy'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _statusFilter = value;
+                    });
+                  },
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+          ],
           
           // Date filter section
           const Padding(

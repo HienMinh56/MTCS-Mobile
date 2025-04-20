@@ -58,7 +58,7 @@ class IncidentReport {
 
   // Trả về một chuỗi cho biết trạng thái xử lý của sự cố
   String get statusDisplay {
-    if (status.toLowerCase() == 'completed' || status.toLowerCase() == 'done') {
+    if (status.toLowerCase() == 'resolved' || status.toLowerCase() == 'done') {
       return 'Đã xử lý';
     } else if (status.toLowerCase() == 'handling') {
       return 'Đang xử lý';
@@ -69,6 +69,6 @@ class IncidentReport {
 
   // Kiểm tra xem sự cố đã được xử lý hay chưa
   bool get isHandled => 
-      status.toLowerCase() == 'completed' || 
+      status.toLowerCase() == 'resolved' || 
       status.toLowerCase() == 'done';
 }

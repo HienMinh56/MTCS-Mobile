@@ -5,7 +5,7 @@ class StatusUtils {
     switch (status.toLowerCase()) {
       case 'handling':
         return Colors.orange;
-      case 'completed':
+      case 'resolved':
         return Colors.green;
       case 'pending':
         return Colors.grey;
