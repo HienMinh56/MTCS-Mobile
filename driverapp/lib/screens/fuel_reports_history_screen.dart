@@ -439,21 +439,21 @@ class _FuelReportsScreenState extends State<FuelReportsScreen> {
             children: [
               Flexible(
                 child: Text(
-                  report.reportId,
+                  'Mã: ${report.reportId}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 14,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(
-                report.tripId,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
-              ),
+              // Text(
+              //   report.tripId,
+              //   style: TextStyle(
+              //     color: Colors.grey[600],
+              //     fontSize: 14,
+              //   ),
+              // ),
             ],
           ),
           const SizedBox(height: 12),

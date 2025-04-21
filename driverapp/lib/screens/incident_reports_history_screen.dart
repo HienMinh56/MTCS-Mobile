@@ -9,7 +9,8 @@ import 'package:intl/intl.dart';
 class IncidentReportsScreen extends StatefulWidget {
   final String userId;
 
-  const IncidentReportsScreen({Key? key, required this.userId}) : super(key: key);
+  const IncidentReportsScreen({Key? key, required this.userId})
+      : super(key: key);
 
   @override
   State<IncidentReportsScreen> createState() => _IncidentReportsScreenState();
@@ -19,7 +20,7 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
   final ReportService _reportService = ReportService();
   late Future<List<IncidentReport>> _incidentReportsFuture;
   final DateFormat _dateFormatter = DateFormat('dd/MM/yyyy');
-  
+
   // Add filter state variables
   String _locationFilter = '';
   String _tripIdFilter = '';
@@ -29,10 +30,7 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
   bool _isFilterVisible = false;
 
   // Danh sách các status có thể có - chỉ 2 trạng thái (bằng tiếng Việt)
-  final List<String> _availableStatuses = [
-    'Đang xử lý',
-    'Đã xử lý'
-  ];
+  final List<String> _availableStatuses = ['Đang xử lý', 'Đã xử lý'];
 
   // Map tiếng Việt sang tiếng Anh để lọc chính xác
   final Map<String, String> _statusMap = {
@@ -45,7 +43,7 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
     super.initState();
     _loadIncidentReports();
   }
-  
+
   Future<void> _loadIncidentReports() async {
     setState(() {
       _incidentReportsFuture = _reportService.getIncidentReports(widget.userId);
@@ -67,20 +65,26 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
     return reports.where((report) {
       // Filter by location
       if (_locationFilter.isNotEmpty &&
-          !report.location.toLowerCase().contains(_locationFilter.toLowerCase())) {
+          !report.location
+              .toLowerCase()
+              .contains(_locationFilter.toLowerCase())) {
         return false;
       }
 
       // Filter by trip ID
       if (_tripIdFilter.isNotEmpty &&
-          !(report.tripId.toLowerCase().contains(_tripIdFilter.toLowerCase()))) {
+          !(report.tripId
+              .toLowerCase()
+              .contains(_tripIdFilter.toLowerCase()))) {
         return false;
       }
 
       // Filter by status - sử dụng map ánh xạ từ tiếng Việt sang tiếng Anh
       if (_statusFilter.isNotEmpty) {
         String englishStatus = _statusMap[_statusFilter] ?? _statusFilter;
-        if (!report.status.toLowerCase().contains(englishStatus.toLowerCase())) {
+        if (!report.status
+            .toLowerCase()
+            .contains(englishStatus.toLowerCase())) {
           return false;
         }
       }
@@ -93,7 +97,8 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
         }
         if (_endDate != null) {
           // Include the entire end date by setting it to end of day
-          DateTime endOfDay = DateTime(_endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59);
+          DateTime endOfDay = DateTime(
+              _endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59);
           if (incidentDate.isAfter(endOfDay)) {
             return false;
           }
@@ -121,7 +126,8 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
         ),
         actions: [
           IconButton(
-            icon: Icon(_isFilterVisible ? Icons.filter_list_off : Icons.filter_list),
+            icon: Icon(
+                _isFilterVisible ? Icons.filter_list_off : Icons.filter_list),
             onPressed: _toggleFilterVisibility,
             tooltip: 'Lọc báo cáo',
           ),
@@ -135,7 +141,7 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
             height: _isFilterVisible ? null : 0,
             child: _isFilterVisible ? _buildFilterPanel() : null,
           ),
-          
+
           Expanded(
             child: FutureBuilder<List<IncidentReport>>(
               future: _incidentReportsFuture,
@@ -156,22 +162,23 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
                 } else {
                   // Apply filters to the reports
                   final filteredReports = _getFilteredReports(snapshot.data!);
-                  
+
                   return filteredReports.isEmpty
-                    ? const Center(
-                        child: Text('Không tìm thấy báo cáo phù hợp với bộ lọc đã chọn'),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _loadIncidentReports,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.all(16.0),
-                          itemCount: filteredReports.length,
-                          itemBuilder: (context, index) {
-                            final report = filteredReports[index];
-                            return _buildIncidentReportCard(context, report);
-                          },
-                        ),
-                      );
+                      ? const Center(
+                          child: Text(
+                              'Không tìm thấy báo cáo phù hợp với bộ lọc đã chọn'),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _loadIncidentReports,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(16.0),
+                            itemCount: filteredReports.length,
+                            itemBuilder: (context, index) {
+                              final report = filteredReports[index];
+                              return _buildIncidentReportCard(context, report);
+                            },
+                          ),
+                        );
                 }
               },
             ),
@@ -180,7 +187,7 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
       ),
     );
   }
-  
+
   // Filter panel widget
   Widget _buildFilterPanel() {
     return Container(
@@ -215,7 +222,8 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             ),
             onChanged: (value) {
               setState(() {
@@ -233,7 +241,8 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             ),
             onChanged: (value) {
               setState(() {
@@ -250,7 +259,8 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             ),
             value: _statusFilter.isEmpty ? null : _statusFilter,
             items: _availableStatuses.map((status) {
@@ -292,7 +302,8 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
                     }
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 12),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.grey),
                       borderRadius: BorderRadius.circular(8),
@@ -305,7 +316,9 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
                               ? 'Từ ngày'
                               : _dateFormatter.format(_startDate!),
                           style: TextStyle(
-                            color: _startDate == null ? Colors.grey[600] : Colors.black,
+                            color: _startDate == null
+                                ? Colors.grey[600]
+                                : Colors.black,
                           ),
                         ),
                         const Icon(Icons.calendar_today, size: 18),
@@ -331,7 +344,8 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
                     }
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 12),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.grey),
                       borderRadius: BorderRadius.circular(8),
@@ -344,7 +358,9 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
                               ? 'Đến ngày'
                               : _dateFormatter.format(_endDate!),
                           style: TextStyle(
-                            color: _endDate == null ? Colors.grey[600] : Colors.black,
+                            color: _endDate == null
+                                ? Colors.grey[600]
+                                : Colors.black,
                           ),
                         ),
                         const Icon(Icons.calendar_today, size: 18),
@@ -398,10 +414,10 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                report.reportId,
+                'Mã: ${report.reportId}',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: 14,
                 ),
               ),
               Container(
@@ -428,7 +444,6 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
             'Loại sự cố: ${report.incidentType}',
             style: const TextStyle(fontSize: 14),
           ),
-
           const SizedBox(height: 4),
           Text(
             'Vị trí: ${report.location}',

@@ -203,7 +203,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     // Removed extra parenthesis
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chi tiết Trip ${widget.tripId}'),
+        title: Text('Chi tiết chuyến'),
       ),
       body: RefreshIndicator(
         onRefresh: _loadDetails,
@@ -226,7 +226,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionTitle('Thông tin Trip'),
+          _buildSectionTitle('Thông tin chuyến'),
           _buildDetailCard(_buildTripDetails()),
 
           // Reports Section with icons
@@ -615,7 +615,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
 
   List<Widget> _buildTripDetails() {
     return [
-      InfoRow(label: 'Trip ID:', value: _tripDetails!['tripId'] ?? 'N/A'),
+      InfoRow(label: 'Mã chuyến:', value: _tripDetails!['tripId'] ?? 'N/A'),
       FutureBuilder<String>(
         future: _statusService.getStatusName(_tripDetails!['status']),
         builder: (context, snapshot) {
@@ -624,8 +624,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
           return InfoRow(label: 'Trạng thái:', value: statusName);
         },
       ),
-      InfoRow(label: 'Xe kéo ID:', value: _tripDetails!['tractorId'] ?? 'N/A'),
-      InfoRow(label: 'Rơ moóc ID:', value: _tripDetails!['trailerId'] ?? 'N/A'),
+      InfoRow(label: 'Xe kéo:', value: _tripDetails!['tractorId'] ?? 'N/A'),
+      InfoRow(label: 'Rơ moóc:', value: _tripDetails!['trailerId'] ?? 'N/A'),
       InfoRow(
         label: 'Thời gian bắt đầu:',
         value:
@@ -1378,11 +1378,17 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       );
 
                       // Close loading dialog
-                      Navigator.pop(context);
-                      // Close edit dialog
-                      Navigator.pop(context);
-
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
+                      
+                      // Automatically close edit dialog on success
                       if (response['status'] == 200) {
+                        // Close edit dialog
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        }
+                        
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               content: Text('Cập nhật báo cáo thành công')),
@@ -2323,10 +2329,16 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       );
 
                       // Close loading dialog
-                      Navigator.pop(context);
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
                       
-
                       if (response['status'] == 1 || response['status'] == 200) {
+                        // Automatically close the edit dialog on success
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        }
+                        
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Cập nhật báo cáo sự cố thành công'),

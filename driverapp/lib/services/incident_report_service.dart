@@ -380,7 +380,6 @@ class IncidentReportService {
       if (incidentType != null) _addFormField(body, boundary, 'IncidentType', incidentType);
       if (description != null) _addFormField(body, boundary, 'Description', description);
       if (location != null) _addFormField(body, boundary, 'Location', location);
-      _addFormField(body, boundary, 'Type', type?.toString() ?? '1');
       _addFormField(body, boundary, 'VehicleType', vehicleType?.toString() ?? '1'); // Default to 1 as requested
       
       // Add file IDs to remove

@@ -79,12 +79,16 @@ Future<void> saveTokenToFirestore(String userId) async {
 
 // 🔹 Yêu cầu tất cả quyền cần thiết khi khởi động ứng dụng
 Future<void> requestPermissions() async {
-  // Danh sách các quyền cần thiết
-await [
-    Permission.location,
-    Permission.locationAlways,
-    Permission.notification,
-  ].request();
+  // Trước tiên yêu cầu quyền thông báo
+  await Permission.notification.request();
+  
+  // Yêu cầu quyền vị trí cơ bản trước
+  var locationStatus = await Permission.locationWhenInUse.request();
+  
+  // Chỉ yêu cầu quyền vị trí nền sau khi đã cấp quyền vị trí cơ bản
+  if (locationStatus.isGranted) {
+    await Permission.locationAlways.request();
+  }
 }
 
 void main() async {
@@ -199,42 +203,136 @@ class _SplashScreenState extends State<SplashScreen> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Cấp quyền bắt buộc'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'Ứng dụng cần các quyền sau để hoạt động chính xác:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 10),
-              Text('• Quyền vị trí "Luôn cho phép": để theo dõi vị trí của tài xế khi giao hàng, ngay cả khi ứng dụng đang chạy nền'),
-              SizedBox(height: 8),
-              Text('• Quyền thông báo: để nhận thông báo về đơn hàng mới và cập nhật quan trọng'),
-              SizedBox(height: 15),
-              Text('Vui lòng cấp tất cả các quyền này trong phần Cài đặt ứng dụng để tiếp tục sử dụng.'),
+          title: Row(
+            children: [
+              Icon(Icons.security, color: Colors.blue),
+              SizedBox(width: 8),
+              Text('Cấp quyền bắt buộc', style: TextStyle(fontWeight: FontWeight.bold)),
             ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Để ứng dụng hoạt động đúng, bạn cần cấp các quyền sau:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 16),
+                
+                // Quyền vị trí
+                Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.location_on, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Text('Quyền vị trí "Luôn cho phép"', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      Text('Cần thiết để theo dõi vị trí khi giao hàng, ngay cả khi ứng dụng đang chạy nền'),
+                      SizedBox(height: 8),
+                      Text('Cách cấp quyền:', style: TextStyle(fontStyle: FontStyle.italic)),
+                      SizedBox(height: 4),
+                      Text('• Tại màn hình cài đặt, chọn "Vị trí"'),
+                      Text('• Chọn "Luôn cho phép" hoặc "Allow all the time"'),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 12),
+                
+                // Quyền thông báo
+                Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.notifications_active, color: Colors.green),
+                          SizedBox(width: 8),
+                          Text('Quyền thông báo', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      Text('Cần thiết để nhận thông báo đơn hàng mới và cập nhật quan trọng'),
+                      SizedBox(height: 8),
+                      Text('Cách cấp quyền:', style: TextStyle(fontStyle: FontStyle.italic)),
+                      SizedBox(height: 4),
+                      Text('• Tại màn hình cài đặt, chọn "Thông báo"'),
+                      Text('• Bật "Cho phép thông báo"'),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 16),
+                
+                // Lưu ý quan trọng
+                Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Sau khi bạn cấp quyền, hãy quay lại ứng dụng để tiếp tục sử dụng.',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
                 
-                // First request permissions within app
-                // await Permission.locationAlways.request();
-                // await Permission.notification.request();
-                
-                // Then open settings for full control
+                // Mở cài đặt ứng dụng
                 await openAppSettings();
                 
-                // Wait a moment and check again after returning from settings
+                // Chờ một chút và kiểm tra lại sau khi quay lại từ cài đặt
                 await Future.delayed(const Duration(seconds: 2));
                 _checkLoginStatus();
               },
-              child: const Text('Đi đến Cài đặt'),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.settings),
+                  SizedBox(width: 8),
+                  Text('Đi đến Cài đặt'),
+                ],
+              ),
             ),
           ],
+          actionsAlignment: MainAxisAlignment.center,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         );
       },
     );

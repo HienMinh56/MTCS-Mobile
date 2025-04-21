@@ -21,7 +21,7 @@ class DeliveryReportDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chi Tiết Báo Cáo ${report.tripId}'),
+        title: Text('Chi Tiết Báo Cáo'),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -55,7 +55,8 @@ class DeliveryReportDetailScreen extends StatelessWidget {
             ),
             const Divider(),
             const SizedBox(height: 8),
-            _buildInfoRow('ID Chuyến:', report.tripId.toString()),
+            _buildInfoRow('Mã báo cáo:', report.reportId.toString()),
+            _buildInfoRow('Mã chuyến:', report.tripId.toString()),
             _buildInfoRow('Thời gian báo cáo:', _formatDateTime(report.reportTime)),
             _buildInfoRow('Người báo cáo:', report.reportBy),
           ],

@@ -206,11 +206,11 @@ class _TripListScreenState extends State<TripListScreen> {
 
   String getScreenTitle() {
     if (widget.status == 'not_started') {
-      return 'Trip Chưa Bắt Đầu';
+      return 'Chuyến Chưa Bắt Đầu';
     } else if (widget.status == 'in_progress') {
-      return 'Trip Đang Xử Lý';
+      return 'Chuyến Đang Xử Lý';
     } else if (widget.status == 'completed') {
-      return 'Trip Đã Hoàn Thành';
+      return 'Chuyến Đã Hoàn Thành';
     }
     return 'Danh Sách Trip';
   }
@@ -283,7 +283,7 @@ class _TripListScreenState extends State<TripListScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Không có trip nào',
+                                    'Không có chuyến',
                                     style: TextStyle(
                                       fontSize: 18,
                                       color: Colors.grey[600],
@@ -525,7 +525,7 @@ class _TripCardState extends State<TripCard> {
                   child: Text(
                     widget.trip.trackingCode.isNotEmpty 
                         ? 'Mã vận đơn: ${widget.trip.trackingCode}'
-                        : 'Trip: ${widget.trip.tripId}',
+                        : 'Mã chuyến: ${widget.trip.tripId}',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -709,7 +709,7 @@ class _TripCardState extends State<TripCard> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Xem Order',
+                                'Xem Đơn Hàng',
                                 style: TextStyle(
                                   color: ColorConstants.primaryColor,
                                   fontWeight: FontWeight.w500,
@@ -752,7 +752,7 @@ class _TripCardState extends State<TripCard> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Quản lý Trip',
+                                'Quản lý chuyến',
                                 style: TextStyle(
                                   color: ColorConstants.accentColor,
                                   fontWeight: FontWeight.w500,

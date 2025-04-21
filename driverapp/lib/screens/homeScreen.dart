@@ -4,6 +4,7 @@ import 'package:driverapp/screens/notificationScreen.dart';
 import 'package:driverapp/services/auth_service.dart';
 import 'package:driverapp/services/delivery_status_service.dart';
 import 'package:driverapp/services/MyTaskHandler.dart';
+import 'package:driverapp/services/location_service.dart';
 import 'package:driverapp/services/navigation_service.dart';
 import 'package:driverapp/services/notification_service.dart';
 import 'package:driverapp/services/profile_service.dart';
@@ -29,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ProfileService _profileService = ProfileService();
   final DeliveryStatusService _deliveryStatusService = DeliveryStatusService();
   final WorkingTimeService _workingTimeService = WorkingTimeService();
+  final LocationService _locationService = LocationService();
 
   int _unreadNotifications = 0;
   bool _isLoading = true;
@@ -42,9 +44,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadInitialData();
+    _initLocationService();
     _checkIfForegroundServiceRunning();
   }
-
+Future<void> _initLocationService() async {
+    await _locationService.init(widget.userId);
+  }
   Future<void> _checkIfForegroundServiceRunning() async {
     bool isRunning = await FlutterForegroundTask.isRunningService;
     setState(() {
@@ -566,7 +571,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           mainAxisSpacing: 16,
                           children: [
                             FunctionCard(
-                              title: "Trip Chưa Bắt Đầu",
+                              title: "Chuyến Chưa Bắt Đầu",
                               icon: Icons.pending_actions,
                               color: Colors.amber.shade700,
                               onTap: () => _navigationService.navigateToTripList(
@@ -577,7 +582,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             FunctionCard(
-                              title: "Trip Đang Xử Lý",
+                              title: "Chuyến Đang Xử Lý",
                               icon: Icons.directions_car,
                               color: Colors.blue.shade700,
                               onTap: () => _navigationService.navigateToTripList(
@@ -588,7 +593,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             FunctionCard(
-                              title: "Trip Đã Hoàn Thành",
+                              title: "Chuyến Đã Hoàn Thành",
                               icon: Icons.check_circle,
                               color: Colors.green.shade700,
                               onTap: () => _navigationService.navigateToTripList(

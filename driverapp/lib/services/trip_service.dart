@@ -38,7 +38,7 @@ class TripService {
               contactPhone: orderData['contactPhone'] ?? '',
             );
           } catch (e) {
-            print('Lỗi tải trip ${trips[i].tripId}: $e');
+            print('Lỗi tải chuyến ${trips[i].tripId}: $e');
           }
         }
       }
@@ -61,7 +61,7 @@ class TripService {
           // API trả về một mảng, lấy phần tử đầu tiên
           return Trip.fromJson(responseData['data'][0]);
         } else {
-          throw Exception('Không tìm thấy thông tin trip');
+          throw Exception('Không tìm thấy thông tin chuyến');
         }
       } else {
         throw Exception('Failed to load trip details: ${response.statusCode}');
