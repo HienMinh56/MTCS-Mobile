@@ -17,7 +17,7 @@ class IncidentReportDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chi Tiết Báo Cáo ${report.reportId}'),
+        title: Text('Chi Tiết Báo Cáo'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),

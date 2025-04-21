@@ -232,10 +232,10 @@ class _DeliveryReportsScreenState extends State<DeliveryReportsScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Báo cáo chuyến hàng ${report.tripId}',
+                                            'Mã: ${report.tripId}',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
-                                              fontSize: 16,
+                                              fontSize: 14,
                                             ),
                                           ),
                                           const SizedBox(height: 4),

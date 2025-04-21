@@ -82,8 +82,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           SectionCard(
             title: 'Thông tin Cơ bản',
             children: [
-              InfoRow(label: 'Order ID:', value: _orderDetails!['orderId'] ?? 'N/A'),
-              InfoRow(label: 'Tracking Code:', value: _orderDetails!['trackingCode'] ?? 'N/A'),
+              InfoRow(label: 'Mã đơn:', value: _orderDetails!['orderId'] ?? 'N/A'),
+              InfoRow(label: 'Mã vận chuyển:', value: _orderDetails!['trackingCode'] ?? 'N/A'),
               InfoRow(label: 'Số Container:', value: _orderDetails!['containerNumber'] ?? 'N/A'),
               InfoRow(label: 'Giá:', value: CurrencyFormatter.formatVND(_orderDetails!['price'])),
               InfoRow(label: 'Loại:', value: _orderDetails!['deliveryType'] == 1 ? "Nhập" : "Xuất"),
@@ -121,7 +121,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             children: [
               InfoRow(label: 'Ngày lấy hàng:', value: _formatDate(_orderDetails!['pickUpDate'])),
               InfoRow(label: 'Ngày giao hàng:', value: _formatDate(_orderDetails!['deliveryDate'])),
-              InfoRow(label: 'Hoàn thành cần:', value: _orderDetails!['completionTime']),
+              InfoRow(label: 'Ước lượng thời gian hoàn thành:', value: _orderDetails!['completionTime']),
             ],
           ),
           

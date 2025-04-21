@@ -39,7 +39,7 @@ class FuelReportDetailScreen extends StatelessWidget {
 
   Widget _buildHeader() {
     return StatusHeader(
-      title: 'Báo Cáo Nhiên Liệu: ${report.reportId}',
+      title: 'Báo Cáo Nhiên Liệu',
       subtitle: 'Ngày báo cáo: ${report.getFormattedReportTime()}',
       icon: Icons.local_gas_station,
       color: Colors.orange,

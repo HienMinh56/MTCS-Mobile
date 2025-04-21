@@ -203,7 +203,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     // Removed extra parenthesis
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chi tiết Trip ${widget.tripId}'),
+        title: Text('Chi tiết chuyến'),
       ),
       body: RefreshIndicator(
         onRefresh: _loadDetails,
@@ -226,7 +226,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionTitle('Thông tin Trip'),
+          _buildSectionTitle('Thông tin chuyến'),
           _buildDetailCard(_buildTripDetails()),
 
           // Reports Section with icons
@@ -615,7 +615,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
 
   List<Widget> _buildTripDetails() {
     return [
-      InfoRow(label: 'Trip ID:', value: _tripDetails!['tripId'] ?? 'N/A'),
+      InfoRow(label: 'Mã chuyến:', value: _tripDetails!['tripId'] ?? 'N/A'),
       FutureBuilder<String>(
         future: _statusService.getStatusName(_tripDetails!['status']),
         builder: (context, snapshot) {
@@ -624,8 +624,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
           return InfoRow(label: 'Trạng thái:', value: statusName);
         },
       ),
-      InfoRow(label: 'Xe kéo ID:', value: _tripDetails!['tractorId'] ?? 'N/A'),
-      InfoRow(label: 'Rơ moóc ID:', value: _tripDetails!['trailerId'] ?? 'N/A'),
+      InfoRow(label: 'Xe kéo:', value: _tripDetails!['tractorId'] ?? 'N/A'),
+      InfoRow(label: 'Rơ moóc:', value: _tripDetails!['trailerId'] ?? 'N/A'),
       InfoRow(
         label: 'Thời gian bắt đầu:',
         value:
@@ -1378,16 +1378,22 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       );
 
                       // Close loading dialog
-                      Navigator.pop(context);
-                      // Close edit dialog
-                      Navigator.pop(context);
-
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
+                      
+                      // Automatically close edit dialog on success
                       if (response['status'] == 200) {
+                        // Close edit dialog
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        }
+                        
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               content: Text('Cập nhật báo cáo thành công')),
                         );
-                        // Reload trip details to see updated fuel reports
+                        // Reload trip details to see updated fuel reports - force refresh
                         _loadDetails();
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -1821,8 +1827,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     );
 
     // Initialize incident resolution type (default to 1 if not present)
-    int selectedIncidentType = report['type'] != null ? 
-        int.tryParse(report['type'].toString()) ?? 1 : 1;
+    // int selectedIncidentType = report['type'] != null ? 
+    //     int.tryParse(report['type'].toString()) ?? 1 : 1;
         
     // Initialize vehicle type (default to 1 - tractor if not present)
     int selectedVehicleType = report['vehicleType'] != null ? 
@@ -2276,7 +2282,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                     
                     // Check if all fields are valid
                     if (!isIncidentTypeValid || !isDescriptionValid || !isLocationValid) {
-                      // Show error message
+                      // Only show the error SnackBar if there are validation errors not already
+                      // displayed in the form fields
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Vui lòng kiểm tra lại thông tin nhập'),
@@ -2322,24 +2329,43 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       );
 
                       // Close loading dialog
-                      Navigator.pop(context);
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
                       
-                      // Close edit dialog
-                      Navigator.pop(context);
-
                       if (response['status'] == 1 || response['status'] == 200) {
+                        // Automatically close the edit dialog on success
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        }
+                        
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Cập nhật báo cáo sự cố thành công'),
                             backgroundColor: Colors.green,
                           ),
                         );
+                        // Reload data to show updated reports - force refresh
                         _loadDetails();
                       } else {
-                        // ...existing code...
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Lỗi: ${response['message']}'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
                       }
                     } catch (e) {
-                      // ...existing code...
+                      // Close loading dialog if still open
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Lỗi: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
                     }
                   },
                   child: const Text('Lưu'),
@@ -2541,13 +2567,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                     validateResolution();
                                     
                                     if (!isResolutionValid) {
-                                      // // Show error message
-                                      // ScaffoldMessenger.of(context).showSnackBar(
-                                      //   const SnackBar(
-                                      //     content: Text('Vui lòng nhập đầy đủ thông tin giải quyết'),
-                                      //     backgroundColor: Colors.red,
-                                      //   ),
-                                      // );
+                                      // Resolution validation errors are already shown in the input field
                                       return;
                                     }
                                     
