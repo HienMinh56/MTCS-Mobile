@@ -49,7 +49,8 @@ class DeliveryStatusService {
         for (var status in allStatuses) {
           if (status.statusId != 'canceled' && 
               status.statusId != 'delaying' && 
-              status.statusIndex == currentIndex + 1) {
+              status.statusIndex == currentIndex + 1 &&
+              status.isActive == 1) {
             return status;
           }
         }

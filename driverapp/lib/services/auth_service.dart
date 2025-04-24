@@ -6,9 +6,49 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class AuthService {
   static const String _baseUrl = "https://mtcs-server.azurewebsites.net/api";
+
+  /// 🔹 **Kiểm tra cài đặt mới và xóa thông tin đăng nhập nếu cần**
+  static Future<void> checkAndClearCredentialsOnNewInstall() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      bool? hasRunBefore = prefs.getBool('has_run_before');
+      
+      // Nếu ứng dụng chưa từng chạy trước đây (cài đặt mới)
+      if (hasRunBefore == null || !hasRunBefore) {
+        // Xóa tất cả thông tin đăng nhập
+        await prefs.remove('userId');
+        await prefs.remove('authToken');
+        await FirebaseMessaging.instance.deleteToken();
+        
+        // Đánh dấu ứng dụng đã chạy
+        await prefs.setBool('has_run_before', true);
+        print("🔄 Đã xóa thông tin đăng nhập do cài đặt mới");
+      }
+      
+      // Lưu phiên bản hiện tại vào SharedPreferences
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      String currentVersion = packageInfo.version;
+      String? savedVersion = prefs.getString('app_version');
+      
+      // Nếu phiên bản thay đổi, cũng xóa thông tin đăng nhập
+      if (savedVersion != null && savedVersion != currentVersion) {
+        await prefs.remove('userId');
+        await prefs.remove('authToken');
+        await FirebaseMessaging.instance.deleteToken();
+        print("🔄 Đã xóa thông tin đăng nhập do cập nhật phiên bản");
+      }
+      
+      // Cập nhật phiên bản đã lưu
+      await prefs.setString('app_version', currentVersion);
+      
+    } catch (e) {
+      print("❌ Lỗi khi kiểm tra cài đặt mới: $e");
+    }
+  }
 
   /// 🟢 **Đăng nhập & giải mã JWT**
   static Future<Map<String, dynamic>?> login(String email, String password) async {

@@ -25,6 +25,11 @@ void setupLocalNotifications() {
   flutterLocalNotificationsPlugin.initialize(initSettings);
 }
 
+// 🔹 Xóa tất cả các thông báo cũ
+Future<void> clearAllNotifications() async {
+  await flutterLocalNotificationsPlugin.cancelAll();
+}
+
 // 🔹 Hiển thị thông báo trên thanh trạng thái
 void showNotification(RemoteMessage message) {
   RemoteNotification? notification = message.notification;
@@ -164,6 +169,9 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(milliseconds: 1000));
     
     if (!mounted) return;
+    
+    // Kiểm tra và xóa thông tin đăng nhập nếu ứng dụng vừa được cài đặt mới
+    await AuthService.checkAndClearCredentialsOnNewInstall();
     
     // Check if permissions were granted
     bool hasLocationAlways = await Permission.locationAlways.isGranted;

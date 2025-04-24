@@ -102,21 +102,39 @@ class _TripListScreenState extends State<TripListScreen> {
 
   void _sortTrips() {
     _trips.sort((a, b) {
-      // Handle null startTime values
-      if (a.startTime == null && b.startTime == null) {
+      // Handle null endTime values
+      if (a.endTime == null && b.endTime == null) {
         return 0;
-      } else if (a.startTime == null) {
+      } else if (a.endTime == null) {
         return 1; // Null values go at the end
-      } else if (b.startTime == null) {
+      } else if (b.endTime == null) {
         return -1;
       }
       // Sort by most recent first (descending order)
-      return b.startTime!.compareTo(a.startTime!);
+      return b.endTime!.compareTo(a.endTime!);
     });
   }
 
   void _applyFilters() {
     List<Trip> result = List.from(_trips);
+
+    // Lọc theo deliveryDate nếu status là not_started
+    if (widget.status == 'not_started') {
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      
+      result = result.where((trip) {
+        if (trip.order?.deliveryDate == null) return false;
+        
+        // Chuyển deliveryDate từ String sang DateTime
+        final deliveryDate = DateTime.tryParse(trip.order!.deliveryDate);
+        if (deliveryDate == null) return false;
+        
+        // So sánh chỉ ngày/tháng/năm, không quan tâm giờ phút giây
+        final tripDeliveryDate = DateTime(deliveryDate.year, deliveryDate.month, deliveryDate.day);
+        return tripDeliveryDate.isAtSameMomentAs(todayDate);
+      }).toList();
+    }
 
     if (_statusFilter != null && _statusFilter!.isNotEmpty) {
       result = result.where((trip) => trip.status == _statusFilter).toList();
@@ -559,25 +577,30 @@ class _TripCardState extends State<TripCard> {
                 if (widget.trip.order?.containerNumber != null && 
                     widget.trip.order!.containerNumber.isNotEmpty)
                   InfoRow(
-                    label: 'Container:',
+                    label: 'Mã Container:',
                     value: widget.trip.order!.containerNumber,
                   ),
                   
                 if (widget.trip.order?.pickUpLocation != null && 
                     widget.trip.order!.pickUpLocation.isNotEmpty)
-                  Row(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.location_on, color: Colors.green, size: 16),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Điểm lấy cont:',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on, color: Colors.green, size: 16),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Điểm lấy cont:',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
+                      Padding(
+                        padding: const EdgeInsets.only(left: 24.0, top: 4.0),
                         child: Text(
                           widget.trip.order!.pickUpLocation,
                           style: const TextStyle(fontWeight: FontWeight.w500),
@@ -591,19 +614,24 @@ class _TripCardState extends State<TripCard> {
                   const SizedBox(height: 8),
                   if (widget.trip.order?.deliveryLocation != null && 
                       widget.trip.order!.deliveryLocation.isNotEmpty)
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.location_on, color: Colors.red, size: 16),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Điểm giao:',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on, color: Colors.red, size: 16),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Điểm giao:',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
+                        Padding(
+                          padding: const EdgeInsets.only(left: 24.0, top: 4.0),
                           child: Text(
                             widget.trip.order!.deliveryLocation,
                             style: const TextStyle(fontWeight: FontWeight.w500),
@@ -617,19 +645,24 @@ class _TripCardState extends State<TripCard> {
                   const SizedBox(height: 8),
                   if (widget.trip.order?.conReturnLocation != null && 
                       widget.trip.order!.conReturnLocation.isNotEmpty)
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.location_on, color: Colors.amber, size: 16),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Điểm trả cont:',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on, color: Colors.amber, size: 16),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Điểm trả cont:',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
+                        Padding(
+                          padding: const EdgeInsets.only(left: 24.0, top: 4.0),
                           child: Text(
                             widget.trip.order!.conReturnLocation,
                             style: const TextStyle(fontWeight: FontWeight.w500),
@@ -821,7 +854,7 @@ class _TripCardState extends State<TripCard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.trip.tripId,
+                            'Mã vận đơn: ${widget.trip.order?.trackingCode}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -960,16 +993,18 @@ class _TripCardState extends State<TripCard> {
                             _navigateWithRefresh(FuelReportScreen(tripId: widget.trip.tripId));
                           },
                         ),
-                        const SizedBox(height: 12),
-                        _buildActionButton(
-                          label: 'Báo cáo sự cố',
-                          icon: Icons.report_problem,
-                          color: Colors.red,
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _navigateWithRefresh(IncidentReportScreen(tripId: widget.trip.tripId));
-                          },
-                        ),
+                        if (widget.trip.status != 'delaying') ...[
+                          const SizedBox(height: 12),
+                          _buildActionButton(
+                            label: 'Báo cáo sự cố',
+                            icon: Icons.report_problem,
+                            color: Colors.red,
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _navigateWithRefresh(IncidentReportScreen(tripId: widget.trip.tripId));
+                            },
+                          ),
+                        ],
                       ],
                     ],
                   ),

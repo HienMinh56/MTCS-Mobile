@@ -43,7 +43,6 @@ Future<void> init(String userId) async {
       'Latitude': position.latitude,
       'Longitude': position.longitude,
     };
-    print('Sending location update: $data');
     _channel.sink.add(jsonEncode(data));
   });
 }

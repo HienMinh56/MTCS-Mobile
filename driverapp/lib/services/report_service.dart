@@ -3,13 +3,26 @@ import 'package:http/http.dart' as http;
 import 'package:driverapp/models/incident_report_model.dart';
 import 'package:driverapp/models/fuel_report_model.dart';
 import 'package:driverapp/models/delivery_report_model.dart';
+import 'package:driverapp/services/auth_service.dart';
 
 class ReportService {
   final String baseUrl = 'https://mtcs-server.azurewebsites.net/api';
 
+  // Helper method to get headers with authentication token
+  Future<Map<String, String>> _getHeaders() async {
+    final token = await AuthService.getAuthToken();
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+  }
+
   Future<List<IncidentReport>> getIncidentReports(String driverId) async {
+    final headers = await _getHeaders();
+    
     final response = await http.get(
       Uri.parse('$baseUrl/IncidentReport?driverId=$driverId'),
+      headers: headers,
     );
 
     if (response.statusCode == 200) {
@@ -34,7 +47,8 @@ class ReportService {
         },
       );
 
-      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+      final headers = await _getHeaders();
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -61,7 +75,8 @@ class ReportService {
         },
       );
 
-      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+      final headers = await _getHeaders();
+      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
