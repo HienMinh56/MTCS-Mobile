@@ -9,6 +9,7 @@ class Order {
   final String containerNumber;
   final String contactPerson;
   final String contactPhone;
+  final String deliveryDate;
 
   Order({
     required this.orderId,
@@ -19,6 +20,7 @@ class Order {
     required this.containerNumber,
     required this.contactPerson,
     required this.contactPhone,
+    required this.deliveryDate,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -31,6 +33,7 @@ class Order {
       containerNumber: json['containerNumber'] ?? '',
       contactPerson: json['contactPerson'] ?? '',
       contactPhone: json['contactPhone'] ?? '',
+      deliveryDate: json['deliveryDate'] ?? '',
     );
   }
 }

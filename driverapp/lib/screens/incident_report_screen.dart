@@ -490,7 +490,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                   child: Column(
                     children: [
                       RadioListTile<int>(
-                        title: const Text('Xử lý tại chỗ (On Site)'),
+                        title: const Text('Xử lý tại chỗ '),
                         value: 1,
                         groupValue: _incidentType,
                         activeColor: Colors.blue.shade700,
@@ -502,7 +502,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                       ),
                       Divider(height: 1, color: Colors.blue.shade100),
                       RadioListTile<int>(
-                        title: const Text('Thay xe (Change Vehicle)'),
+                        title: const Text('Thay xe'),
                         value: 2,
                         groupValue: _incidentType,
                         activeColor: Colors.blue.shade700,
@@ -514,7 +514,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                       ),
                       Divider(height: 1, color: Colors.blue.shade100),
                       RadioListTile<int>(
-                        title: const Text('Hủy chuyến trong ngày (Cancel Trip)'),
+                        title: const Text('Hủy chuyến trong ngày '),
                         value: 3,
                         groupValue: _incidentType,
                         activeColor: Colors.blue.shade700,
@@ -541,7 +541,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                   child: Column(
                     children: [
                       RadioListTile<int>(
-                        title: const Text('Xe đầu kéo (Tractor)'),
+                        title: const Text('Xe đầu kéo'),
                         value: 1,
                         groupValue: _vehicleType,
                         activeColor: Colors.blue.shade700,
@@ -553,7 +553,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                       ),
                       Divider(height: 1, color: Colors.blue.shade100),
                       RadioListTile<int>(
-                        title: const Text('Xe rơ mooc (Trailer)'),
+                        title: const Text('Xe rơ mooc'),
                         value: 2,
                         groupValue: _vehicleType,
                         activeColor: Colors.blue.shade700,

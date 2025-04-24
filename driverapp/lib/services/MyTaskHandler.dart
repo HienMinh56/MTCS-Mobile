@@ -25,7 +25,6 @@ class MyTaskHandler extends TaskHandler {
         'Latitude': position.latitude,
         'Longitude': position.longitude,
       };
-      print('Location updated: ${position.latitude}, ${position.longitude}');
       _channel.sink.add(jsonEncode(data));
     });
   }
@@ -41,7 +40,6 @@ class MyTaskHandler extends TaskHandler {
         'Longitude': position.longitude,
       };
       _channel.sink.add(jsonEncode(data));
-      print('Location updated: ${position.latitude}, ${position.longitude}');
     } catch (e) {
       print('Error in onRepeatEvent: $e');
     }

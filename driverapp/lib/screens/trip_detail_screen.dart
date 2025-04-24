@@ -1053,6 +1053,165 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
               });
             }
             
+            // Function to show confirmation dialog
+            void showConfirmDialog() {
+              // Validate all fields before showing confirmation
+              validateFields();
+                    
+              // Check if all fields are valid
+              if (!isRefuelAmountValid || !isFuelCostValid || !isLocationValid) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Vui lòng kiểm tra lại thông tin nhập'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+              
+              // Format values for display
+              final double refuelAmount = double.tryParse(refuelAmountController.text.trim()) ?? 0;
+              final double fuelCost = double.tryParse(fuelCostController.text.trim()) ?? 0;
+              final String location = locationController.text.trim();
+              
+              // Show confirmation dialog
+              showDialog(
+                context: context,
+                builder: (confirmContext) => AlertDialog(
+                  title: const Text('Xác nhận thay đổi'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Bạn có chắc chắn muốn cập nhật báo cáo đổ xăng với các thông tin sau:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 16),
+                        InfoRow(
+                          label: 'Số lượng xăng:',
+                          value: '$refuelAmount lít',
+                        ),
+                        InfoRow(
+                          label: 'Chi phí:',
+                          value: '${NumberFormatter.formatCurrency(fuelCost)} đ',
+                        ),
+                        InfoRow(
+                          label: 'Địa điểm:',
+                          value: location,
+                        ),
+                        if (fileIdsToRemove.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Xóa ${fileIdsToRemove.length} hình ảnh',
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ],
+                        if (newFiles.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Thêm ${newFiles.length} hình ảnh mới',
+                            style: const TextStyle(color: Colors.green),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(confirmContext),
+                      child: const Text('Hủy'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        // Close confirmation dialog
+                        Navigator.pop(confirmContext);
+                        
+                        // Show loading dialog
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => AlertDialog(
+                            contentPadding: const EdgeInsets.all(20),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            content: SizedBox(
+                              width: 250,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  CircularProgressIndicator(),
+                                  SizedBox(height: 16),
+                                  Text('Đang cập nhật báo cáo...'),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+
+                        try {
+                          final response = await _fuelReportService.updateFuelReport(
+                            reportId: report['reportId'],
+                            refuelAmount: refuelAmount,
+                            fuelCost: fuelCost,
+                            location: location,
+                            fileIdsToRemove: fileIdsToRemove.toList(),
+                            addedFiles: newFiles,
+                          );
+
+                          // Close loading dialog
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          }
+                          
+                          // Automatically close edit dialog on success
+                          if (response['status'] == 200) {
+                            // Close edit dialog
+                            if (Navigator.canPop(context)) {
+                              Navigator.pop(context);
+                            }
+                            
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Cập nhật báo cáo thành công'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                            // Reload trip details to see updated fuel reports - force refresh
+                            _loadDetails();
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Lỗi: ${response['message']}'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          // Close loading dialog if still open
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Lỗi: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                      ),
+                      child: const Text('Xác nhận'),
+                    ),
+                  ],
+                ),
+              );
+            }
+            
             return AlertDialog(
               title: const Text('Chỉnh sửa báo cáo đổ xăng'),
               content: SingleChildScrollView(
@@ -1323,94 +1482,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   child: const Text('Hủy'),
                 ),
                 ElevatedButton(
-                  onPressed: () async {
-                    // Validate all fields before submitting
-                    validateFields();
-                    
-                    // Check if all fields are valid
-                    if (!isRefuelAmountValid || !isFuelCostValid || !isLocationValid) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Vui lòng kiểm tra lại thông tin nhập'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-                    
-                    try {
-                      // Show loading dialog
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (context) => AlertDialog(
-                          contentPadding: const EdgeInsets.all(20),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          content: SizedBox(
-                            width: 250,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                CircularProgressIndicator(),
-                                SizedBox(height: 16),
-                                Text('Đang cập nhật báo cáo...'),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-
-                      final double refuelAmount =
-                          double.tryParse(refuelAmountController.text.trim()) ?? 0;
-                      final double fuelCost =
-                          double.tryParse(fuelCostController.text.trim()) ?? 0;
-
-                      final response =
-                          await _fuelReportService.updateFuelReport(
-                        reportId: report['reportId'],
-                        refuelAmount: refuelAmount,
-                        fuelCost: fuelCost,
-                        location: locationController.text.trim(),
-                        fileIdsToRemove: fileIdsToRemove.toList(),
-                        addedFiles: newFiles,
-                      );
-
-                      // Close loading dialog
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      }
-                      
-                      // Automatically close edit dialog on success
-                      if (response['status'] == 200) {
-                        // Close edit dialog
-                        if (Navigator.canPop(context)) {
-                          Navigator.pop(context);
-                        }
-                        
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Cập nhật báo cáo thành công')),
-                        );
-                        // Reload trip details to see updated fuel reports - force refresh
-                        _loadDetails();
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text('Lỗi: ${response['message']}')),
-                        );
-                      }
-                    } catch (e) {
-                      // Close loading dialog if still open
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Lỗi: $e')),
-                      );
-                    }
-                  },
+                  onPressed: () => showConfirmDialog(),
                   child: const Text('Lưu'),
                 ),
               ],
@@ -1825,11 +1897,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     final TextEditingController locationController = TextEditingController(
       text: report['location'] ?? '',
     );
-
-    // Initialize incident resolution type (default to 1 if not present)
-    // int selectedIncidentType = report['type'] != null ? 
-    //     int.tryParse(report['type'].toString()) ?? 1 : 1;
-        
+    
     // Initialize vehicle type (default to 1 - tractor if not present)
     int selectedVehicleType = report['vehicleType'] != null ? 
         int.tryParse(report['vehicleType'].toString()) ?? 1 : 1;
@@ -1894,6 +1962,104 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
               });
             }
             
+            // Add method to handle confirmation
+            void confirmEdit() {
+              validateFields();
+              
+              if (!isIncidentTypeValid || !isDescriptionValid || !isLocationValid) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Vui lòng kiểm tra lại thông tin nhập'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+              
+              _showConfirmationDialog(
+                title: 'Xác nhận chỉnh sửa sự cố',
+                message: 'Bạn có chắc chắn muốn cập nhật báo cáo sự cố với các thông tin sau:\n\n'
+                    '- Loại sự cố: ${incidentTypeController.text}\n'
+                    '- Mô tả: ${descriptionController.text}\n'
+                    '- Địa điểm: ${locationController.text}\n'
+                    '- Loại phương tiện: ${selectedVehicleType == 1 ? "Xe kéo" : "Rơ moóc"}\n'
+                    '${fileIdsToRemove.isNotEmpty ? '- Xóa ${fileIdsToRemove.length} hình ảnh\n' : ''}'
+                    '${newFiles.isNotEmpty ? '- Thêm ${newFiles.length} hình ảnh mới' : ''}',
+              ).then((confirmed) async {
+                if (confirmed) {
+                  // Show loading dialog
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const AlertDialog(
+                      contentPadding: EdgeInsets.all(20),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Đang cập nhật báo cáo...'),
+                        ],
+                      ),
+                    ),
+                  );
+                  
+                  try {
+                    // Call service to update incident report
+                    final response = await _incidentReportService.updateIncidentReport(
+                      reportId: report['reportId'],
+                      incidentType: incidentTypeController.text,
+                      description: descriptionController.text,
+                      location: locationController.text,
+                      vehicleType: selectedVehicleType,
+                      fileIdsToRemove: fileIdsToRemove.toList(),
+                      addedFiles: newFiles,
+                    );
+                    
+                    // Close loading dialog
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+                    
+                    // Handle response
+                    if (response['status'] == 200 || response['status'] == 1) {
+                      // Close edit dialog
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Cập nhật báo cáo sự cố thành công'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      _loadDetails();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Lỗi: ${response['message']}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    // Close loading dialog if still open
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Lỗi: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              });
+            }
+            
             return AlertDialog(
               title: const Text('Chỉnh sửa báo cáo sự cố'),
               content: SingleChildScrollView(
@@ -1913,93 +2079,67 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                           child: GestureDetector(
                             onTap: () {
                               setState(() {
-                                selectedVehicleType = 1; // Tractor
+                                selectedVehicleType = 1;
                               });
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
                               decoration: BoxDecoration(
+                                color: selectedVehicleType == 1
+                                    ? Colors.green.withOpacity(0.2)
+                                    : Colors.grey.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: selectedVehicleType == 1 
-                                      ? ColorConstants.primaryColor 
+                                  color: selectedVehicleType == 1
+                                      ? Colors.green
                                       : Colors.grey.shade400,
-                                  width: selectedVehicleType == 1 ? 2 : 1,
                                 ),
-                                color: selectedVehicleType == 1
-                                    ? ColorConstants.primaryColor.withOpacity(0.1)
-                                    : Colors.transparent,
                               ),
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.local_shipping,
+                              child: Center(
+                                child: Text(
+                                  'Xe kéo',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
                                     color: selectedVehicleType == 1
-                                        ? ColorConstants.primaryColor
-                                        : Colors.grey.shade600,
-                                    size: 28,
+                                        ? Colors.green.shade800
+                                        : Colors.grey.shade700,
                                   ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Xe kéo',
-                                    style: TextStyle(
-                                      fontWeight: selectedVehicleType == 1
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                      color: selectedVehicleType == 1
-                                          ? ColorConstants.primaryColor
-                                          : Colors.grey.shade800,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: GestureDetector(
                             onTap: () {
                               setState(() {
-                                selectedVehicleType = 2; // Trailer
+                                selectedVehicleType = 2;
                               });
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
                               decoration: BoxDecoration(
+                                color: selectedVehicleType == 2
+                                    ? Colors.purple.withOpacity(0.2)
+                                    : Colors.grey.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: selectedVehicleType == 2
-                                      ? ColorConstants.primaryColor
+                                      ? Colors.purple
                                       : Colors.grey.shade400,
-                                  width: selectedVehicleType == 2 ? 2 : 1,
                                 ),
-                                color: selectedVehicleType == 2
-                                    ? ColorConstants.primaryColor.withOpacity(0.1)
-                                    : Colors.transparent,
                               ),
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.directions_railway,
+                              child: Center(
+                                child: Text(
+                                  'Rơ moóc',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
                                     color: selectedVehicleType == 2
-                                        ? ColorConstants.primaryColor
-                                        : Colors.grey.shade600,
-                                    size: 28,
+                                        ? Colors.purple.shade800
+                                        : Colors.grey.shade700,
                                   ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Rơ moóc',
-                                    style: TextStyle(
-                                      fontWeight: selectedVehicleType == 2
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                      color: selectedVehicleType == 2
-                                          ? ColorConstants.primaryColor
-                                          : Colors.grey.shade800,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
@@ -2008,110 +2148,52 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                     ),
                     const SizedBox(height: 16),
                     
+                    // Form fields
                     TextField(
                       controller: incidentTypeController,
-                      // Add input formatter to prevent leading spaces
-                      inputFormatters: [
-                        FilteringTextInputFormatter.deny(RegExp(r'^\s')), // Prevents spaces at the beginning
-                      ],
                       decoration: InputDecoration(
                         labelText: 'Loại sự cố',
                         errorText: isIncidentTypeValid ? null : incidentTypeError,
-                        errorBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.red),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        focusedErrorBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.red, width: 2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.grey.shade400),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: ColorConstants.primaryColor, width: 2),
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                       onChanged: (value) {
-                        if (!isIncidentTypeValid) {
-                          validateFields();
-                        }
+                        if (!isIncidentTypeValid) validateFields();
                       },
                     ),
                     const SizedBox(height: 12),
-                    
-                    // Continue with the rest of the form
                     TextField(
                       controller: descriptionController,
-                      // Add input formatter to prevent leading spaces
-                      inputFormatters: [
-                        FilteringTextInputFormatter.deny(RegExp(r'^\s')), // Prevents spaces at the beginning
-                      ],
                       decoration: InputDecoration(
-                        labelText: 'Mô tả',
+                        labelText: 'Mô tả sự cố',
                         errorText: isDescriptionValid ? null : descriptionError,
-                        errorBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.red),
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        focusedErrorBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.red, width: 2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.grey.shade400),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: ColorConstants.primaryColor, width: 2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        alignLabelWithHint: true,
                       ),
                       maxLines: 3,
                       onChanged: (value) {
-                        if (!isDescriptionValid) {
-                          validateFields();
-                        }
+                        if (!isDescriptionValid) validateFields();
                       },
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: locationController,
-                      // Add input formatter to prevent leading spaces
-                      inputFormatters: [
-                        FilteringTextInputFormatter.deny(RegExp(r'^\s')), // Prevents spaces at the beginning
-                      ],
                       decoration: InputDecoration(
                         labelText: 'Địa điểm',
                         errorText: isLocationValid ? null : locationError,
-                        errorBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.red),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        focusedErrorBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.red, width: 2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.grey.shade400),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: ColorConstants.primaryColor, width: 2),
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                       onChanged: (value) {
-                        if (!isLocationValid) {
-                          validateFields();
-                        }
+                        if (!isLocationValid) validateFields();
                       },
                     ),
-                    const SizedBox(height: 16),
                     
+                    // Existing images section
+                    const SizedBox(height: 16),
                     const Text(
                       'Hình ảnh hiện tại:',
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -2186,9 +2268,11 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       )
                     else
                       const Text('Không có hình ảnh'),
+                      
+                    // New images section
                     const SizedBox(height: 16),
                     const Text(
-                      'Thêm hình ảnh mới:',
+                      'Hình ảnh mới:',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
@@ -2241,7 +2325,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                             ],
                           );
                         }).toList(),
-
+                        
                         // Add image button
                         GestureDetector(
                           onTap: () async {
@@ -2276,99 +2360,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   child: const Text('Hủy'),
                 ),
                 ElevatedButton(
-                  onPressed: () async {
-                    // Validate fields before submission
-                    validateFields();
-                    
-                    // Check if all fields are valid
-                    if (!isIncidentTypeValid || !isDescriptionValid || !isLocationValid) {
-                      // Only show the error SnackBar if there are validation errors not already
-                      // displayed in the form fields
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Vui lòng kiểm tra lại thông tin nhập'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-                    
-                    try {
-                      // Trim input values before submission to ensure no leading/trailing spaces
-                      final String trimmedIncidentType = incidentTypeController.text.trim();
-                      final String trimmedDescription = descriptionController.text.trim();
-                      final String trimmedLocation = locationController.text.trim();
-                      
-                      // Show loading dialog
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (context) => AlertDialog(
-                          content: const Row(
-                            children: [
-                              CircularProgressIndicator(),
-                              SizedBox(width: 20),
-                              Text('Đang cập nhật...'),
-                            ],
-                          ),
-                        ),
-                      );
-
-                      final response = await _incidentReportService.updateIncidentReport(
-                        reportId: report['reportId'],
-                        incidentType: trimmedIncidentType.isNotEmpty ? 
-                            trimmedIncidentType : null,
-                        description: trimmedDescription.isNotEmpty ? 
-                            trimmedDescription : null,
-                        location: trimmedLocation.isNotEmpty ? 
-                            trimmedLocation : null,
-                        fileIdsToRemove: fileIdsToRemove.isNotEmpty ? 
-                            fileIdsToRemove.toList() : null,
-                        addedFiles: newFiles.isNotEmpty ? newFiles : null,
-                        vehicleType: selectedVehicleType, // Add vehicle type to the update call
-                      );
-
-                      // Close loading dialog
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      }
-                      
-                      if (response['status'] == 1 || response['status'] == 200) {
-                        // Automatically close the edit dialog on success
-                        if (Navigator.canPop(context)) {
-                          Navigator.pop(context);
-                        }
-                        
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Cập nhật báo cáo sự cố thành công'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                        // Reload data to show updated reports - force refresh
-                        _loadDetails();
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Lỗi: ${response['message']}'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      // Close loading dialog if still open
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Lỗi: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('Lưu'),
+                  onPressed: confirmEdit,
+                  child: const Text('Cập nhật'),
                 ),
               ],
             );
@@ -2690,13 +2683,19 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
 
       if (response['status'] == 1 || response['status'] == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Xác nhận giải quyết sự cố thành công', style: TextStyle(color: Colors.green))),
+          const SnackBar(
+            content: Text('Xác nhận giải quyết sự cố thành công'),
+            backgroundColor: Colors.green,
+          ),
         );
         // Reload trip details
         _loadDetails();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: ${response['message']}')),
+          SnackBar(
+            content: Text('Lỗi: ${response['message']}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {
@@ -2705,7 +2704,10 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
         Navigator.pop(context);
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e')),
+        SnackBar(
+          content: Text('Lỗi: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -2915,13 +2917,19 @@ decoration: BoxDecoration(
       // Show result message
       if (response['status'] == 1) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tải lên hóa đơn thành công')),
+          const SnackBar(
+            content: Text('Tải lên hóa đơn thành công'),
+            backgroundColor: Colors.green,
+          ),
         );
         // Reload data to show updated images
         _loadDetails();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: ${response['message']}')),
+          SnackBar(
+            content: Text('Lỗi: ${response['message']}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {
@@ -2930,7 +2938,10 @@ decoration: BoxDecoration(
         Navigator.pop(context);
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e')),
+        SnackBar(
+          content: Text('Lỗi: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -3140,13 +3151,19 @@ decoration: BoxDecoration(
       // Show result message
       if (response['status'] == 1) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tải lên hình ảnh giải quyết thành công')),
+          const SnackBar(
+            content: Text('Tải lên hình ảnh giải quyết thành công'),
+            backgroundColor: Colors.green,
+          ),
         );
         // Reload data to show updated images
         _loadDetails();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: ${response['message']}')),
+          SnackBar(
+            content: Text('Lỗi: ${response['message']}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {
@@ -3155,7 +3172,10 @@ decoration: BoxDecoration(
         Navigator.pop(context);
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e')),
+        SnackBar(
+          content: Text('Lỗi: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -3411,7 +3431,36 @@ decoration: BoxDecoration(
     );
   }
 
-  
+  // Helper method to show a confirmation dialog before taking actions
+  Future<bool> _showConfirmationDialog({
+    required String title,
+    required String message,
+    String confirmText = 'Xác nhận',
+    String cancelText = 'Hủy',
+    Color confirmColor = Colors.green,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(cancelText),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: confirmColor,
+            ),
+            child: Text(confirmText),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
 }
 
 Map<String, dynamic> _convertToStringKeyMap(dynamic item) {

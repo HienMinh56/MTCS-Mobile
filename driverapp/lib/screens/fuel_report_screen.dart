@@ -256,7 +256,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
     if (result['success']) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['message']),
+          content: Text("Báo cáo đã được gửi thành công!"),
           backgroundColor: Colors.green,
         ),
       );
@@ -264,7 +264,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['message']),
+          content: Text("Đã xảy ra lỗi: ${result['message']}"),
           backgroundColor: Colors.red,
         ),
       );
