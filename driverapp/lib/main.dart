@@ -25,11 +25,6 @@ void setupLocalNotifications() {
   flutterLocalNotificationsPlugin.initialize(initSettings);
 }
 
-// 🔹 Xóa tất cả các thông báo cũ
-Future<void> clearAllNotifications() async {
-  await flutterLocalNotificationsPlugin.cancelAll();
-}
-
 // 🔹 Hiển thị thông báo trên thanh trạng thái
 void showNotification(RemoteMessage message) {
   RemoteNotification? notification = message.notification;

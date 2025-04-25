@@ -108,7 +108,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             title: 'Thông tin Hàng Hóa',
             children: [
               InfoRow(label: 'Loại Container:', value: _getContainerType(_orderDetails!['containerType'])),
-              InfoRow(label: 'Loại Giao Hàng:', value: _getDeliveryType(_orderDetails!['deliveryType'])),
               InfoRow(label: 'Nhiệt độ:', value: '${_orderDetails!['temperature']} °C'),
               InfoRow(label: 'Khối lượng:', value: '${_orderDetails!['weight']} tấn'),
             ],
@@ -359,18 +358,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         return 'Container Thường';
       case 2:
         return 'Container Lạnh';
-      default:
-        return 'Loại $type';
-    }
-  }
-  
-  String _getDeliveryType(int? type) {
-    if (type == null) return 'N/A';
-    switch (type) {
-      case 1:
-        return 'Giao thẳng';
-      case 2:
-        return 'Giao kho';
       default:
         return 'Loại $type';
     }

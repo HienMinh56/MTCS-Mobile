@@ -954,6 +954,7 @@ class _TripCardState extends State<TripCard> {
                                             textStyle: const TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
+                                              color: Colors.white
                                             ),
                                           ),
                                         ),
@@ -1055,32 +1056,163 @@ class _TripCardState extends State<TripCard> {
       return;
     }
 
-    // Add confirmation dialog when updating from not_started status
+    // Show confirmation dialog for all status updates
+    String confirmTitle = 'Xác nhận cập nhật';
+    String confirmMessage = 'Bạn có chắc chắn muốn cập nhật trạng thái chuyến này sang "${statusName}" không?';
+    String confirmButtonText = 'Cập nhật';
+    IconData headerIcon = Icons.update;
+    Color iconColor = ColorConstants.accentColor;
+    
+    // Special message for starting a trip
     if (widget.trip.status == 'not_started') {
-      final bool? confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Xác nhận bắt đầu'),
-          content: const Text('Bạn có chắc chắn muốn bắt đầu chuyến này không?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Hủy'),
+      confirmTitle = 'Xác nhận bắt đầu';
+      confirmMessage = 'Bạn có chắc chắn muốn bắt đầu chuyến này không?';
+      confirmButtonText = 'Bắt đầu';
+      headerIcon = Icons.play_arrow;
+      iconColor = Colors.green;
+    }
+    
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        titlePadding: EdgeInsets.zero,
+        title: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: ColorConstants.primaryColor,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(15),
+              topRight: Radius.circular(15),
             ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ColorConstants.primaryColor,
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.3),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  headerIcon,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
-              child: const Text('Bắt đầu'),
+              const SizedBox(width: 12),
+              Text(
+                confirmTitle,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: iconColor,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      confirmMessage,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
+            if (widget.trip.trackingCode.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.local_shipping, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Mã vận đơn: ${widget.trip.trackingCode}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
-      );
-      
-      if (confirmed != true) {
-        return;
-      }
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            style: TextButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(color: Colors.grey.shade300),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+            ),
+            child: const Text(
+              'Hủy',
+              style: TextStyle(
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: ColorConstants.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(headerIcon, size: 18, color: Colors.white,),
+                const SizedBox(width: 8),
+                Text(
+                  confirmButtonText,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed != true) {
+      return;
     }
 
     showDialog(
