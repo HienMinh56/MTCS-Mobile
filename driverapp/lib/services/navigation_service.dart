@@ -1,3 +1,4 @@
+import 'package:driverapp/screens/chat_list_screen.dart';
 import 'package:driverapp/screens/delivery_reports_history_screen.dart';
 import 'package:driverapp/screens/report_menu_screen.dart';
 import 'package:flutter/material.dart';
@@ -70,6 +71,16 @@ class NavigationService {
           status: status,
           statusList: statusList,
         ),
+      ),
+    );
+  }
+  
+  // Method to navigate to Chat List Screen
+  void navigateToChatList(BuildContext context, String userId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatListScreen(userId: userId),
       ),
     );
   }
