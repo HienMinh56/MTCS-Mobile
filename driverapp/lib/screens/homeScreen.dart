@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:driverapp/components/function_card.dart';
 import 'package:driverapp/models/delivery_status.dart';
 import 'package:driverapp/screens/notificationScreen.dart';
 import 'package:driverapp/services/auth_service.dart';
+import 'package:driverapp/services/chat_service.dart';
 import 'package:driverapp/services/delivery_status_service.dart';
 import 'package:driverapp/services/MyTaskHandler.dart';
 import 'package:driverapp/services/location_service.dart';
@@ -31,30 +33,44 @@ class _HomeScreenState extends State<HomeScreen> {
   final DeliveryStatusService _deliveryStatusService = DeliveryStatusService();
   final WorkingTimeService _workingTimeService = WorkingTimeService();
   final LocationService _locationService = LocationService();
+  final ChatService _chatService = ChatService();
 
   int _unreadNotifications = 0;
+  int _unreadMessages = 0;
   bool _isLoading = true;
   String _weeklyWorkingTime = '0 giờ 0 phút';
   String _dailyWorkingTime = '0 giờ 0 phút';
   List<DeliveryStatus> _deliveryStatuses = [];
   String _driverName = '';
   bool _isTrackingActive = false;
+  
+  // Thêm các biến để quản lý timer
+  Timer? _notificationsTimer;
+  Timer? _messagesTimer;
 
   @override
   void initState() {
     super.initState();
     _loadInitialData();
-    _initLocationService();
     _checkIfForegroundServiceRunning();
+    _loadUnreadMessagesCount();
   }
-Future<void> _initLocationService() async {
-    await _locationService.init(widget.userId);
-  }
+
   Future<void> _checkIfForegroundServiceRunning() async {
     bool isRunning = await FlutterForegroundTask.isRunningService;
     setState(() {
       _isTrackingActive = isRunning;
     });
+    
+    // Only initialize LocationService if foreground service is not running
+    if (!isRunning) {
+      await _initLocationService();
+    }
+  }
+  
+  Future<void> _initLocationService() async {
+    // Chỉ khởi tạo LocationService mà không bắt đầu theo dõi vị trí
+    await _locationService.init(widget.userId);
   }
 
   Future<void> _initForegroundTask() async {
@@ -290,11 +306,17 @@ Future<void> _initLocationService() async {
       setState(() {
         _isTrackingActive = false;
       });
+      
+      // Reinitialize the LocationService when foreground service stops
+      await _initLocationService();
     }
   }
 
   @override
   void dispose() {
+    // Hủy các timer khi widget bị dispose
+    _notificationsTimer?.cancel();
+    _messagesTimer?.cancel();
     super.dispose();
   }
 
@@ -312,10 +334,12 @@ Future<void> _initLocationService() async {
         });
       }
 
-      Future.delayed(const Duration(milliseconds: 500), () {
+      // Sử dụng timer một lần thay vì Future.delayed
+      Future.microtask(() {
         _loadUnreadNotificationCount();
       });
     } catch (e) {
+      print('Lỗi khi tải dữ liệu ban đầu: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -442,15 +466,58 @@ Future<void> _initLocationService() async {
         });
       }
 
+      // Hủy timer cũ nếu có
+      _notificationsTimer?.cancel();
+      
+      // Tạo timer mới nếu widget vẫn mounted
       if (mounted) {
-        Future.delayed(const Duration(seconds: 30), () {
+        _notificationsTimer = Timer(const Duration(seconds: 30), () {
           _loadUnreadNotificationCount();
         });
       }
     } catch (e) {
+      print('Lỗi khi tải số lượng thông báo chưa đọc: $e');
+      // Hủy timer cũ nếu có
+      _notificationsTimer?.cancel();
+      
+      // Tạo timer mới nếu widget vẫn mounted
       if (mounted) {
-        Future.delayed(const Duration(seconds: 30), () {
+        _notificationsTimer = Timer(const Duration(seconds: 30), () {
           _loadUnreadNotificationCount();
+        });
+      }
+    }
+  }
+
+  // Sửa phương thức đếm số tin nhắn chưa đọc
+  Future<void> _loadUnreadMessagesCount() async {
+    try {
+      final count = await _chatService.getUnreadMessageCount(widget.userId);
+      
+      if (mounted) {
+        setState(() {
+          _unreadMessages = count;
+        });
+      }
+      
+      // Hủy timer cũ nếu có
+      _messagesTimer?.cancel();
+      
+      // Tạo timer mới nếu widget vẫn mounted
+      if (mounted) {
+        _messagesTimer = Timer(const Duration(seconds: 30), () {
+          _loadUnreadMessagesCount();
+        });
+      }
+    } catch (e) {
+      print('Lỗi khi tải số lượng tin nhắn chưa đọc: $e');
+      // Hủy timer cũ nếu có
+      _messagesTimer?.cancel();
+      
+      // Tạo timer mới nếu widget vẫn mounted
+      if (mounted) {
+        _messagesTimer = Timer(const Duration(seconds: 30), () {
+          _loadUnreadMessagesCount();
         });
       }
     }
@@ -468,52 +535,87 @@ Future<void> _initLocationService() async {
           'img/logo.png',
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.notifications, size: 28),
-                  onPressed: () {
-                    _forceRefreshNotifications();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => NotificationsScreen(userId: widget.userId),
-                      ),
-                    ).then((_) {
-                      _forceRefreshNotifications();
-                    });
-                  },
+          // Icon chat
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chat_bubble_outline, size: 26),
+                onPressed: () => _navigationService.navigateToChatList(
+                  context, widget.userId
                 ),
-                if (_unreadNotifications > 0)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(10),
+              ),
+              if (_unreadMessages > 0)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Text(
+                      _unreadMessages > 99 ? '99+' : _unreadMessages.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
                       ),
-                      constraints: const BoxConstraints(
-                        minWidth: 18,
-                        minHeight: 18,
-                      ),
-                      child: Text(
-                        _unreadNotifications > 99 ? '99+' : _unreadNotifications.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
+          ),
+          // Icon notification
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications, size: 28),
+                onPressed: () {
+                  _forceRefreshNotifications();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NotificationsScreen(userId: widget.userId),
+                    ),
+                  ).then((_) {
+                    _forceRefreshNotifications();
+                  });
+                },
+              ),
+              if (_unreadNotifications > 0)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Text(
+                      _unreadNotifications > 99 ? '99+' : _unreadNotifications.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -526,220 +628,224 @@ Future<void> _initLocationService() async {
             _loadWorkingTimes(),
           ]);
         },
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: _isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: _isLoading 
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const CircleAvatar(
-                            radius: 30,
-                            backgroundColor: Color(0xFFBBDEFB),
-                            child: Icon(Icons.person, size: 35, color: Colors.blue),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Xin Chào, $_driverName',
-                                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const CircleAvatar(
+                                radius: 30,
+                                backgroundColor: Color(0xFFBBDEFB),
+                                child: Icon(Icons.person, size: 35, color: Colors.blue),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Xin Chào, $_driverName',
+                                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'Chúc bạn có một ngày làm việc hiệu quả và an toàn',
+                                      style: TextStyle(fontSize: 10, color: Color.fromARGB(255, 0, 4, 255), fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 2),
-                                const Text(
-                                  'Chúc bạn có một ngày làm việc hiệu quả và an toàn',
-                                  style: TextStyle(fontSize: 10, color: Color.fromARGB(255, 0, 4, 255), fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                          
+                          const SizedBox(height: 20),
+                          
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Thời gian làm việc tuần này',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.blue,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _weeklyWorkingTime,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  height: 40,
+                                  width: 1,
+                                  color: Colors.blue.shade200,
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 12.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Thời gian làm việc hôm nay',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.blue,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _dailyWorkingTime,
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 20),
+                          
+                          Container(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              icon: Icon(
+                                _isTrackingActive ? Icons.location_on : Icons.location_off,
+                                color: Colors.white,
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _isTrackingActive ? Colors.green : Colors.blue,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              onPressed: () async {
+                                if (_isTrackingActive) {
+                                  stopForegroundLocationService();
+                                } else {
+                                  await startForegroundLocationService();
+                                }
+                              },
+                              label: Text(
+                                _isTrackingActive 
+                                    ? "Dừng chia sẻ vị trí" 
+                                    : "Bắt đầu làm việc",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 20),
+
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.5,
+                            child: GridView.count(
+                              physics: const NeverScrollableScrollPhysics(),
+                              crossAxisCount: 2,
+                              childAspectRatio: 1.3,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              children: [
+                                FunctionCard(
+                                  title: "Chuyến Chưa Bắt Đầu",
+                                  icon: Icons.pending_actions,
+                                  color: Colors.amber.shade700,
+                                  onTap: () => _navigationService.navigateToTripList(
+                                    context, 
+                                    widget.userId, 
+                                    status: "not_started",
+                                    statusList: _getNotStartedStatuses(),
+                                  ),
+                                ),
+                                FunctionCard(
+                                  title: "Chuyến Đang Xử Lý",
+                                  icon: Icons.directions_car,
+                                  color: Colors.blue.shade700,
+                                  onTap: () => _navigationService.navigateToTripList(
+                                    context, 
+                                    widget.userId, 
+                                    status: "in_progress",
+                                    statusList: _getInProgressStatuses(),
+                                  ),
+                                ),
+                                FunctionCard(
+                                  title: "Chuyến Đã Hoàn Thành",
+                                  icon: Icons.check_circle,
+                                  color: Colors.green.shade700,
+                                  onTap: () => _navigationService.navigateToTripList(
+                                    context, 
+                                    widget.userId, 
+                                    status: "completed",
+                                    statusList: _getCompletedStatuses(),
+                                  ),
+                                ),
+                                FunctionCard(
+                                  title: "Lịch Sử Báo Cáo",
+                                  icon: Icons.description,
+                                  color: Colors.teal,
+                                  onTap: () => _navigationService.navigateToReportMenu(
+                                    context, widget.userId
+                                  ),
+                                ),
+                                FunctionCard(
+                                  title: "Hồ Sơ Của Tôi",
+                                  icon: Icons.account_circle,
+                                  color: ColorConstants.profileColor,
+                                  onTap: () => _navigationService.navigateToProfile(
+                                    context, widget.userId
+                                  ),
+                                ),
+                                FunctionCard(
+                                  title: "Đăng Xuất",
+                                  icon: Icons.logout,
+                                  color: Colors.red.shade400,
+                                  onTap: () => AuthService.logoutConfirm(context),
                                 ),
                               ],
                             ),
                           ),
                         ],
                       ),
-                      
-                      const SizedBox(height: 20),
-                      
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.blue.shade200),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Thời gian làm việc tuần này',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.blue,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _weeklyWorkingTime,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              height: 40,
-                              width: 1,
-                              color: Colors.blue.shade200,
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 12.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Thời gian làm việc hôm nay',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.blue,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _dailyWorkingTime,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 20),
-                      
-                      Container(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          icon: Icon(
-                            _isTrackingActive ? Icons.location_on : Icons.location_off,
-                            color: Colors.white,
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isTrackingActive ? Colors.green : Colors.blue,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          onPressed: () async {
-                            if (_isTrackingActive) {
-                              stopForegroundLocationService();
-                            } else {
-                              await startForegroundLocationService();
-                            }
-                          },
-                          label: Text(
-                            _isTrackingActive 
-                                ? "Dừng chia sẻ vị trí" 
-                                : "Bắt đầu làm việc",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 20),
-
-                      SizedBox(
-                        height: 450,
-                        child: GridView.count(
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: 2,
-                          childAspectRatio: 1.3,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          children: [
-                            FunctionCard(
-                              title: "Chuyến Chưa Bắt Đầu",
-                              icon: Icons.pending_actions,
-                              color: Colors.amber.shade700,
-                              onTap: () => _navigationService.navigateToTripList(
-                                context, 
-                                widget.userId, 
-                                status: "not_started",
-                                statusList: _getNotStartedStatuses(),
-                              ),
-                            ),
-                            FunctionCard(
-                              title: "Chuyến Đang Xử Lý",
-                              icon: Icons.directions_car,
-                              color: Colors.blue.shade700,
-                              onTap: () => _navigationService.navigateToTripList(
-                                context, 
-                                widget.userId, 
-                                status: "in_progress",
-                                statusList: _getInProgressStatuses(),
-                              ),
-                            ),
-                            FunctionCard(
-                              title: "Chuyến Đã Hoàn Thành",
-                              icon: Icons.check_circle,
-                              color: Colors.green.shade700,
-                              onTap: () => _navigationService.navigateToTripList(
-                                context, 
-                                widget.userId, 
-                                status: "completed",
-                                statusList: _getCompletedStatuses(),
-                              ),
-                            ),
-                            FunctionCard(
-                              title: "Lịch Sử Báo Cáo",
-                              icon: Icons.description,
-                              color: Colors.teal,
-                              onTap: () => _navigationService.navigateToReportMenu(
-                                context, widget.userId
-                              ),
-                            ),
-                            FunctionCard(
-                              title: "Hồ Sơ Của Tôi",
-                              icon: Icons.account_circle,
-                              color: ColorConstants.profileColor,
-                              onTap: () => _navigationService.navigateToProfile(
-                                context, widget.userId
-                              ),
-                            ),
-                            FunctionCard(
-                              title: "Đăng Xuất",
-                              icon: Icons.logout,
-                              color: Colors.red.shade400,
-                              onTap: () => AuthService.logoutConfirm(context),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
+            ), 
+          ],
         ),
       ),
     );
