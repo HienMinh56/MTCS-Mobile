@@ -8,7 +8,7 @@ class TripService {
   final String _baseUrl = Constants.apiBaseUrl;
   
   // Thêm tham số để lấy dữ liệu order từ API nếu không có sẵn
-  Future<List<Trip>> getDriverTrips(String driverId, {required String status, bool loadOrderDetails = true}) async {
+  Future<List<Trip>> getDriverTrips(String driverId, {required String status, bool loadOrderDetails = false}) async {
     try {
       // Retrieve the saved token from secure storage
       final prefs = await SharedPreferences.getInstance();
@@ -31,27 +31,24 @@ class TripService {
           final List<dynamic> tripsJson = responseData['data'];
           List<Trip> trips = tripsJson.map((json) => Trip.fromJson(json)).toList();
           
-          // Nếu cần tải thông tin order và trip không có thông tin order
+          // Nếu cần tải thông tin order và có trip không có thông tin order
           if (loadOrderDetails) {
-            for (int i = 0; i < trips.length; i++) {
-              if (trips[i].order == null) {
-                try {
-                  // Gọi API riêng để lấy thông tin order nếu không có sẵn trong trip
-                  final orderData = await getOrderByTripId(trips[i].tripId);
-                  trips[i].order = Order(
-                    orderId: orderData['orderId'] ?? '',
-                    trackingCode: orderData['trackingCode'] ?? '',
-                    pickUpLocation: orderData['pickUpLocation'] ?? '',
-                    deliveryLocation: orderData['deliveryLocation'] ?? '',
-                    conReturnLocation: orderData['conReturnLocation'] ?? '',
-                    containerNumber: orderData['containerNumber'] ?? '',
-                    contactPerson: orderData['contactPerson'] ?? '',
-                    contactPhone: orderData['contactPhone'] ?? '',
-                    deliveryDate: orderData['deliveryDate'] ?? '',
-                  );
-                } catch (e) {
-                  print('Lỗi tải chuyến ${trips[i].tripId}: $e');
+            int tripsWithoutOrder = trips.where((trip) => trip.order == null).length;
+            
+            if (tripsWithoutOrder > 0) {
+              // Tạo danh sách các chuyến cần tải thông tin đơn hàng
+              final List<Future<void>> orderLoads = [];
+              
+              for (int i = 0; i < trips.length; i++) {
+                if (trips[i].order == null) {
+                  // Thêm task vào danh sách các task cần thực hiện
+                  orderLoads.add(_loadOrderForTrip(trips[i], token));
                 }
+              }
+              
+              // Thực hiện tất cả các task tải đơn hàng song song
+              if (orderLoads.isNotEmpty) {
+                await Future.wait(orderLoads);
               }
             }
           }
@@ -65,6 +62,51 @@ class TripService {
       }
     } catch (e) {
       throw Exception('Failed to load trips: $e');
+    }
+  }
+
+  // Hàm riêng để tải thông tin đơn hàng cho một chuyến
+  Future<void> _loadOrderForTrip(Trip trip, String token) async {
+    try {
+      // Sử dụng getTripDetail trước để thử lấy thông tin mới nhất
+      final tripDetail = await getTripDetail(trip.tripId);
+      
+      if (tripDetail.order != null) {
+        // Nếu order đã có trong trip detail, sử dụng nó luôn
+        trip.order = tripDetail.order;
+      } else {
+        // Tạo headers với token xác thực
+        final headers = {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        };
+        
+        // Gọi API riêng để lấy thông tin order
+        final response = await http.get(
+          Uri.parse('$_baseUrl/api/order/orders?tripId=${trip.tripId}'),
+          headers: headers,
+        );
+        
+        if (response.statusCode == 200) {
+          final Map<String, dynamic> data = json.decode(response.body);
+          if (data['status'] == 1 && data['data'] != null && data['data'].isNotEmpty) {
+            final orderData = data['data'][0];
+            trip.order = Order(
+              orderId: orderData['orderId'] ?? '',
+              trackingCode: orderData['trackingCode'] ?? '',
+              pickUpLocation: orderData['pickUpLocation'] ?? '',
+              deliveryLocation: orderData['deliveryLocation'] ?? '',
+              conReturnLocation: orderData['conReturnLocation'] ?? '',
+              containerNumber: orderData['containerNumber'] ?? '',
+              contactPerson: orderData['contactPerson'] ?? '',
+              contactPhone: orderData['contactPhone'] ?? '',
+              deliveryDate: orderData['deliveryDate'] ?? '',
+            );
+          }
+        }
+      }
+    } catch (e) {
+      // Không throw exception để không làm fail toàn bộ quá trình load
     }
   }
 

@@ -112,21 +112,32 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final chatIndex = _chatList.indexWhere((chat) => chat['otherUserId'] == otherUserId);
     
     if (chatIndex != -1) {
-      // Cập nhật tin nhắn mới nhất
       setState(() {
-        _chatList[chatIndex]['lastMessage'] = latestMessage;
+        final currentChat = _chatList[chatIndex];
+        final currentLastMessage = currentChat['lastMessage'] as ChatMessage;
         
-        // Cập nhật số lượng tin nhắn chưa đọc nếu tin nhắn gửi đến người dùng hiện tại
-        if (latestMessage.receiverId == widget.userId && !latestMessage.read) {
-          _chatList[chatIndex]['unreadCount'] = (_chatList[chatIndex]['unreadCount'] ?? 0) + 1;
+        // Chỉ cập nhật nếu tin nhắn này mới hơn tin nhắn hiện tại
+        if (latestMessage.timestamp.isAfter(currentLastMessage.timestamp)) {
+          // Cập nhật tin nhắn mới nhất
+          _chatList[chatIndex]['lastMessage'] = latestMessage;
+          
+          // Chỉ cập nhật số lượng tin nhắn chưa đọc nếu:
+          // 1. Tin nhắn gửi đến người dùng hiện tại
+          // 2. Tin nhắn chưa đọc
+          // 3. Tin nhắn đến từ người dùng này (otherUserId), không phải cuộc hội thoại khác
+          if (latestMessage.receiverId == widget.userId && 
+              !latestMessage.read && 
+              latestMessage.senderId == otherUserId) {
+            _chatList[chatIndex]['unreadCount'] = (_chatList[chatIndex]['unreadCount'] ?? 0) + 1;
+          }
+          
+          // Sắp xếp lại danh sách dựa trên tin nhắn mới nhất
+          _chatList.sort((a, b) {
+            final aTime = (a['lastMessage'] as ChatMessage).timestamp;
+            final bTime = (b['lastMessage'] as ChatMessage).timestamp;
+            return bTime.compareTo(aTime);
+          });
         }
-        
-        // Sắp xếp lại danh sách dựa trên tin nhắn mới nhất
-        _chatList.sort((a, b) {
-          final aTime = (a['lastMessage'] as ChatMessage).timestamp;
-          final bTime = (b['lastMessage'] as ChatMessage).timestamp;
-          return bTime.compareTo(aTime);
-        });
       });
     } else {
       // Nếu là cuộc hội thoại mới, tải lại toàn bộ danh sách
@@ -185,24 +196,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       final isUnread = lastMessage.receiverId == widget.userId && !lastMessage.read;
                       
                       // Tính thời gian hiển thị
-                      String timeText;
-                      final now = DateTime.now();
-                      final today = DateTime(now.year, now.month, now.day);
-                      final messageDate = DateTime(
-                        lastMessage.timestamp.year, 
-                        lastMessage.timestamp.month, 
-                        lastMessage.timestamp.day
-                      );
-                      
-                      if (messageDate == today) {
-                        timeText = DateFormat('HH:mm').format(lastMessage.timestamp);
-                      } else if (messageDate == today.subtract(const Duration(days: 1))) {
-                        timeText = 'Hôm qua';
-                      } else if (now.difference(messageDate).inDays < 7) {
-                        timeText = DateFormat('EEEE', 'vi_VN').format(lastMessage.timestamp);
-                      } else {
-                        timeText = DateFormat('dd/MM/yyyy').format(lastMessage.timestamp);
-                      }
+                      String timeText = DateFormat('dd/MM/yyyy HH:mm').format(lastMessage.timestamp);
                       
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),

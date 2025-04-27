@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';  // Add this for Clipboard
 import 'package:driverapp/models/trip.dart';
 import 'package:driverapp/models/delivery_status.dart';
 import 'package:driverapp/services/trip_service.dart';
@@ -551,6 +552,22 @@ class _TripCardState extends State<TripCard> {
                     ),
                   ),
                 ),
+                // Add copy button for tracking code
+                if (widget.trip.trackingCode.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: widget.trip.trackingCode));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Đã sao chép mã vận đơn'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                  ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -597,6 +614,22 @@ class _TripCardState extends State<TripCard> {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
+                          const Spacer(),
+                          // Add copy button for pickup location
+                          IconButton(
+                            icon: const Icon(Icons.copy, size: 18),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: widget.trip.order!.pickUpLocation));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Đã sao chép điểm lấy cont'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                          ),
                         ],
                       ),
                       Padding(
@@ -628,6 +661,22 @@ class _TripCardState extends State<TripCard> {
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
+                            const Spacer(),
+                            // Add copy button for delivery location
+                            IconButton(
+                              icon: const Icon(Icons.copy, size: 18),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: widget.trip.order!.deliveryLocation));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Đã sao chép điểm giao'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                            ),
                           ],
                         ),
                         Padding(
@@ -658,6 +707,22 @@ class _TripCardState extends State<TripCard> {
                                 color: Colors.grey,
                                 fontWeight: FontWeight.w500,
                               ),
+                            ),
+                            const Spacer(),
+                            // Add copy button for container return location
+                            IconButton(
+                              icon: const Icon(Icons.copy, size: 18),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: widget.trip.order!.conReturnLocation));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Đã sao chép điểm trả cont'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),

@@ -456,8 +456,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           borderSide: BorderSide(color: Colors.blue, width: 2),
                         ),
                         labelStyle: TextStyle(color: Colors.grey[700]),
+                        filled: true,
+                        fillColor: Colors.grey[200],
                       ),
-                      validator: ValidationUtils.validateName,
+                      enabled: false,
+                      readOnly: true,
                     ),
                     const SizedBox(height: 16),
 
