@@ -33,7 +33,6 @@ class NotificationService {
       
       return snapshot.docs.length;
     } catch (e) {
-      print('Error getting unread count: $e');
       return 0;
     }
   }

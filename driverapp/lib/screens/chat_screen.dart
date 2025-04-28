@@ -33,6 +33,9 @@ class _ChatScreenState extends State<ChatScreen> {
   
   // Thêm biến để lưu thông tin participants
   Map<String, String> _participants = {};
+  
+  // Thêm biến để theo dõi tin nhắn nào đang được chạm vào để hiển thị thời gian đã xem
+  String? _selectedMessageId;
 
   @override
   void initState() {
@@ -44,18 +47,28 @@ class _ChatScreenState extends State<ChatScreen> {
   // Hàm mới để lấy thông tin participants từ collection chats
   Future<void> _loadParticipantsInfo() async {
     try {
-      final participants = await _chatService.getChatParticipants(widget.userId, widget.otherUserId);
-      setState(() {
-        _participants = participants;
-      });
-    } catch (e) {
-      // Nếu không lấy được thông tin từ participants, sử dụng thông tin mặc định
+      // Thiết lập giá trị mặc định trước (sử dụng giá trị từ widget)
       setState(() {
         _participants = {
           widget.userId: widget.userName,
           widget.otherUserId: widget.otherUserName,
         };
       });
+      
+      // Sau đó thử lấy thông tin participants từ Firestore (nếu có)
+      final participants = await _chatService.getChatParticipants(widget.userId, widget.otherUserId);
+      
+      // Chỉ cập nhật state nếu kết quả không rỗng
+      if (participants.isNotEmpty) {
+        setState(() {
+          _participants = participants;
+        });
+      } else {
+        print('Using default participant info - chat may be new');
+      }
+    } catch (e) {
+      print('Error loading participants info: $e, using default values');
+      // Đã thiết lập giá trị mặc định ở trên, không cần làm gì thêm
     }
   }
   
@@ -73,14 +86,33 @@ class _ChatScreenState extends State<ChatScreen> {
   
   // Đánh dấu tất cả tin nhắn chưa đọc là đã đọc
   Future<void> _markMessagesAsRead() async {
-    for (var message in _messages) {
+    List<String> markedMessageIds = [];
+    List<ChatMessage> updatedMessages = List.from(_messages);
+    
+    for (int i = 0; i < _messages.length; i++) {
+      final message = _messages[i];
       if (message.receiverId == widget.userId && !message.read) {
+        // Mark message as read in Firestore
         await _chatService.markMessageAsRead(
           widget.userId,
           widget.otherUserId,
           message.id,
         );
+        markedMessageIds.add(message.id);
+        
+        // Update local message copy with read=true and current readAt time
+        updatedMessages[i] = message.copyWith(
+          read: true,
+          readAt: DateTime.now(), // Set the current time as readAt
+        );
       }
+    }
+    
+    // Update the UI immediately after marking messages as read
+    if (markedMessageIds.isNotEmpty) {
+      setState(() {
+        _messages = updatedMessages;
+      });
     }
   }
   
@@ -93,9 +125,12 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     
     try {
-      // Sử dụng tên từ participants
+      // Sử dụng tên từ participants hoặc mặc định từ widget
       final senderName = _participants[widget.userId] ?? widget.userName;
       final receiverName = _participants[widget.otherUserId] ?? widget.otherUserName;
+      
+      // Thêm một biến để theo dõi xem đây là gửi tin nhắn đầu tiên hay không
+      final isFirstMessage = _messages.isEmpty;
       
       final success = await _chatService.sendMessage(
         widget.userId,
@@ -107,6 +142,14 @@ class _ChatScreenState extends State<ChatScreen> {
       
       if (success) {
         _messageController.clear();
+        
+        // Nếu đây là tin nhắn đầu tiên (không có tin nhắn trước đó), 
+        // đợi thêm thời gian để Firestore cập nhật và tránh gửi tin nhắn trùng
+        if (isFirstMessage) {
+          // Tăng khoảng thời gian chờ để đảm bảo Firestore đã xử lý xong tin nhắn đầu tiên
+          await Future.delayed(const Duration(milliseconds: 1000));
+          _loadParticipantsInfo();
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -158,7 +201,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
                 Text(
-                  "Điều phối viên",
+                  "Nhân viên",
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withOpacity(0.8),
@@ -262,12 +305,10 @@ class _ChatScreenState extends State<ChatScreen> {
                             if (index < _messages.length - 1) {
                               final prevMessage = _messages[index + 1];
                               // Nếu tin nhắn cách nhau ít hơn 5 phút và cùng người gửi, không hiển thị
-                              if (message.timestamp.difference(prevMessage.timestamp).inMinutes < 5 &&
-                                  message.senderId == prevMessage.senderId) {
+                              if (message.timestamp.difference(prevMessage.timestamp).inMinutes < 5) {
                                 showTimestamp = false;
                               }
-                            }
-                            
+                            } 
                             return Column(
                               crossAxisAlignment: isSentByMe
                                   ? CrossAxisAlignment.end
@@ -313,8 +354,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       if (!isSentByMe)
-                                        Container(
-                                          margin: const EdgeInsets.only(right: 4),
+                                        Padding(
+                                          padding: const EdgeInsets.only(right: 4),
                                           child: CircleAvatar(
                                             radius: 16,
                                             backgroundColor: Colors.blue[100],
@@ -327,36 +368,50 @@ class _ChatScreenState extends State<ChatScreen> {
                                         ),
                                       const SizedBox(width: 4),
                                       Flexible(
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 12,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: isSentByMe 
-                                                ? Colors.blue[700] 
-                                                : Colors.white,
-                                            borderRadius: BorderRadius.only(
-                                              topLeft: const Radius.circular(18),
-                                              topRight: const Radius.circular(18),
-                                              bottomLeft: Radius.circular(
-                                                  isSentByMe ? 18 : 4),
-                                              bottomRight: Radius.circular(
-                                                  isSentByMe ? 4 : 18),
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            // Khi chạm vào tin nhắn, cập nhật _selectedMessageId
+                                            setState(() {
+                                              // Nếu tin nhắn đã được chọn, bỏ chọn nó
+                                              if (_selectedMessageId == message.id) {
+                                                _selectedMessageId = null;
+                                              } else {
+                                                // Nếu chưa được chọn, đặt nó làm tin nhắn được chọn
+                                                _selectedMessageId = message.id;
+                                              }
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 12,
                                             ),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.grey.withOpacity(0.1),
-                                                blurRadius: 4,
-                                                offset: const Offset(0, 2),
+                                            decoration: BoxDecoration(
+                                              color: isSentByMe 
+                                                  ? Colors.blue[700] 
+                                                  : Colors.white,
+                                              borderRadius: BorderRadius.only(
+                                                topLeft: const Radius.circular(18),
+                                                topRight: const Radius.circular(18),
+                                                bottomLeft: Radius.circular(
+                                                    isSentByMe ? 18 : 4),
+                                                bottomRight: Radius.circular(
+                                                    isSentByMe ? 4 : 18),
                                               ),
-                                            ],
-                                          ),
-                                          child: Text(
-                                            message.text,
-                                            style: TextStyle(
-                                              color: isSentByMe ? Colors.white : Colors.black87,
-                                              fontSize: 15,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.grey.withOpacity(0.1),
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Text(
+                                              message.text,
+                                              style: TextStyle(
+                                                color: isSentByMe ? Colors.white : Colors.black87,
+                                                fontSize: 15,
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -373,6 +428,22 @@ class _ChatScreenState extends State<ChatScreen> {
                                     ],
                                   ),
                                 ),
+                                // Chỉ hiển thị thời gian đã xem khi:
+                                // 1. Tin nhắn do người dùng hiện tại gửi
+                                // 2. Tin nhắn đã được đọc và có thời gian đọc
+                                // 3. Tin nhắn được chọn (người dùng đã chạm vào)
+                                if (isSentByMe && message.read && message.readAt != null && _selectedMessageId == message.id)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2.0, bottom: 8.0, right: 8.0),
+                                    child: Text(
+                                      "Đã xem lúc ${DateFormat('HH:mm').format(message.readAt!)}",
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey[600],
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             );
                           },
@@ -468,14 +539,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
   
   String _formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    if (now.difference(timestamp).inDays == 0) {
-      return 'Hôm nay ${DateFormat('HH:mm').format(timestamp)}';
-    } else if (now.difference(timestamp).inDays == 1) {
-      return 'Hôm qua ${DateFormat('HH:mm').format(timestamp)}';
-    } else {
-      return DateFormat('dd/MM/yyyy HH:mm').format(timestamp);
-    }
+    return DateFormat('dd/MM/yyyy HH:mm').format(timestamp);
   }
   
   @override

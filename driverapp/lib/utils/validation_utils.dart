@@ -67,6 +67,12 @@ class ValidationUtils {
     if (images == null || images.isEmpty) {
       return 'Vui lòng tải lên ít nhất một ảnh';
     }
+    
+    // Added validation for maximum number of images
+    if (images.length > 10) {
+      return 'Số lượng ảnh không được vượt quá 10 ảnh';
+    }
+    
     return null;
   }
   

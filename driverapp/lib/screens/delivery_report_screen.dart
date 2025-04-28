@@ -7,6 +7,7 @@ import 'package:driverapp/services/profile_service.dart';
 import 'package:driverapp/services/delivery_report_service.dart';
 import 'package:driverapp/utils/image_utils.dart';
 import 'package:driverapp/utils/date_utils.dart';
+import 'package:driverapp/utils/validation_utils.dart';
 
 class DeliveryReportScreen extends StatefulWidget {
   final String tripId;
@@ -63,7 +64,8 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
 
     setState(() {
       _isFormValid = (_noteError == null && _imageError == null) &&
-          (_noteController.text.trim().isNotEmpty || _imageFiles.isNotEmpty);
+          _noteController.text.trim().isNotEmpty && 
+          _imageFiles.isNotEmpty; // Bắt buộc phải có ảnh
     });
   }
 
@@ -86,13 +88,7 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
 
   void _validateImages() {
     setState(() {
-      if (_imageFiles.isEmpty) {
-        _imageError = null;
-      } else if (_imageFiles.length > _maxImageCount) {
-        _imageError = 'Số lượng ảnh tối đa là $_maxImageCount';
-      } else {
-        _imageError = null;
-      }
+      _imageError = ValidationUtils.validateImages(_imageFiles);
     });
   }
 

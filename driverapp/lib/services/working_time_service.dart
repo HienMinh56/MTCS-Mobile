@@ -1,20 +1,12 @@
 import 'dart:convert';
-import 'package:driverapp/services/auth_service.dart';
-import 'package:driverapp/utils/constants.dart';
-import 'package:http/http.dart' as http;
+import 'package:driverapp/utils/api_utils.dart';
 
 class WorkingTimeService {
-  final String _baseUrl = Constants.apiBaseUrl;
   Future<String> getWeeklyWorkingTime(String driverId) async {
     try {
-      final token = await AuthService.getAuthToken();
-      
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/DriverWeeklySummary/weekly-time?driverId=$driverId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      final response = await ApiUtils.get(
+        '/api/DriverWeeklySummary/weekly-time', 
+        queryParams: {'driverId': driverId}
       );
       
       if (response.statusCode == 200) {
@@ -34,18 +26,16 @@ class WorkingTimeService {
   
   Future<String> getDailyWorkingTime(String driverId) async {
     try {
-      final token = await AuthService.getAuthToken();
-      
       // Format today's date as YYYY/MM/DD
       final now = DateTime.now();
       final formattedDate = '${now.year}/${now.month}/${now.day}';
       
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/DriverDailyWorkingTime/total-time-day?driverId=$driverId&workDate=$formattedDate'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      final response = await ApiUtils.get(
+        '/api/DriverDailyWorkingTime/total-time-day', 
+        queryParams: {
+          'driverId': driverId,
+          'workDate': formattedDate
+        }
       );
       
       if (response.statusCode == 200) {
@@ -67,14 +57,14 @@ class WorkingTimeService {
     try {
       final fromDateFormatted = '${fromDate.year}/${fromDate.month}/${fromDate.day}';
       final toDateFormatted = '${toDate.year}/${toDate.month}/${toDate.day}';
-      final token = await AuthService.getAuthToken();
       
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/DriverDailyWorkingTime/total-time-range?driverId=$driverId&fromDate=$fromDateFormatted&toDate=$toDateFormatted'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      final response = await ApiUtils.get(
+        '/api/DriverDailyWorkingTime/total-time-range', 
+        queryParams: {
+          'driverId': driverId,
+          'fromDate': fromDateFormatted,
+          'toDate': toDateFormatted
+        }
       );
       
       if (response.statusCode == 200) {

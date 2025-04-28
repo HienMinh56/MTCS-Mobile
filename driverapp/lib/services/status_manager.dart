@@ -1,12 +1,12 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/delivery_status.dart';
+import '../utils/api_utils.dart';
 
 class StatusManager {
   static Map<String, String> _statusMap = {};
   static bool _isInitialized = false;
   
-  static const String API_URL = 'https://mtcs-server.azurewebsites.net/api/delivery-statuses';
+  static const String _endpoint = '/api/delivery-statuses';
   
   // Get status name from cached mapping
   static String? getStatusName(String? statusId) {
@@ -23,7 +23,7 @@ class StatusManager {
   // Refresh status data from API
   static Future<void> fetchStatusData() async {
     try {
-      final response = await http.get(Uri.parse(API_URL));
+      final response = await ApiUtils.get(_endpoint);
       
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
@@ -48,7 +48,6 @@ class StatusManager {
         throw Exception('Failed to fetch delivery statuses: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching delivery statuses: $e');
       throw e; // Re-throw to propagate the original error
     }
   }

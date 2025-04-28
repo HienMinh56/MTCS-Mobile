@@ -1,25 +1,12 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:driverapp/utils/constants.dart';
-import 'package:driverapp/services/auth_service.dart';
+import 'package:driverapp/utils/api_utils.dart';
 
 class OrderService {
-  final String _baseUrl = Constants.apiBaseUrl;
-  
   Future<Map<String, dynamic>> getOrderByTripId(String tripId) async {
     try {
-      // Retrieve the saved token from secure storage
-      final token = await AuthService.getAuthToken();
-      
-      // Create headers with authentication token
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
-      
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/order/orders?tripId=$tripId'),
-        headers: headers,
+      final response = await ApiUtils.get(
+        '/api/order/orders', 
+        queryParams: {'tripId': tripId}
       );
       
       if (response.statusCode == 200) {

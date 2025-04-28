@@ -1,24 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
-import 'package:path/path.dart' as path;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:driverapp/utils/api_utils.dart';
 
 class FuelReportService {
-  static const String _baseUrl = 'https://mtcs-server.azurewebsites.net/api';
+  static const String _endpoint = '/api/fuel-reports';
 
-  /// Get authentication headers for API requests
-  Future<Map<String, String>> _getHeaders() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('authToken');
-    
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
-  }
+
   
   /// Static version of submitFuelReport that creates an instance internally
   static Future<Map<String, dynamic>> submitFuelReport({
@@ -47,50 +34,23 @@ class FuelReportService {
     required List<File> images,
   }) async {
     try {
-      var uri = Uri.parse('$_baseUrl/fuel-reports');
-      var request = http.MultipartRequest('POST', uri);
+      // Prepare fields for multipart request
+      Map<String, String> fields = {
+        'TripId': tripId,
+        'RefuelAmount': refuelAmount.toString(),
+        'FuelCost': fuelCost.toString(),
+        'Location': location,
+      };
       
-      // Get headers with authorization token
-      final headers = await _getHeaders();
+      // Prepare files for multipart request
+      Map<String, List<File>> files = {
+        'files': images,
+      };
       
-      // Add headers to request (except Content-Type which is set by MultipartRequest)
-      headers.forEach((key, value) {
-        if (key != 'Content-Type') {
-          request.headers[key] = value;
-        }
-      });
-      
-      // Add form fields
-      request.fields['TripId'] = tripId;
-      request.fields['RefuelAmount'] = refuelAmount.toString();
-      request.fields['FuelCost'] = fuelCost.toString();
-      request.fields['Location'] = location;
-      
-      // Add image files
-      for (var imageFile in images) {
-        var fileName = path.basename(imageFile.path);
-        var fileExtension = path.extension(fileName).toLowerCase();
-        String mimeType;
-        
-        if (fileExtension == '.jpg' || fileExtension == '.jpeg') {
-          mimeType = 'image/jpeg';
-        } else if (fileExtension == '.png') {
-          mimeType = 'image/png';
-        } else {
-          mimeType = 'image/jpeg'; // Default
-        }
-        
-        request.files.add(await http.MultipartFile.fromPath(
-          'files',
-          imageFile.path,
-          contentType: MediaType.parse(mimeType),
-        ));
-      }
-      
-      // Send the request
-      var response = await request.send();
-      var responseData = await response.stream.bytesToString();
-      var jsonData = jsonDecode(responseData);
+      // Use the ApiUtils to make the request
+      var streamedResponse = await ApiUtils.multipartPost(_endpoint, fields, files);
+      var response = await ApiUtils.streamedResponseToResponse(streamedResponse);
+      var jsonData = jsonDecode(response.body);
       
       // Return the raw response from server
       return {
@@ -110,11 +70,7 @@ class FuelReportService {
 
   Future<Map<String, dynamic>> getFuelReportsByTripId(String tripId) async {
     try {
-      final uri = Uri.parse('$_baseUrl/fuel-reports?tripId=$tripId');
-      final response = await http.get(
-        uri,
-        headers: await _getHeaders(),
-      );
+      final response = await ApiUtils.get(_endpoint, queryParams: {'tripId': tripId});
       
       return jsonDecode(response.body);
     } catch (e) {
@@ -145,54 +101,27 @@ class FuelReportService {
         };
       }
       
-      final uri = Uri.parse('$_baseUrl/fuel-reports');
-      
-      // Create a MultipartRequest
-      var request = http.MultipartRequest('PUT', uri);
-      
-      // Add authorization headers
-      final headers = await _getHeaders();
-      headers.forEach((key, value) {
-        if (key != 'Content-Type') {
-          request.headers[key] = value;
-        }
-      });
-      
-      // Add form fields
-      request.fields['ReportId'] = reportId;
-      request.fields['RefuelAmount'] = refuelAmount.toString();
-      request.fields['FuelCost'] = fuelCost.toString();
-      request.fields['Location'] = location;
+      // Prepare fields for multipart request
+      Map<String, String> fields = {
+        'ReportId': reportId,
+        'RefuelAmount': refuelAmount.toString(),
+        'FuelCost': fuelCost.toString(),
+        'Location': location,
+      };
       
       // Add file IDs to remove - each as a separate field with the same name
       for (int i = 0; i < fileIdsToRemove.length; i++) {
-        request.fields['FileIdsToRemove[$i]'] = fileIdsToRemove[i];
+        fields['FileIdsToRemove[$i]'] = fileIdsToRemove[i];
       }
       
-      // Add new files
-      for (var file in addedFiles) {
-        var fileName = path.basename(file.path);
-        var fileExtension = path.extension(fileName).toLowerCase();
-        
-        String mimeType;
-        if (fileExtension == '.jpg' || fileExtension == '.jpeg') {
-          mimeType = 'image/jpeg';
-        } else if (fileExtension == '.png') {
-          mimeType = 'image/png';
-        } else {
-          mimeType = 'application/octet-stream';
-        }
-        
-        request.files.add(await http.MultipartFile.fromPath(
-          'AddedFiles',
-          file.path,
-          contentType: MediaType.parse(mimeType),
-        ));
-      }
+      // Prepare files for multipart request
+      Map<String, List<File>> files = {
+        'AddedFiles': addedFiles,
+      };
       
-      // Send request and process response
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
+      // Use the ApiUtils to make the request
+      var streamedResponse = await ApiUtils.multipartPut(_endpoint, fields, files);
+      var response = await ApiUtils.streamedResponseToResponse(streamedResponse);
       
       return jsonDecode(response.body);
     } catch (e) {

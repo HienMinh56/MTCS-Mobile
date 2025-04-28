@@ -7,6 +7,7 @@ import 'package:driverapp/utils/image_utils.dart';
 import 'package:driverapp/services/incident_report_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:driverapp/utils/validation_utils.dart';
 
 // Tạo class TextInputFormatter để ngăn chặn khoảng trắng đầu dòng và ký tự đặc biệt
 class NoLeadingSpaceOrSpecialCharFormatter extends TextInputFormatter {
@@ -108,20 +109,12 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
       return;
     }
     
-    if (_images.isEmpty) {
+    // Use ValidationUtils to validate images
+    String? imageError = ValidationUtils.validateImages(_images);
+    if (imageError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng thêm ít nhất một hình ảnh'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-    
-    if (_images.length > 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Số lượng hình ảnh không được vượt quá 10 ảnh'),
+        SnackBar(
+          content: Text(imageError),
           backgroundColor: Colors.orange,
         ),
       );
