@@ -1,9 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:driverapp/models/chat_message.dart';
+import 'package:driverapp/utils/api_utils.dart';
 
 class ChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _baseUrl = 'https://mtcs-server.azurewebsites.net//api/Chat'; // Thay đổi URL theo API của bạn
+  static const String _chatEndpoint = '/api/Chat';
 
   // Lấy chat ID dựa trên 2 userId
   String _getChatId(String userId1, String userId2) {
@@ -12,7 +13,6 @@ class ChatService {
         : '${userId2}_${userId1}';
   }
   
-
   Stream<List<ChatMessage>> getMessages(String userId1, String userId2) {
     final chatId = _getChatId(userId1, userId2);
 
@@ -27,83 +27,32 @@ class ChatService {
             .toList());
   }
 
-  // Gửi tin nhắn mới và đảm bảo cuộc trò chuyện được khởi tạo đúng
+  // Gửi tin nhắn mới sử dụng API
   Future<bool> sendMessage(String senderId, String senderName, String receiverId, String receiverName, String message) async {
     try {
-      final chatId = _getChatId(senderId, receiverId);
+      // Gửi tin nhắn qua API
+      final response = await ApiUtils.post(
+        '$_chatEndpoint/send',
+        {
+          'senderId': senderId,
+          'receiverId': receiverId,
+          'message': message
+        },
+      );
       
-      // Kiểm tra xem chat document đã tồn tại chưa
-      final chatDoc = await _firestore.collection('chats').doc(chatId).get();
+      print('API response: ${response.statusCode} - ${response.body}');
       
-      // Nếu chưa tồn tại, tạo chat document với thông tin participants
-      if (!chatDoc.exists) {
-        await _firestore.collection('chats').doc(chatId).set({
-          'createdAt': FieldValue.serverTimestamp(),
-          'participants': [
-            {'id': senderId, 'name': senderName},
-            {'id': receiverId, 'name': receiverName}
-          ],
-          'lastActivity': FieldValue.serverTimestamp(),
-        });
+      // Kiểm tra response
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        return false;
       }
-      
-      // Tạo tin nhắn mới
-      final newMessage = {
-        'senderId': senderId,
-        'senderName': senderName,
-        'receiverId': receiverId,
-        'receiverName': receiverName,
-        'text': message,
-        'timestamp': FieldValue.serverTimestamp(),
-        'read': false,
-      };
-      
-      // Lưu tin nhắn vào Firestore
-      await _firestore
-          .collection('chats')
-          .doc(chatId)
-          .collection('messages')
-          .add(newMessage);
-      
-      // Cập nhật lastActivity cho chat document
-      await _firestore
-          .collection('chats')
-          .doc(chatId)
-          .update({'lastActivity': FieldValue.serverTimestamp()});
-      
-      // Gửi thông báo qua API (nếu cần) - Ghi chú giúp gỡ lỗi
-      // Tránh việc gửi ở đây vì có thể dẫn đến tin nhắn trùng lặp
-      // Backend đã xử lý Firestore trigger để gửi thông báo
-      try {
-        // Đoạn mã này chỉ ghi log cho mục đích debug, không thực sự gửi API request
-        print('API notification would be sent to: $receiverId (skipped to avoid duplication)');
-        
-        // Chỉ gửi request nếu cần thiết (đặt code back nếu muốn gửi lại)
-        /*
-        await http.post(
-          Uri.parse('$_baseUrl/send'),
-          headers: <String, String>{
-            'Content-Type': 'application/json; charset=UTF-8',
-          },
-          body: jsonEncode(<String, String>{
-            'senderId': senderId,
-            'receiverId': receiverId,
-            'message': message
-          }),
-        );
-        */
-      } catch (apiError) {
-        // Ghi log lỗi API nhưng không ảnh hưởng đến việc gửi tin nhắn
-        print('API notification error: $apiError');
-      }
-
-      return true;
     } catch (e) {
-      print('Error sending message: $e');
       return false;
     }
   }
-
+  
   // Đánh dấu tin nhắn đã đọc
   Future<void> markMessageAsRead(String userId1, String userId2, String messageId) async {
     final chatId = _getChatId(userId1, userId2);
@@ -169,14 +118,12 @@ class ChatService {
 
           count += messagesQuery.docs.length;
         } catch (e) {
-          print('Error processing chat document for unread count: $e');
           continue;
         }
       }
 
       return count;
     } catch (e) {
-      print('Error getting unread message count: $e');
       return 0;
     }
   }
@@ -190,7 +137,6 @@ class ChatService {
           .collection('chats')
           .get();
       
-      print('Found ${querySnapshot.docs.length} potential chats');
       
       List<Map<String, dynamic>> chatList = [];
 
@@ -199,14 +145,12 @@ class ChatService {
           print('Processing chat: ${chatDoc.id}');
           // Kiểm tra xem tài liệu chat có trường participants không
           if (!chatDoc.exists || !chatDoc.data().containsKey('participants')) {
-            print('Chat ${chatDoc.id} does not have participants field');
             continue;
           }
           
           // Lấy thông tin participants
           final participantsData = chatDoc.get('participants');
           if (participantsData == null) {
-            print('Participants is null for chat: ${chatDoc.id}');
             continue;
           }
           
@@ -217,7 +161,6 @@ class ChatService {
               participantsData.map((item) => item is Map ? Map<String, dynamic>.from(item) : {'id': '', 'name': ''})
             );
           } else {
-            print('Participants is not a list for chat: ${chatDoc.id}');
             continue;
           }
           
@@ -226,7 +169,6 @@ class ChatService {
             participant['id'] == userId);
           
           if (!isUserInChat) {
-            print('User $userId not in chat ${chatDoc.id}');
             continue;
           }
           
@@ -237,7 +179,6 @@ class ChatService {
           );
 
           if (otherUser['id'].isEmpty) {
-            print('No other user found for chat: ${chatDoc.id}');
             continue;
           }
           
@@ -249,7 +190,6 @@ class ChatService {
               .get();
 
           if (lastMessageQuery.docs.isEmpty) {
-            print('No messages for chat: ${chatDoc.id}');
             continue;
           }
 
@@ -270,7 +210,6 @@ class ChatService {
             'unreadCount': unreadQuery.docs.length,
           });
         } catch (e) {
-          print('Error processing chat document ${chatDoc.id}: $e');
           continue;
         }
       }
@@ -284,7 +223,6 @@ class ChatService {
       
       return chatList;
     } catch (e) {
-      print('Error getting chat list: $e');
       return [];
     }
   }
@@ -293,29 +231,19 @@ class ChatService {
   Future<Map<String, String>> getChatParticipants(String userId1, String userId2) async {
     try {
       final chatId = _getChatId(userId1, userId2);
-      print('Attempting to get participants for chat ID: $chatId');
-      print('UserID1: $userId1, UserID2: $userId2');
-      print('Participants data: $chatId');
       
       final chatDoc = await _firestore
           .collection('chats')
           .doc(chatId)
           .get();
       
-      print('Chat document exists: ${chatDoc.exists}');
-      if (chatDoc.exists) {
-        print('Chat data: ${chatDoc.data()}');
-      }
       
       // Nếu chat document không tồn tại hoặc không có trường participants, 
       // trả về map rỗng thay vì ném ra exception
       if (!chatDoc.exists || !chatDoc.data()!.containsKey('participants')) {
-        print('Chat does not exist or does not have participants field, returning empty map');
         // Thử tìm kiếm chat với ID khác
-        print('Trying to find chat manually by querying all chats...');
         final allChats = await _firestore.collection('chats').get();
         for (var doc in allChats.docs) {
-          print('Checking chat: ${doc.id}');
           if (doc.data().containsKey('participants')) {
             final parts = doc.get('participants');
             if (parts is List) {
@@ -328,7 +256,6 @@ class ChatService {
                 }
               }
               if (hasUser1 && hasUser2) {
-                print('Found matching chat with different ID: ${doc.id}');
                 // Nếu tìm thấy, trả về thông tin participants
                 Map<String, String> result = {};
                 for (var participant in parts) {
@@ -352,28 +279,24 @@ class ChatService {
       Map<String, String> result = {};
       
       if (participantsData is List) {
-        print('Participants is a list with ${participantsData.length} items');
         for (var participant in participantsData) {
           if (participant is Map) {
             // Hỗ trợ các định dạng khác nhau của dữ liệu participants
             final id = participant['id'] ?? participant['userId'] ?? '';
             final name = participant['name'] ?? participant['fullName'] ?? '';
             
-            print('Extracted participant: id=$id, name=$name');
             if (id.isNotEmpty) {
               result[id] = name;
             }
           }
         }
       } else {
-        print('Participants is not a list: ${participantsData.runtimeType}');
+        return {};
       }
       
-      print('Returning participant map: $result');
       return result;
     } catch (e) {
-      print('Error getting chat participants: $e');
-      return {}; // Trả về map rỗng trong trường hợp có lỗi
+      return {}; 
     }
   }
 }

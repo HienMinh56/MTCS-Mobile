@@ -1,28 +1,18 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:driverapp/models/trip.dart';
-import 'package:driverapp/utils/constants.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:driverapp/utils/api_utils.dart';
 
 class TripService {
-  final String _baseUrl = Constants.apiBaseUrl;
   
   // Thêm tham số để lấy dữ liệu order từ API nếu không có sẵn
   Future<List<Trip>> getDriverTrips(String driverId, {required String status, bool loadOrderDetails = false}) async {
     try {
-      // Retrieve the saved token from secure storage
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('authToken') ?? '';
-      
-      // Create headers with authentication token
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
-
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/trips?driverId=$driverId&status=$status'),
-        headers: headers,
+      final response = await ApiUtils.get(
+        '/api/trips',
+        queryParams: {
+          'driverId': driverId,
+          'status': status
+        }
       );
 
       if (response.statusCode == 200) {
@@ -42,7 +32,7 @@ class TripService {
               for (int i = 0; i < trips.length; i++) {
                 if (trips[i].order == null) {
                   // Thêm task vào danh sách các task cần thực hiện
-                  orderLoads.add(_loadOrderForTrip(trips[i], token));
+                  orderLoads.add(_loadOrderForTrip(trips[i]));
                 }
               }
               
@@ -66,7 +56,7 @@ class TripService {
   }
 
   // Hàm riêng để tải thông tin đơn hàng cho một chuyến
-  Future<void> _loadOrderForTrip(Trip trip, String token) async {
+  Future<void> _loadOrderForTrip(Trip trip) async {
     try {
       // Sử dụng getTripDetail trước để thử lấy thông tin mới nhất
       final tripDetail = await getTripDetail(trip.tripId);
@@ -75,16 +65,10 @@ class TripService {
         // Nếu order đã có trong trip detail, sử dụng nó luôn
         trip.order = tripDetail.order;
       } else {
-        // Tạo headers với token xác thực
-        final headers = {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        };
-        
         // Gọi API riêng để lấy thông tin order
-        final response = await http.get(
-          Uri.parse('$_baseUrl/api/order/orders?tripId=${trip.tripId}'),
-          headers: headers,
+        final response = await ApiUtils.get(
+          '/api/order/orders',
+          queryParams: {'tripId': trip.tripId}
         );
         
         if (response.statusCode == 200) {
@@ -113,19 +97,9 @@ class TripService {
   // Method to get detailed information about a specific trip
   Future<Trip> getTripDetail(String tripId) async {
     try {
-      // Retrieve the saved token from secure storage
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('authToken') ?? '';
-      
-      // Create headers with authentication token
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
-      
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/trips?tripId=$tripId'),
-        headers: headers,
+      final response = await ApiUtils.get(
+        '/api/trips',
+        queryParams: {'tripId': tripId}
       );
       
       if (response.statusCode == 200) {
@@ -161,20 +135,10 @@ class TripService {
           'contactPhone': trip.order!.contactPhone,
         };
       } else {
-        // Retrieve the saved token from secure storage
-        final prefs = await SharedPreferences.getInstance();
-        final token = prefs.getString('authToken') ?? '';
-        
-        // Create headers with authentication token
-        final headers = {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        };
-        
         // Gọi API cũ để tương thích ngược
-        final response = await http.get(
-          Uri.parse('$_baseUrl/api/order/orders?tripId=$tripId'),
-          headers: headers,
+        final response = await ApiUtils.get(
+          '/api/order/orders',
+          queryParams: {'tripId': tripId}
         );
         
         if (response.statusCode == 200) {
@@ -194,23 +158,10 @@ class TripService {
   }
 
   Future<Map<String, dynamic>> updateTripStatus(String tripId, String newStatus) async {
-    final url = '$_baseUrl/api/trips/$tripId/status';
-    
     try {
-      // Retrieve the saved token from secure storage
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('authToken') ?? '';
-      
-      // Create headers with authentication token
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
-      
-      final response = await http.patch(
-        Uri.parse(url),
-        headers: headers,
-        body: json.encode(newStatus),
+      final response = await ApiUtils.patch(
+        '/api/trips/$tripId/status',
+        newStatus
       );
 
       if (response.statusCode == 200) {

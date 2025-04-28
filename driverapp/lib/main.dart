@@ -270,7 +270,7 @@ class _SplashScreenState extends State<SplashScreen> {
                           Text('Quyền thông báo', style: TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
-                      SizedBox(height: 8),
+                    SizedBox(height: 8),
                       Text('Cần thiết để nhận thông báo đơn hàng mới và cập nhật quan trọng'),
                       SizedBox(height: 8),
                       Text('Cách cấp quyền:', style: TextStyle(fontStyle: FontStyle.italic)),

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:driverapp/services/location_service.dart';
-import 'package:http/http.dart' as http;
+import 'package:driverapp/utils/api_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -9,8 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class AuthService {
-  static const String _baseUrl = "https://mtcs-server.azurewebsites.net/api";
-
   /// 🔹 **Kiểm tra cài đặt mới và xóa thông tin đăng nhập nếu cần**
   static Future<void> checkAndClearCredentialsOnNewInstall() async {
     try {
@@ -26,7 +24,6 @@ class AuthService {
         
         // Đánh dấu ứng dụng đã chạy
         await prefs.setBool('has_run_before', true);
-        print("🔄 Đã xóa thông tin đăng nhập do cài đặt mới");
       }
       
       // Lưu phiên bản hiện tại vào SharedPreferences
@@ -39,24 +36,22 @@ class AuthService {
         await prefs.remove('userId');
         await prefs.remove('authToken');
         await FirebaseMessaging.instance.deleteToken();
-        print("🔄 Đã xóa thông tin đăng nhập do cập nhật phiên bản");
       }
       
       // Cập nhật phiên bản đã lưu
       await prefs.setString('app_version', currentVersion);
       
     } catch (e) {
-      print("❌ Lỗi khi kiểm tra cài đặt mới: $e");
+      print("❌ Lỗi trong quá trình kiểm tra cài đặt mới: $e");
     }
   }
 
   /// 🟢 **Đăng nhập & giải mã JWT**
   static Future<Map<String, dynamic>?> login(String email, String password) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/Authen/driver-login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
+      final response = await ApiUtils.post(
+        '/api/Authen/driver-login',
+        {'email': email, 'password': password}
       );
 
       if (response.statusCode == 200) {
@@ -74,7 +69,6 @@ class AuthService {
         return null;
       }
     } catch (e) {
-      print("❌ Lỗi đăng nhập: $e");
       return null;
     }
   }
@@ -107,7 +101,6 @@ class AuthService {
         };
       }
     } catch (e) {
-      print("❌ Lỗi trong quá trình đăng nhập: $e");
       return {
         'success': false,
         'message': 'Có lỗi xảy ra. Vui lòng thử lại sau!'
@@ -168,7 +161,6 @@ class AuthService {
     await prefs.remove('authToken');
     await FirebaseMessaging.instance.deleteToken();
     LocationService().dispose();
-    print("🔴 Đã đăng xuất!");
   }
 
   /// 🔴 **Xác nhận đăng xuất**

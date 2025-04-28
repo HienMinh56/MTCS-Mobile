@@ -1,22 +1,14 @@
 import 'dart:convert';
-import 'package:driverapp/services/auth_service.dart';
-import 'package:http/http.dart' as http;
 import 'package:driverapp/models/driver_profile.dart';
+import 'package:driverapp/utils/api_utils.dart';
 
 class ProfileService {
-  final String baseUrl = 'https://mtcs-server.azurewebsites.net/api';
-
   Future<DriverProfile> getDriverProfile(String driverId) async {
     try {
-      final token = await AuthService.getAuthToken();
-      
-      // Use updated API endpoint
-      final response = await http.get(
-        Uri.parse('$baseUrl/Driver/profile?driverId=$driverId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+      // Use updated API endpoint with ApiUtils
+      final response = await ApiUtils.get(
+        '/api/Driver/profile',
+        queryParams: {'driverId': driverId}
       ).timeout(const Duration(seconds: 15));
 
       print("API response status code: ${response.statusCode}");
@@ -104,17 +96,14 @@ class ProfileService {
         final profileResponse = DriverProfileResponse.fromJson(responseData);
         
         if (profileResponse.success && profileResponse.data != null) {
-          print("Profile parsed successfully. Status: ${profileResponse.data!.status}, Total orders: ${profileResponse.data!.totalOrder}");
           return profileResponse.data!;
         } else {
-          print("API success=false or no data: ${profileResponse.message}");
           throw Exception(profileResponse.message);
         }
       } else {
         throw Exception('Server returned status code: ${response.statusCode}');
       }
     } catch (e) {
-      print("Exception in getDriverProfile: $e");
       throw e; // Re-throw the original exception
     }
   }
@@ -124,7 +113,6 @@ class ProfileService {
       final profile = await getDriverProfile(driverId);
       return profile.fullName;
     } catch (e) {
-      print("Exception in getDriverName: $e");
       throw Exception('Lỗi khi tải tên tài xế: $e');
     }
   }
@@ -137,31 +125,30 @@ class ProfileService {
     String? dateOfBirth,
     {String? password}
   ) async {
-    final url = Uri.parse('${baseUrl}/Driver/$driverId');
-    
-    // Create multipart request
-    final request = http.MultipartRequest('PUT', url);
-    
-    // Add authorization header
-    final authToken = await AuthService.getAuthToken();
-    request.headers['Authorization'] = 'Bearer $authToken';
-    
-    // Add form fields
-    request.fields['FullName'] = fullName;
-    request.fields['Email'] = email;
-    request.fields['PhoneNumber'] = phoneNumber;
+    // Create fields map for multipart request
+    Map<String, String> fields = {
+      'FullName': fullName,
+      'Email': email,
+      'PhoneNumber': phoneNumber,
+    };
     
     if (dateOfBirth != null && dateOfBirth.isNotEmpty) {
-      request.fields['DateOfBirth'] = dateOfBirth;
+      fields['DateOfBirth'] = dateOfBirth;
     }
     
     if (password != null && password.isNotEmpty) {
-      request.fields['Password'] = password;
+      fields['Password'] = password;
     }
     
     try {
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      // Use ApiUtils for multipart PUT request
+      final streamedResponse = await ApiUtils.multipartPut(
+        '/api/Driver/$driverId',
+        fields,
+        null // No files to upload
+      );
+      
+      final response = await ApiUtils.streamedResponseToResponse(streamedResponse);
       
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);

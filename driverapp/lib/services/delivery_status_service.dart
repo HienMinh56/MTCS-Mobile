@@ -23,13 +23,10 @@ class DeliveryStatusService {
         throw Exception('Server returned status code: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching delivery statuses: $e');
       throw e; // Re-throw the original exception
     }
   }
   
-  // This method can remain for backward compatibility but should be updated
-  // to use the new approach internally
   Future<DeliveryStatus?> getNextTripStatus(String currentStatusId) async {
     try {
       final allStatuses = await getDeliveryStatuses();

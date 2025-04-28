@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
-import 'auth_service.dart'; // Import AuthService
+import 'package:driverapp/utils/api_utils.dart';
 
 class IncidentReportResponse {
   final bool success;
@@ -17,8 +15,6 @@ class IncidentReportResponse {
 }
 
 class IncidentReportService {
-  static const String _baseUrl = 'https://mtcs-server.azurewebsites.net/api';
-
   /// Submits an incident report with optional images
   Future<IncidentReportResponse> submitIncidentReport({
     required String tripId,
@@ -32,65 +28,38 @@ class IncidentReportService {
     List<File> images = const [],
   }) async {
     try {
-      // Get authentication token
-      String? authToken = await AuthService.getAuthToken();
-      
-      // Create multipart request
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$_baseUrl/IncidentReport/IncidentImage'), // Updated endpoint
-      );
-      
-      // Add authorization header
-      if (authToken != null) {
-        request.headers['Authorization'] = 'Bearer $authToken';
-      }
-      
-      // Add text fields
-      request.fields['TripId'] = tripId;
-      request.fields['IncidentType'] = incidentType;
-      request.fields['Description'] = description;
-      request.fields['Location'] = location;
-      request.fields['Type'] = type.toString();
-      request.fields['VehicleType'] = vehicleType.toString(); // Default to 1 as requested
-      request.fields['Status'] = "Handling";
+      // Create map of fields for multipart request
+      Map<String, String> fields = {
+        'TripId': tripId,
+        'IncidentType': incidentType,
+        'Description': description,
+        'Location': location,
+        'Type': type.toString(),
+        'VehicleType': vehicleType.toString(),
+        'Status': "Handling",
+      };
       
       // Add resolution details if provided
       if (resolutionDetails != null && resolutionDetails.isNotEmpty) {
-        request.fields['ResolutionDetails'] = resolutionDetails;
+        fields['ResolutionDetails'] = resolutionDetails;
       }
       
-      // Add all images
-      for (var image in images) {
-        if (await image.exists()) {
-          final fileName = image.path.split('/').last;
-          final bytes = await image.readAsBytes();
-          
-          // Determine content type based on file extension
-          String contentType = 'image/jpeg';
-          if (fileName.toLowerCase().endsWith('.png')) {
-            contentType = 'image/png';
-          } else if (fileName.toLowerCase().endsWith('.gif')) {
-            contentType = 'image/gif';
-          }
-          
-          // Fixed: Use MediaType from http_parser package
-          final parsedContentType = contentType.split('/');
-          
-          request.files.add(
-            http.MultipartFile.fromBytes(
-              'Image',
-              bytes,
-              filename: fileName,
-              contentType: MediaType(parsedContentType[0], parsedContentType[1]),
-            ),
-          );
-        }
+      // Add images
+      Map<String, List<File>> files = {};
+      if (images.isNotEmpty) {
+        files['Image'] = images;
       }
       
-      // Send the request
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
+      // Send the request using ApiUtils
+      var streamedResponse = await ApiUtils.multipartPost(
+        '/api/IncidentReport/IncidentImage',
+        fields,
+        files
+      );
+      
+      // Convert streamedResponse to Response
+      var response = await ApiUtils.streamedResponseToResponse(streamedResponse);
+      var responseBody = response.body;
       Map<String, dynamic> jsonResponse;
       
       try {
@@ -123,21 +92,9 @@ class IncidentReportService {
 
   Future<Map<String, dynamic>> getIncidentReportsByTripId(String tripId) async {
     try {
-      // Get authentication token
-      String? authToken = await AuthService.getAuthToken();
-      
-      final headers = {
-        'Content-Type': 'application/json',
-      };
-      
-      // Add authorization header if token exists
-      if (authToken != null) {
-        headers['Authorization'] = 'Bearer $authToken';
-      }
-      
-      final response = await http.get(
-        Uri.parse('$_baseUrl/IncidentReport?tripId=$tripId'),
-        headers: headers,
+      final response = await ApiUtils.get(
+        '/api/IncidentReport',
+        queryParams: {'tripId': tripId}
       );
       
       if (response.statusCode == 200) {
@@ -157,33 +114,24 @@ class IncidentReportService {
     required List<File> images,
   }) async {
     try {
-      // Get authentication token
-      String? authToken = await AuthService.getAuthToken();
+      // Create fields and files maps
+      Map<String, String> fields = {
+        'ReportId': reportId,
+      };
       
-      // Create multipart request
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$_baseUrl/IncidentReport/BillImage'),
+      Map<String, List<File>> files = {
+        'Image': images,
+      };
+      
+      // Send the request using ApiUtils
+      var streamedResponse = await ApiUtils.multipartPost(
+        '/api/IncidentReport/BillImage',
+        fields,
+        files
       );
       
-      // Add authorization header
-      if (authToken != null) {
-        request.headers['Authorization'] = 'Bearer $authToken';
-      }
-      
-      // Add report ID
-      request.fields['ReportId'] = reportId;
-      
-      // Add all images
-      for (var image in images) {
-        if (await image.exists()) {
-          await _addImageToRequest(request, image, 'Image');
-        }
-      }
-      
-      // Send the request
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      // Convert to regular response and parse
+      var response = await ApiUtils.streamedResponseToResponse(streamedResponse);
       
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -209,33 +157,24 @@ class IncidentReportService {
     required List<File> images,
   }) async {
     try {
-      // Get authentication token
-      String? authToken = await AuthService.getAuthToken();
+      // Create fields and files maps
+      Map<String, String> fields = {
+        'ReportId': reportId,
+      };
       
-      // Create multipart request
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$_baseUrl/IncidentReport/ExchangeImage'),
+      Map<String, List<File>> files = {
+        'Image': images,
+      };
+      
+      // Send the request using ApiUtils
+      var streamedResponse = await ApiUtils.multipartPost(
+        '/api/IncidentReport/ExchangeImage',
+        fields,
+        files
       );
       
-      // Add authorization header
-      if (authToken != null) {
-        request.headers['Authorization'] = 'Bearer $authToken';
-      }
-      
-      // Add report ID
-      request.fields['ReportId'] = reportId;
-      
-      // Add all images
-      for (var image in images) {
-        if (await image.exists()) {
-          await _addImageToRequest(request, image, 'Image');
-        }
-      }
-      
-      // Send the request
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      // Convert to regular response and parse
+      var response = await ApiUtils.streamedResponseToResponse(streamedResponse);
       
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -254,36 +193,6 @@ class IncidentReportService {
       };
     }
   }
-  
-  // Helper method to add images to multipart request
-  Future<void> _addImageToRequest(http.MultipartRequest request, File file, String fieldName) async {
-    final fileName = file.path.split('/').last;
-    final fileExtension = fileName.split('.').last.toLowerCase();
-    String mimeType;
-    
-    // Determine mime type based on file extension
-    switch (fileExtension) {
-      case 'jpg':
-      case 'jpeg':
-        mimeType = 'image/jpeg';
-        break;
-      case 'png':
-        mimeType = 'image/png';
-        break;
-      case 'gif':
-        mimeType = 'image/gif';
-        break;
-      default:
-        mimeType = 'application/octet-stream';
-    }
-    
-    final multipartFile = await http.MultipartFile.fromPath(
-      fieldName,
-      file.path,
-      contentType: MediaType.parse(mimeType),
-    );
-    request.files.add(multipartFile);
-  }
 
   /// Resolve an incident report (with optional resolution images)
   Future<Map<String, dynamic>> resolveIncidentReport({
@@ -300,9 +209,6 @@ class IncidentReportService {
         );
       }
       
-      // Now mark the incident as resolved using PATCH endpoint
-      final url = Uri.parse('$_baseUrl/IncidentReport');
-      
       // Create request body with reportId and optional resolutionDetails
       final Map<String, dynamic> requestBody = {
         'reportId': reportId,
@@ -313,18 +219,10 @@ class IncidentReportService {
         requestBody['resolutionDetails'] = resolutionDetails;
       }
       
-      // Get authentication token
-      final token = await AuthService.getAuthToken();
-      
-      // Make the PATCH request
-      final response = await http.patch(
-        url,
-        headers: {
-          'accept': 'text/plain',
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode(requestBody),
+      // Make the PATCH request using ApiUtils
+      final response = await ApiUtils.patch(
+        '/api/IncidentReport',
+        requestBody
       );
       
       if (response.statusCode == 200) {
@@ -356,62 +254,57 @@ class IncidentReportService {
     String? description,
     String? location,
     int? type,
-    List<String>? fileIdsToRemove,
+    List<String>? fileIdsToRemove, // These are actually file URLs, not IDs
     List<File>? addedFiles,
   }) async {
     try {
-      // Create a boundary string that is very unlikely to appear in the content
-      final String boundary = '----${DateTime.now().millisecondsSinceEpoch}';
-      final Uri url = Uri.parse('$_baseUrl/IncidentReport/mo');
-      final token = await AuthService.getAuthToken();
+      // Create fields map
+      Map<String, String> fields = {
+        'ReportId': reportId,
+      };
       
-      // Build request manually for better control over the multipart format
-      final request = http.Request('PUT', url);
-      request.headers['Content-Type'] = 'multipart/form-data; boundary=$boundary';
-      if (token != null) {
-        request.headers['Authorization'] = 'Bearer $token';
-      }
+      // Add optional fields if provided
+      if (incidentType != null) fields['IncidentType'] = incidentType;
+      if (description != null) fields['Description'] = description;
+      if (location != null) fields['Location'] = location;
+      if (vehicleType != null) fields['VehicleType'] = vehicleType.toString();
+      if (type != null) fields['Type'] = type.toString();
       
-      // Start building request body
-      final List<int> body = [];
-      
-      // Add text fields
-      _addFormField(body, boundary, 'ReportId', reportId);
-      if (incidentType != null) _addFormField(body, boundary, 'IncidentType', incidentType);
-      if (description != null) _addFormField(body, boundary, 'Description', description);
-      if (location != null) _addFormField(body, boundary, 'Location', location);
-      _addFormField(body, boundary, 'VehicleType', vehicleType?.toString() ?? '1'); // Default to 1 as requested
-      
-      // Add file IDs to remove
+      // Add file URLs to remove - use indexed format for multiple files
       if (fileIdsToRemove != null && fileIdsToRemove.isNotEmpty) {
-        print('Files to remove: $fileIdsToRemove');
-        for (final fileId in fileIdsToRemove) {
-          _addFormField(body, boundary, 'RemovedImage', fileId);
+        for (int i = 0; i < fileIdsToRemove.length; i++) {
+          // Use indexed field names with URLs for each image to remove
+          fields['RemovedImage[$i]'] = fileIdsToRemove[i];
         }
+        
+        // Debug info
+        print('Removing ${fileIdsToRemove.length} image(s): $fileIdsToRemove');
       }
       
-      // Add new image files
+      // Prepare files map
+      Map<String, List<File>>? files;
       if (addedFiles != null && addedFiles.isNotEmpty) {
-        for (final file in addedFiles) {
-          await _addFilePart(body, boundary, 'AddedImage', file);
-        }
+        files = {
+          'AddedImage': addedFiles,
+        };
       }
       
-      // Close the request body
-      body.addAll(utf8.encode('--$boundary--\r\n'));
+      // Use ApiUtils to make the request
+      var streamedResponse = await ApiUtils.multipartPut(
+        '/api/IncidentReport/mo',
+        fields,
+        files
+      );
       
-      // Set the request body
-      request.bodyBytes = body;
+      var response = await ApiUtils.streamedResponseToResponse(streamedResponse);
       
-      // Send the request
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      // Debug info
+      print('Update response: ${response.statusCode}, body: ${response.body}');
       
       // Parse and return the response
       if (response.statusCode == 200 || response.statusCode == 201) {
         return json.decode(response.body);
       } else {
-        print('Error updating incident report: ${response.statusCode}, ${response.body}');
         return {
           'status': 0,
           'message': 'Error: ${response.statusCode} ${response.reasonPhrase}',
@@ -419,41 +312,12 @@ class IncidentReportService {
         };
       }
     } catch (e) {
-      print('Exception while updating incident report: $e');
+      print('Exception in updateIncidentReport: $e');
       return {
         'status': 0,
         'message': 'Exception: $e',
         'data': null
       };
     }
-  }
-  
-  // Helper method to add a form field to the request body
-  void _addFormField(List<int> body, String boundary, String name, String value) {
-    body.addAll(utf8.encode('--$boundary\r\n'));
-    body.addAll(utf8.encode('Content-Disposition: form-data; name="$name"\r\n\r\n'));
-    body.addAll(utf8.encode('$value\r\n'));
-  }
-  
-  // Helper method to add a file part to the request body
-  Future<void> _addFilePart(List<int> body, String boundary, String name, File file) async {
-    final bytes = await file.readAsBytes();
-    final fileName = file.path.split('/').last;
-    final fileExtension = fileName.split('.').last.toLowerCase();
-    
-    String contentType;
-    if (fileExtension == 'jpg' || fileExtension == 'jpeg') {
-      contentType = 'image/jpeg';
-    } else if (fileExtension == 'png') {
-      contentType = 'image/png';
-    } else {
-      contentType = 'application/octet-stream';
-    }
-    
-    body.addAll(utf8.encode('--$boundary\r\n'));
-    body.addAll(utf8.encode('Content-Disposition: form-data; name="$name"; filename="$fileName"\r\n'));
-    body.addAll(utf8.encode('Content-Type: $contentType\r\n\r\n'));
-    body.addAll(bytes);
-    body.addAll(utf8.encode('\r\n'));
   }
 }
