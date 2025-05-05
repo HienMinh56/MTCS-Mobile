@@ -40,7 +40,6 @@ class ChatService {
         },
       );
       
-      print('API response: ${response.statusCode} - ${response.body}');
       
       // Kiểm tra response
       if (response.statusCode == 200) {
@@ -131,7 +130,6 @@ class ChatService {
   // Lấy danh sách các cuộc trò chuyện
   Future<List<Map<String, dynamic>>> getChatList(String userId) async {
     try {
-      print('Getting chat list for user: $userId');
       // Truy vấn tất cả các cuộc trò chuyện có thể chứa userId
       final querySnapshot = await _firestore
           .collection('chats')

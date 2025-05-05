@@ -64,22 +64,57 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
     final List<File> images = await ImageUtils.pickMultipleImages();
     
     if (images.isNotEmpty) {
-      setState(() {
-        _images.addAll(images);
-      });
-      
-      // Show confirmation
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đã thêm ${images.length} ảnh'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      // Check if adding these images would exceed the limit
+      if (_images.length + images.length > 10) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không được chọn quá 10 ảnh'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        // Only add images up to the limit
+        if (_images.length < 10) {
+          final int remainingSlots = 10 - _images.length;
+          setState(() {
+            _images.addAll(images.take(remainingSlots));
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đã thêm $remainingSlots ảnh (tối đa 10 ảnh)'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } else {
+        setState(() {
+          _images.addAll(images);
+        });
+        
+        // Show confirmation
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã thêm ${images.length} ảnh'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 
   // Add camera capture function
   Future<void> _takePicture() async {
+    // Check if we've reached the limit
+    if (_images.length >= 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không được chọn quá 10 ảnh'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
     final File? photo = await ImageUtils.takePhoto();
     
     if (photo != null) {
@@ -135,7 +170,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
               const SizedBox(height: 16),
               Text('Loại sự cố: ${_selectedIncidentType ?? ""}'),
               const SizedBox(height: 8),
-              Text('Xử lý: ${_incidentType == 1 ? "Xử lý tại chỗ" : _incidentType == 2 ? "Thay xe" : "Hủy chuyến trong ngày"}'),
+              Text('Xử lý: ${_incidentType == 1 ? "Có thể sửa" : _incidentType == 2 ? "Cần hỗ trợ loại 1" : _incidentType == 3 ? "Cần hỗ trợ loại 2" : ""}'),
               const SizedBox(height: 8),
               Text('Loại xe: ${_vehicleType == 1 ? "Xe đầu kéo" : "Rơ mooc"}'),
               const SizedBox(height: 8),
@@ -483,7 +518,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                   child: Column(
                     children: [
                       RadioListTile<int>(
-                        title: const Text('Xử lý tại chỗ '),
+                        title: const Text('Có thể sửa'),
                         value: 1,
                         groupValue: _incidentType,
                         activeColor: Colors.blue.shade700,
@@ -495,7 +530,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                       ),
                       Divider(height: 1, color: Colors.blue.shade100),
                       RadioListTile<int>(
-                        title: const Text('Thay xe'),
+                        title: const Text('Cần hỗ trợ loại 1'),
                         value: 2,
                         groupValue: _incidentType,
                         activeColor: Colors.blue.shade700,
@@ -507,7 +542,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                       ),
                       Divider(height: 1, color: Colors.blue.shade100),
                       RadioListTile<int>(
-                        title: const Text('Hủy chuyến trong ngày '),
+                        title: const Text('Cần hỗ trợ loại 2'),
                         value: 3,
                         groupValue: _incidentType,
                         activeColor: Colors.blue.shade700,

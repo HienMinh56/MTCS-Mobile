@@ -102,6 +102,10 @@ class ApiUtils {
     final headers = await getAuthHeaders(isMultipart: true);
     final uri = Uri.parse('$baseUrl$endpoint');
     
+    print('DEBUG: MultipartPost - URI: $uri');
+    print('DEBUG: MultipartPost - Headers: $headers');
+    print('DEBUG: MultipartPost - Fields: $fields');
+    
     var request = http.MultipartRequest('POST', uri);
     request.headers.addAll(headers);
     
@@ -112,6 +116,9 @@ class ApiUtils {
     if (files != null) {
       for (var fileEntry in files.entries) {
         String fieldName = fileEntry.key;
+        print('DEBUG: MultipartPost - Adding files for field: $fieldName');
+        int fileIndex = 0;
+        
         for (var file in fileEntry.value) {
           if (await file.exists()) {
             var fileName = path.basename(file.path);
@@ -126,16 +133,22 @@ class ApiUtils {
               mimeType = 'application/octet-stream';
             }
             
+            print('DEBUG: MultipartPost - File $fileIndex: $fileName, MimeType: $mimeType');
+            
             request.files.add(await http.MultipartFile.fromPath(
               fieldName,
               file.path,
               contentType: MediaType.parse(mimeType),
             ));
+            fileIndex++;
+          } else {
+            print('DEBUG: MultipartPost - File does not exist: ${file.path}');
           }
         }
       }
     }
     
+    print('DEBUG: MultipartPost - Sending request...');
     return request.send();
   }
   
@@ -185,26 +198,27 @@ class ApiUtils {
     return request.send();
   }
   
-  // Generic response handler
+  // Generic response handler with improved error handling
   static T handleResponse<T>(
     http.Response response,
     T Function(Map<String, dynamic> data) onSuccess,
+    {String defaultErrorMessage = 'Có lỗi xảy ra'}
   ) {
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = json.decode(response.body);
-      if (data['status'] == 200 || data['status'] == 1) {
+      if (data['status'] == 200 || data['status'] == 1 || data['success'] == true) {
         return onSuccess(data);
       } else {
-        throw Exception(data['message'] ?? 'API error occurred');
+        throw Exception(data['message'] ?? data['messageVN'] ?? defaultErrorMessage);
       }
     } else {
       try {
         // Try to parse error response as JSON
         final Map<String, dynamic> errorData = json.decode(response.body);
-        throw Exception(errorData['message'] ?? 'Request failed: ${response.statusCode}');
+        throw Exception(errorData['message'] ?? errorData['messageVN'] ?? 'Lỗi kết nối: ${response.statusCode}');
       } catch (e) {
         // If not valid JSON, return the status code
-        throw Exception('Request failed: ${response.statusCode}');
+        throw Exception('Lỗi kết nối: ${response.statusCode}');
       }
     }
   }
@@ -213,5 +227,83 @@ class ApiUtils {
   static Future<http.Response> streamedResponseToResponse(http.StreamedResponse streamedResponse) async {
     final String body = await streamedResponse.stream.bytesToString();
     return http.Response(body, streamedResponse.statusCode, headers: streamedResponse.headers);
+  }
+
+  // New method: Safe way to handle API calls with default fallback values
+  static Future<T> safeApiCall<T>({
+    required Future<http.Response> Function() apiCall,
+    required T Function(Map<String, dynamic> data) onSuccess,
+    required T defaultValue,
+    String defaultErrorMessage = 'Có lỗi xảy ra',
+  }) async {
+    try {
+      final response = await apiCall();
+      return handleResponse(response, onSuccess, defaultErrorMessage: defaultErrorMessage);
+    } catch (e) {
+      // Log the error but return a default value instead of throwing
+      print('❌ API Error: $e');
+      return defaultValue;
+    }
+  }
+  
+  // Safe way to handle multipart API calls
+  static Future<Map<String, dynamic>> safeMultipartApiCall({
+    required Future<http.StreamedResponse> Function() apiCall,
+    String defaultErrorMessage = 'Có lỗi xảy ra',
+  }) async {
+    try {
+      final streamedResponse = await apiCall();
+      final response = await streamedResponseToResponse(streamedResponse);
+      
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        // Check success based on API's status field
+        // API returns status: 1 for successful operations
+        if (jsonData['status'] == 1 || jsonData['status'] == 200 || jsonData['success'] == true) {
+          return {
+            'success': true,
+            'message': jsonData['message'] ?? jsonData['messageVN'] ?? 'Thành công',
+            'data': jsonData['data'] ?? [],
+            'status': jsonData['status'],
+          };
+        } else {
+          // API returned 200 HTTP status but operation failed based on status field
+          return {
+            'success': false,
+            'message': jsonData['message'] ?? jsonData['messageVN'] ?? defaultErrorMessage,
+            'data': jsonData['data'],
+            'status': jsonData['status'],
+          };
+        }
+      } else {
+        // Non-200 HTTP status code
+        try {
+          final errorData = json.decode(response.body);
+          return {
+            'success': false,
+            'message': errorData['message'] ?? errorData['messageVN'] ?? 'Lỗi kết nối: ${response.statusCode}',
+            'data': null,
+          };
+        } catch (e) {
+          return {
+            'success': false,
+            'message': 'Lỗi kết nối: ${response.statusCode}',
+            'data': null,
+          };
+        }
+      }
+    } on SocketException {
+      return {
+        'success': false,
+        'message': 'Không thể kết nối đến máy chủ',
+        'data': null,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': e.toString(),
+        'data': null,
+      };
+    }
   }
 }

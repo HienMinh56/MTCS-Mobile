@@ -23,6 +23,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   bool _isEditing = false;
   bool _isUpdating = false;
+  bool _showPassword = false; // Add this line for password visibility toggle
   DriverProfile? _driverProfile;
   String _errorMessage = '';
   String? _updateMessage;
@@ -70,7 +71,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      final profile = await _profileService.getDriverProfile(widget.driverId);
+      // Update to load files by setting loadFiles parameter to true
+      final profile = await _profileService.getDriverProfile(widget.driverId, loadFiles: true);
       setState(() {
         _driverProfile = profile;
         _isLoading = false;
@@ -406,6 +408,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _buildInfoSection(),
         const SizedBox(height: 24),
         _buildWorkStatisticsSection(),
+        const SizedBox(height: 24),
+        _buildDriverFilesSection(),
       ],
     );
   }
@@ -577,8 +581,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           borderSide: BorderSide(color: Colors.blue, width: 2),
                         ),
                         labelStyle: TextStyle(color: Colors.grey[700]),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _showPassword ? Icons.visibility : Icons.visibility_off,
+                            color: Colors.blue,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _showPassword = !_showPassword;
+                            });
+                          },
+                        ),
                       ),
-                      obscureText: true,
+                      obscureText: !_showPassword,
                       validator: (value) {
                         if (value != null && value.isNotEmpty && value.length < 6) {
                           return 'Mật khẩu phải có ít nhất 6 ký tự';
@@ -962,5 +977,259 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       return 'Không hợp lệ';
     }
+  }
+
+  Widget _buildDriverFilesSection() {
+    if (_driverProfile == null || _driverProfile!.files.isEmpty) {
+      return Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: const [
+                  Icon(Icons.folder, size: 18, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text(
+                    'Tài Liệu & Giấy Tờ',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 24),
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'Không có tài liệu nào',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: const [
+                Icon(Icons.folder, size: 18, color: Colors.blue),
+                SizedBox(width: 8),
+                Text(
+                  'Tài Liệu & Giấy Tờ',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.75,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: _driverProfile!.files.length,
+              itemBuilder: (context, index) {
+                final file = _driverProfile!.files[index];
+                return _buildFileCard(file);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFileCard(DriverFile file) {
+    bool isImage = file.fileType.startsWith('image/');
+    
+    return Card(
+      elevation: 3,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () => _showFileDetail(file),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image or file icon
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                color: Colors.grey[200],
+                child: isImage 
+                  ? Image.network(
+                      file.fileUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Center(
+                        child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                      ),
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded / 
+                                  (loadingProgress.expectedTotalBytes ?? 1)
+                                : null,
+                          ),
+                        );
+                      },
+                    )
+                  : const Center(
+                      child: Icon(Icons.insert_drive_file, size: 50, color: Colors.blue),
+                    ),
+              ),
+            ),
+            
+            // File info
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    file.description,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _showFileDetail(DriverFile file) {
+    bool isImage = file.fileType.startsWith('image/');
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: Text(file.description),
+              automaticallyImplyLeading: false,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (isImage)
+                        Container(
+                          constraints: BoxConstraints(
+                            maxHeight: MediaQuery.of(context).size.height * 0.6,
+                          ),
+                          child: InteractiveViewer(
+                            minScale: 0.5,
+                            maxScale: 3.0,
+                            child: Image.network(
+                              file.fileUrl,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => const Center(
+                                child: Icon(Icons.broken_image, size: 100, color: Colors.grey),
+                              ),
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Center(
+                                  child: CircularProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded / 
+                                          (loadingProgress.expectedTotalBytes ?? 1)
+                                        : null,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        )
+                      else
+                        const Center(
+                          child: Icon(Icons.insert_drive_file, size: 100, color: Colors.blue),
+                        ),
+                      const SizedBox(height: 16),
+                      _buildDetailRow('Chi tiết:', file.description),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

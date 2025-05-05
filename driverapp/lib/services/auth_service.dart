@@ -118,11 +118,16 @@ class AuthService {
 
   /// 🔹 **Lưu FCM Token vào Firestore**
   static Future<void> _saveTokenToFirestore(String userId) async {
-    String? newToken = await FirebaseMessaging.instance.getToken();
-    if (newToken != null) {
-      await FirebaseFirestore.instance.collection('users').doc(userId).set({
-        'fcmToken': newToken,
-      }, SetOptions(merge: true));
+    try {
+      String? newToken = await FirebaseMessaging.instance.getToken();
+      if (newToken != null) {
+        await FirebaseFirestore.instance.collection('users').doc(userId).set({
+          'fcmToken': newToken,
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      print("❌ Lỗi lưu token FCM: $e");
+      // Không throw exception để tránh làm gián đoạn luồng đăng nhập
     }
   }
 

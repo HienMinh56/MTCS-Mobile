@@ -57,13 +57,24 @@ class _TripListScreenState extends State<TripListScreen> {
 
     try {
       if (widget.statusList != null && widget.statusList!.isNotEmpty) {
-        final List<Trip> allTrips = [];
+        // Load all statuses in parallel for better performance
+        final List<Future<List<Trip>>> tripFutures = [];
+        
         for (final status in widget.statusList!) {
-          final trips = await _tripService.getDriverTrips(
+          // Create a future for each status without awaiting it immediately
+          tripFutures.add(_tripService.getDriverTrips(
             widget.driverId,
             status: status,
-            loadOrderDetails: true, // Đảm bảo tải dữ liệu order
-          );
+            loadOrderDetails: true, // Ensure order data is loaded
+          ));
+        }
+        
+        // Wait for all futures to complete in parallel
+        final results = await Future.wait(tripFutures);
+        
+        // Combine all results
+        final List<Trip> allTrips = [];
+        for (final trips in results) {
           allTrips.addAll(trips);
         }
 
@@ -79,7 +90,7 @@ class _TripListScreenState extends State<TripListScreen> {
         final trips = await _tripService.getDriverTrips(
           widget.driverId,
           status: widget.status,
-          loadOrderDetails: true, // Đảm bảo tải dữ liệu order
+          loadOrderDetails: true, // Ensure order data is loaded
         );
 
         if (mounted) {
@@ -546,7 +557,7 @@ class _TripCardState extends State<TripCard> {
                         ? 'Mã vận đơn: ${widget.trip.trackingCode}'
                         : 'Mã chuyến: ${widget.trip.tripId}',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
                       color: statusColor,
                     ),
