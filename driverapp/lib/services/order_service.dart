@@ -1,27 +1,22 @@
-import 'dart:convert';
 import 'package:driverapp/utils/api_utils.dart';
 
 class OrderService {
   Future<Map<String, dynamic>> getOrderByTripId(String tripId) async {
-    try {
-      final response = await ApiUtils.get(
+    return ApiUtils.safeApiCall(
+      apiCall: () => ApiUtils.get(
         '/api/order/orders', 
         queryParams: {'tripId': tripId}
-      );
-      
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        if (data['status'] == 1) {
+      ),
+      onSuccess: (data) {
+        if (data['status'] == 1 && data['data'] != null && data['data'].isNotEmpty) {
           return data['data'][0];
         } else {
-          throw Exception(data['message'] ?? 'API error occurred');
+          throw Exception(data['message'] ?? 'Không tìm thấy thông tin đơn hàng');
         }
-      } else {
-        throw Exception('Failed to load order details: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw e; // Re-throw the original exception
-    }
+      },
+      defaultValue: <String, dynamic>{},
+      defaultErrorMessage: 'Không thể tải thông tin đơn hàng'
+    );
   }
   
   String getContainerType(int? type) {

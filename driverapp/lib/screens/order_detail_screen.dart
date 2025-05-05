@@ -56,7 +56,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chi tiết Order: ${_orderDetails?['orderId'] ?? ''}'),
+        title: Text('Chi tiết đơn hàng: ${_orderDetails?['orderId'] ?? ''}'),
       ),
       body: RefreshIndicator(
         onRefresh: _loadOrderDetails,

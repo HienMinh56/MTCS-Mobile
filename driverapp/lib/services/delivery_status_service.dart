@@ -1,30 +1,22 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:driverapp/models/delivery_status.dart';
+import 'package:driverapp/utils/api_utils.dart';
 
 class DeliveryStatusService {
-  final String baseUrl = 'https://mtcs-server.azurewebsites.net/api';
-
   Future<List<DeliveryStatus>> getDeliveryStatuses() async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/delivery-statuses'));
-      
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        
-        if (responseData['status'] == 200 && responseData['data'] != null) {
-          return (responseData['data'] as List)
+    return ApiUtils.safeApiCall(
+      apiCall: () => ApiUtils.get('/api/delivery-statuses'),
+      onSuccess: (jsonData) {
+        if (jsonData['data'] != null) {
+          return (jsonData['data'] as List)
               .map((item) => DeliveryStatus.fromJson(item))
               .toList();
         } else {
-          throw Exception(responseData['message'] ?? 'Failed to load delivery statuses');
+          return <DeliveryStatus>[];
         }
-      } else {
-        throw Exception('Server returned status code: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw e; // Re-throw the original exception
-    }
+      },
+      defaultValue: <DeliveryStatus>[],
+      defaultErrorMessage: 'Không thể tải trạng thái giao hàng'
+    );
   }
   
   Future<DeliveryStatus?> getNextTripStatus(String currentStatusId) async {
@@ -32,15 +24,11 @@ class DeliveryStatusService {
       final allStatuses = await getDeliveryStatuses();
       
       // Find current status
-      DeliveryStatus? currentStatus;
-      for (var status in allStatuses) {
-        if (status.statusId == currentStatusId) {
-          currentStatus = status;
-          break;
-        }
-      }
+      DeliveryStatus? currentStatus = allStatuses
+          .firstWhere((status) => status.statusId == currentStatusId, 
+                     orElse: () => DeliveryStatus(statusId: '', statusName: '', statusIndex: -1, isActive: 0));
       
-      if (currentStatus != null) {
+      if (currentStatus.statusId.isNotEmpty) {
         int currentIndex = currentStatus.statusIndex;
         // Find next normal status
         for (var status in allStatuses) {
@@ -54,7 +42,8 @@ class DeliveryStatusService {
       }
       return null;
     } catch (e) {
-      throw Exception('Error getting next trip status: $e');
+      print('❌ Lỗi khi lấy trạng thái tiếp theo: $e');
+      return null;
     }
   }
   
@@ -64,27 +53,21 @@ class DeliveryStatusService {
       final allStatuses = await getDeliveryStatuses();
       
       // Find current status
-      DeliveryStatus? currentStatus;
-      for (var status in allStatuses) {
-        if (status.statusId == statusId) {
-          currentStatus = status;
-          break;
-        }
-      }
+      DeliveryStatus? currentStatus = allStatuses
+          .firstWhere((status) => status.statusId == statusId, 
+                     orElse: () => DeliveryStatus(statusId: '', statusName: '', statusIndex: -1, isActive: 0));
       
-      if (currentStatus != null) {
+      if (currentStatus.statusId.isNotEmpty) {
         int currentIndex = currentStatus.statusIndex;
         // Check if any normal status has a higher index
-        for (var status in allStatuses) {
-          if (status.statusId != 'canceled' && 
-              status.statusId != 'delaying' && 
-              status.statusIndex > currentIndex) {
-            return true;
-          }
-        }
+        return allStatuses.any((status) => 
+          status.statusId != 'canceled' && 
+          status.statusId != 'delaying' && 
+          status.statusIndex > currentIndex);
       }
       return false;
     } catch (e) {
+      print('❌ Lỗi khi kiểm tra trạng thái tiếp theo: $e');
       return false;
     }
   }
