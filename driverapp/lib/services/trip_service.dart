@@ -51,6 +51,29 @@ class TripService {
     return trips;
   }
 
+  // Thêm phương thức mới để sử dụng API gộp (trips/getTripsMo)
+  Future<List<Trip>> getDriverTripsByGroup(String driverId, {required String groupType}) async {
+    return ApiUtils.safeApiCall(
+      apiCall: () => ApiUtils.get(
+        '/api/trips/getTripsMo',
+        queryParams: {
+          'driverId': driverId,
+          'groupType': groupType
+        }
+      ),
+      onSuccess: (responseData) {
+        if (responseData['data'] == null) {
+          return <Trip>[];
+        }
+        
+        final List<dynamic> tripsJson = responseData['data'];
+        return tripsJson.map((json) => Trip.fromMoJson(json)).toList();
+      },
+      defaultValue: <Trip>[],
+      defaultErrorMessage: 'Không thể tải danh sách chuyến'
+    );
+  }
+
   // Hàm riêng để tải thông tin đơn hàng cho một chuyến
   Future<void> _loadOrderForTrip(Trip trip) async {
     try {

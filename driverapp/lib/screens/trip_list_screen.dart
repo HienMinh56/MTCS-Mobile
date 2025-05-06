@@ -57,40 +57,51 @@ class _TripListScreenState extends State<TripListScreen> {
 
     try {
       if (widget.statusList != null && widget.statusList!.isNotEmpty) {
-        // Load all statuses in parallel for better performance
-        final List<Future<List<Trip>>> tripFutures = [];
+        // For legacy support - use the new API with group type parameter
+        String groupType = "completed"; // Default fallback
         
-        for (final status in widget.statusList!) {
-          // Create a future for each status without awaiting it immediately
-          tripFutures.add(_tripService.getDriverTrips(
-            widget.driverId,
-            status: status,
-            loadOrderDetails: true, // Ensure order data is loaded
-          ));
+        // Determine group type based on the status lists
+        if (widget.statusList!.contains("completed") || widget.statusList!.contains("canceled")) {
+          groupType = "completed";
+        } else if (widget.statusList!.any((s) => s != "not_started" && 
+                                              s != "completed" && 
+                                              s != "canceled")) {
+          groupType = "in_progress";
+        } else if (widget.statusList!.contains("not_started")) {
+          groupType = "not_started";
         }
         
-        // Wait for all futures to complete in parallel
-        final results = await Future.wait(tripFutures);
+        // Use the new optimized API
+        final trips = await _tripService.getDriverTripsByGroup(
+          widget.driverId, 
+          groupType: groupType
+        );
         
-        // Combine all results
-        final List<Trip> allTrips = [];
-        for (final trips in results) {
-          allTrips.addAll(trips);
-        }
-
         if (mounted) {
           setState(() {
-            _trips = allTrips;
+            _trips = trips;
             _sortTrips();
             _applyFilters();
             _isLoading = false;
           });
         }
       } else {
-        final trips = await _tripService.getDriverTrips(
+        // Map individual status to group type
+        String groupType = widget.status;
+        
+        // Convert legacy status to group type
+        if (widget.status == 'completed' || widget.status == 'canceled') {
+          groupType = 'completed';
+        } else if (widget.status != 'not_started') {
+          groupType = 'in_progress';
+        } else {
+          groupType = 'not_started';
+        }
+        
+        // Use the new optimized API
+        final trips = await _tripService.getDriverTripsByGroup(
           widget.driverId,
-          status: widget.status,
-          loadOrderDetails: true, // Ensure order data is loaded
+          groupType: groupType
         );
 
         if (mounted) {
