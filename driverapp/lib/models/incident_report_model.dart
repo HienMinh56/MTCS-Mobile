@@ -89,6 +89,7 @@ class IncidentReportFile {
   final String? description;
   final String? note;
   final String fileUrl;
+  final int type;  // Thêm thuộc tính type để phân loại ảnh
 
   IncidentReportFile({
     required this.fileId,
@@ -100,6 +101,7 @@ class IncidentReportFile {
     this.description,
     this.note,
     required this.fileUrl,
+    this.type = 1,  // Mặc định là loại 1 (ảnh sự cố)
   });
 
   factory IncidentReportFile.fromJson(Map<String, dynamic> json) {
@@ -115,6 +117,9 @@ class IncidentReportFile {
       description: json['description'],
       note: json['note'],
       fileUrl: json['fileUrl'] ?? '',
+      type: json['type'] != null
+          ? int.tryParse(json['type'].toString()) ?? 1 
+          : 1,
     );
   }
 }

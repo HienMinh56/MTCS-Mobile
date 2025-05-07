@@ -62,7 +62,8 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
 
   // Add filtering function
   List<IncidentReport> _getFilteredReports(List<IncidentReport> reports) {
-    return reports.where((report) {
+    // Lọc báo cáo theo các tiêu chí
+    final filteredResults = reports.where((report) {
       // Filter by location
       if (_locationFilter.isNotEmpty &&
           !report.location
@@ -106,6 +107,11 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
       }
       return true;
     }).toList();
+    
+    // Sắp xếp báo cáo theo thời gian mới nhất (giảm dần)
+    filteredResults.sort((a, b) => b.createdDate.compareTo(a.createdDate));
+    
+    return filteredResults;
   }
 
   // Toggle filter visibility
@@ -400,10 +406,40 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
 
     return ReportCard(
       onTap: () {
+        // Chuyển đổi IncidentReport thành Map<String, dynamic>
+        Map<String, dynamic> reportJson = {
+          'reportId': report.reportId,
+          'tripId': report.tripId,
+          'reportedBy': report.reportedBy,
+          'incidentType': report.incidentType,
+          'description': report.description,
+          'incidentTime': report.incidentTime.toIso8601String(),
+          'location': report.location,
+          'type': report.type,
+          'status': report.status,
+          'vehicleType': report.vehicleType,
+          'resolutionDetails': report.resolutionDetails,
+          'handledBy': report.handledBy,
+          'handledTime': report.handledTime?.toIso8601String(),
+          'createdDate': report.createdDate.toIso8601String(),
+          'incidentReportsFiles': report.files.map((file) => {
+            'fileId': file.fileId,
+            'reportId': file.reportId,
+            'fileName': file.fileName,
+            'fileType': file.fileType,
+            'uploadDate': file.uploadDate.toIso8601String(),
+            'uploadBy': file.uploadBy,
+            'description': file.description,
+            'note': file.note,
+            'fileUrl': file.fileUrl,
+            'type': file.type,
+          }).toList(),
+        };
+
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => IncidentReportDetailScreen(report: report),
+            builder: (context) => IncidentReportDetailScreen(report: reportJson),
           ),
         );
       },
