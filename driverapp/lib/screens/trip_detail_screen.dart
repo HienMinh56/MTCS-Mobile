@@ -189,9 +189,31 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
         setState(() {
           _tripDetails = tripDetails;
           _orderDetails = orderDetails;
+          
+          // Sắp xếp báo cáo nhiên liệu theo thời gian mới nhất
           _fuelReports = fuelReports;
+          _fuelReports.sort((a, b) {
+            final DateTime timeA = DateTime.parse(a['reportTime'] ?? DateTime.now().toString());
+            final DateTime timeB = DateTime.parse(b['reportTime'] ?? DateTime.now().toString());
+            return timeB.compareTo(timeA); // Sắp xếp giảm dần (mới nhất đầu tiên)
+          });
+          
+          // Sắp xếp báo cáo sự cố theo thời gian mới nhất
           _incidentReports = incidentReports;
+          _incidentReports.sort((a, b) {
+            final DateTime timeA = DateTime.parse(a['incidentTime'] ?? DateTime.now().toString());
+            final DateTime timeB = DateTime.parse(b['incidentTime'] ?? DateTime.now().toString());
+            return timeB.compareTo(timeA); // Sắp xếp giảm dần (mới nhất đầu tiên)
+          });
+          
+          // Sắp xếp báo cáo giao hàng theo thời gian mới nhất
           _deliveryReports = deliveryReports;
+          _deliveryReports.sort((a, b) {
+            final DateTime timeA = DateTime.parse(a['deliveryTime'] ?? DateTime.now().toString());
+            final DateTime timeB = DateTime.parse(b['deliveryTime'] ?? DateTime.now().toString());
+            return timeB.compareTo(timeA); // Sắp xếp giảm dần (mới nhất đầu tiên)
+          });
+          
           _isLoading = false;
         });
       }

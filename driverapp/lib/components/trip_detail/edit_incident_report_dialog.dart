@@ -849,7 +849,7 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> {
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 8.0),
           child: Text(
-            'Lưu ý: Chỉ có thể chỉnh sửa ảnh sự cố. Ảnh hóa đơn và ảnh trao đổi được quản lý ở màn hình khác.',
+            'Lưu ý: Chỉ có thể chỉnh sửa ảnh sự cố.',
             style: TextStyle(
               fontStyle: FontStyle.italic,
               color: Colors.grey,
@@ -1085,18 +1085,11 @@ class EditIncidentReportDialogHelper {
     required Function() onReportUpdated,
     required Function(String) onShowFullScreenImage,
   }) {
-    // Sử dụng trực tiếp showDialog thay vì thông qua DialogHelper để có thể tùy chỉnh kích thước
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
-        // Lấy thông tin kích thước màn hình
-        final Size screenSize = MediaQuery.of(context).size;
-        final double dialogWidth = screenSize.width > 700 
-          ? 650 
-          : screenSize.width * 0.95;
-        
         return GestureDetector(
           onVerticalDragEnd: (details) {
             // Nếu kéo xuống đủ nhanh, đóng dialog
