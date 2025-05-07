@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../services/incident_report_service.dart';
 import '../../utils/dialog_helper.dart';
 import '../../utils/image_utils.dart';
-import '../../utils/validation_utils.dart';
 
 class EditIncidentReportDialog extends StatefulWidget {
   final Map<String, dynamic> report;
@@ -21,13 +20,13 @@ class EditIncidentReportDialog extends StatefulWidget {
   State<EditIncidentReportDialog> createState() => _EditIncidentReportDialogState();
 }
 
-class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> with SingleTickerProviderStateMixin {
+class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> {
+  // Hằng số giới hạn số lượng ảnh
+  static const int MAX_IMAGES_PER_UPLOAD = 5; // Số ảnh tối đa mỗi lần tải lên
+  static const int MAX_TOTAL_IMAGES = 10; // Tổng số ảnh tối đa
+
   // Services
   final IncidentReportService _incidentReportService = IncidentReportService();
-
-  // Animation controller for enhanced UI effects
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
 
   // Form controllers
   late TextEditingController descriptionController;
@@ -37,6 +36,11 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
   // Lists for tracking file changes
   List<String> fileIdsToRemove = [];
   List<File> addedFiles = [];
+  
+  // Keep track of incident images (type = 1)
+  List<Map<String, dynamic>> incidentImages = [];
+  List<Map<String, dynamic>> billingImages = []; // type = 2, just for display
+  List<Map<String, dynamic>> exchangeImages = []; // type = 3, just for display
 
   // Incident type and vehicle type
   late int incidentType;
@@ -50,31 +54,10 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
 
   // Form key
   final _formKey = GlobalKey<FormState>();
-  
-  // Colors for better UI
-  final Color _primaryColor = Color(0xFF2D6ADF);
-  final Color _accentColor = Color(0xFF65B8FF);
-  final Color _backgroundColor = Colors.white;
-  final Color _cardColor = Color(0xFFF7FAFF);
-  final Color _errorColor = Color(0xFFE74C3C);
 
   @override
   void initState() {
     super.initState();
-    // Initialize animation controller
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeInOut,
-      ),
-    );
-
-    _animationController.forward();
     
     // Initialize controllers with existing data
     descriptionController = TextEditingController(
@@ -90,10 +73,35 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
     // Initialize dropdown values
     vehicleType = int.tryParse(widget.report['vehicleType']?.toString() ?? '1') ?? 1;
 
+    // Filter and categorize incident report files by type
+    _categorizeImages();
+
     // Add listeners for validation on change
     descriptionController.addListener(_validateDescription);
     locationController.addListener(_validateLocation);
     incidentTypeController.addListener(_validateIncidentType);
+  }
+  
+  // Categorize images by type (1 = incident, 2 = billing, 3 = exchange)
+  void _categorizeImages() {
+    if (widget.report['incidentReportsFiles'] != null && 
+        (widget.report['incidentReportsFiles'] as List).isNotEmpty) {
+      
+      for (var file in widget.report['incidentReportsFiles']) {
+        int fileType = int.tryParse(file['type']?.toString() ?? '1') ?? 1;
+        
+        if (fileType == 1) {
+          incidentImages.add(file);
+        } else if (fileType == 2) {
+          billingImages.add(file);
+        } else if (fileType == 3) {
+          exchangeImages.add(file);
+        } else {
+          // Default to incident images if type is unknown
+          incidentImages.add(file);
+        }
+      }
+    }
   }
 
   @override
@@ -107,9 +115,6 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
     descriptionController.dispose();
     locationController.dispose();
     incidentTypeController.dispose();
-    
-    // Dispose animation controller
-    _animationController.dispose();
     
     super.dispose();
   }
@@ -234,12 +239,18 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
 
   void _validateImages() {
     setState(() {
-      final int existingImagesCount = ((widget.report['incidentReportsFiles'] as List?) ?? []).length;
-      _imagesError = ValidationUtils.validateIncidentImages(
-        existingImagesCount,
-        fileIdsToRemove.length,
-        addedFiles.length
-      );
+      final int existingImagesCount = incidentImages.length;
+      final int finalImagesCount = existingImagesCount - fileIdsToRemove.length + addedFiles.length;
+      
+      if (finalImagesCount <= 0) {
+        _imagesError = 'Cần ít nhất 1 hình ảnh sự cố';
+      } else if (finalImagesCount > MAX_TOTAL_IMAGES) {
+        _imagesError = 'Không được vượt quá $MAX_TOTAL_IMAGES hình ảnh sự cố';
+      } else if (addedFiles.length > MAX_IMAGES_PER_UPLOAD) {
+        _imagesError = 'Không được tải lên quá $MAX_IMAGES_PER_UPLOAD ảnh mỗi lần';
+      } else {
+        _imagesError = null;
+      }
     });
   }
 
@@ -314,7 +325,6 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
           context: context,
           title: 'Lỗi',
           content: result['message'] ?? 'Không thể cập nhật báo cáo sự cố. Vui lòng thử lại sau.',
-          
         );
       }
     } catch (e) {
@@ -335,17 +345,17 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
   // Helper method to build section titles with icons
   Widget _buildSectionTitle(String title, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
         children: [
-          Icon(icon, color: _primaryColor, size: 20),
-          const SizedBox(width: 10),
+          Icon(icon, color: Colors.blue, size: 18),
+          const SizedBox(width: 8),
           Text(
             title,
-            style: TextStyle(
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
-              color: _primaryColor,
+              color: Colors.blue,
             ),
           ),
         ],
@@ -361,88 +371,39 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
     int maxLines = 1,
     String? errorText,
   }) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: errorText != null 
-            ? [
-                BoxShadow(
-                  color: _errorColor.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-      ),
-      child: TextFormField(
-        controller: controller,
-        maxLines: maxLines,
-        style: const TextStyle(fontSize: 15),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(color: Colors.grey.shade400),
-          errorText: errorText,
-          filled: true,
-          fillColor: errorText != null ? _errorColor.withOpacity(0.05) : _cardColor,
-          prefixIcon: prefixIcon != null 
-              ? Padding(
-                  padding: const EdgeInsets.only(left: 12, right: 8),
-                  child: Icon(prefixIcon, color: _primaryColor),
-                )
-              : null,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: maxLines > 1 ? 16 : 0,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: Colors.grey.shade200,
-              width: 1,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: _primaryColor.withOpacity(0.8),
-              width: 1.5,
-            ),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: _errorColor.withOpacity(0.8),
-              width: 1,
-            ),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: _errorColor,
-              width: 1.5,
-            ),
-          ),
-          errorStyle: TextStyle(
-            color: _errorColor,
-            fontSize: 12,
-          ),
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      style: const TextStyle(fontSize: 15),
+      decoration: InputDecoration(
+        hintText: hintText,
+        errorText: errorText,
+        filled: true,
+        fillColor: Colors.grey[100],
+        prefixIcon: prefixIcon != null 
+            ? Icon(prefixIcon, color: Colors.blue)
+            : null,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: maxLines > 1 ? 16 : 0,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.grey),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.blue),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red),
         ),
       ),
     );
   }
   
-  // Helper method to build radio button selections with modern UI
+  // Helper method to build radio button selections
   Widget _buildRadioSelection({
     required List<Map<String, dynamic>> items,
     required int groupValue,
@@ -450,103 +411,47 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
   }) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(15),
-        color: _cardColor,
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.grey[100],
+        border: Border.all(color: Colors.grey),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Column(
-          children: items.asMap().entries.map((entry) {
-            final int index = entry.key;
-            final Map<String, dynamic> item = entry.value;
-            final bool isSelected = groupValue == item['value'];
-            
-            return Column(
-              children: [
-                if (index > 0)
-                  Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: Colors.grey.shade200,
-                    indent: 15,
-                    endIndent: 15,
-                  ),
-                InkWell(
-                  onTap: () => onChanged(item['value']),
-                  splashColor: _accentColor.withOpacity(0.1),
-                  highlightColor: _accentColor.withOpacity(0.05),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12, 
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isSelected ? _primaryColor : Colors.white,
-                            border: Border.all(
-                              color: isSelected ? _primaryColor : Colors.grey.shade400,
-                              width: 2,
-                            ),
-                            boxShadow: isSelected
-                                ? [
-                                    BoxShadow(
-                                      color: _primaryColor.withOpacity(0.2),
-                                      blurRadius: 4,
-                                      spreadRadius: 1,
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: isSelected
-                              ? const Center(
-                                  child: Icon(
-                                    Icons.check,
-                                    size: 16,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        const SizedBox(width: 12),
-                        if (item['icon'] != null) ...[
-                          Icon(
-                            item['icon'],
-                            color: isSelected ? _primaryColor : Colors.grey.shade600,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 10),
-                        ],
-                        Expanded(
-                          child: Text(
-                            item['label'],
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              color: isSelected ? _primaryColor : Colors.grey.shade800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+      child: Column(
+        children: items.asMap().entries.map((entry) {
+          final int index = entry.key;
+          final Map<String, dynamic> item = entry.value;
+          final bool isSelected = groupValue == item['value'];
+          
+          return Column(
+            children: [
+              if (index > 0)
+                const Divider(height: 1, thickness: 1),
+              ListTile(
+                onTap: () => onChanged(item['value']),
+                leading: Radio<int>(
+                  value: item['value'],
+                  groupValue: groupValue,
+                  onChanged: (value) => onChanged(value!),
+                  activeColor: Colors.blue,
                 ),
-              ],
-            );
-          }).toList(),
-        ),
+                title: Row(
+                  children: [
+                    if (item['icon'] != null) ...[
+                      Icon(item['icon'], color: Colors.grey[700], size: 18),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      item['label'],
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }).toList(),
       ),
     );
   }
@@ -556,48 +461,40 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Hình ảnh minh họa', Icons.photo_library_outlined),
+        _buildSectionTitle('Hình ảnh minh họa', Icons.camera_alt),
         
-        // Show existing images
-        if (widget.report['incidentReportsFiles'] != null &&
-            (widget.report['incidentReportsFiles'] as List).isNotEmpty) ...[
-          const SizedBox(height: 12),
+        // Show existing incident images (type = 1) - editable
+        if (incidentImages.isNotEmpty) ...[
+          const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _cardColor,
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.grey.shade200),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.withOpacity(0.5)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.image_outlined, color: _primaryColor, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Hình ảnh hiện tại:',
+                    Icon(Icons.camera_alt, size: 16, color: Colors.blue),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Ảnh sự cố (có thể chỉnh sửa):',
                       style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: _primaryColor,
+                        fontWeight: FontWeight.bold,
                         fontSize: 14,
+                        color: Colors.blue,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: (widget.report['incidentReportsFiles'] as List).map<Widget>((file) {
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: incidentImages.map<Widget>((file) {
                     final String fileIdentifier = file['fileId']?.toString() ?? file['fileUrl'];
                     final bool isMarkedForRemoval = fileIdsToRemove.contains(fileIdentifier);
                     
@@ -605,74 +502,57 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
                       children: [
                         GestureDetector(
                           onTap: () => widget.onShowFullScreenImage(file['fileUrl']),
-                          child: Hero(
-                            tag: 'image_${file['fileUrl']}',
-                            child: Container(
-                              width: 100,
-                              height: 100,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isMarkedForRemoval ? _errorColor.withOpacity(0.5) : Colors.transparent,
-                                  width: isMarkedForRemoval ? 2 : 0,
-                                ),
-                                boxShadow: isMarkedForRemoval 
-                                    ? [] 
-                                    : [BoxShadow(
-                                        color: Colors.black.withOpacity(0.1),
-                                        blurRadius: 5,
-                                        offset: const Offset(0, 2),
-                                      )],
+                          child: Container(
+                            width: 90,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: isMarkedForRemoval ? Colors.red : Colors.blue.shade300,
                               ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    Image.network(
-                                      file['fileUrl'],
-                                      fit: BoxFit.cover,
-                                      loadingBuilder: (context, child, loadingProgress) {
-                                        if (loadingProgress == null) return child;
-                                        return Container(
-                                          color: Colors.grey.shade200,
-                                          child: Center(
-                                            child: CircularProgressIndicator(
-                                              color: _primaryColor,
-                                              value: loadingProgress.expectedTotalBytes != null
-                                                  ? loadingProgress.cumulativeBytesLoaded /
-                                                      loadingProgress.expectedTotalBytes!
-                                                  : null,
-                                              strokeWidth: 2,
-                                            ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(3),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Image.network(
+                                    file['fileUrl'],
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Container(
+                                        color: Colors.grey[200],
+                                        child: Center(
+                                          child: CircularProgressIndicator(
+                                            value: loadingProgress.expectedTotalBytes != null
+                                                ? loadingProgress.cumulativeBytesLoaded /
+                                                    loadingProgress.expectedTotalBytes!
+                                                : null,
                                           ),
-                                        );
-                                      },
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Container(
-                                          color: Colors.grey.shade200,
-                                          child: const Center(
-                                            child: Icon(Icons.broken_image_outlined),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    if (isMarkedForRemoval)
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(12),
-                                          color: Colors.black.withOpacity(0.5),
                                         ),
+                                      );
+                                    },
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.grey[200],
                                         child: const Center(
-                                          child: Icon(
-                                            Icons.delete_outline_rounded,
-                                            color: Colors.white,
-                                            size: 32,
-                                          ),
+                                          child: Icon(Icons.broken_image),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  if (isMarkedForRemoval)
+                                    Container(
+                                      color: Colors.black.withOpacity(0.5),
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.delete,
+                                          color: Colors.white,
                                         ),
                                       ),
-                                  ],
-                                ),
+                                    ),
+                                ],
                               ),
                             ),
                           ),
@@ -680,38 +560,27 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
                         Positioned(
                           right: 0,
                           top: 0,
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  if (isMarkedForRemoval) {
-                                    fileIdsToRemove.remove(fileIdentifier);
-                                  } else {
-                                    fileIdsToRemove.add(fileIdentifier);
-                                  }
-                                  _validateImages();
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(20),
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: isMarkedForRemoval ? _primaryColor : _errorColor,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: (isMarkedForRemoval ? _primaryColor : _errorColor).withOpacity(0.4),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Icon(
-                                  isMarkedForRemoval ? Icons.restore_outlined : Icons.close_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                if (isMarkedForRemoval) {
+                                  fileIdsToRemove.remove(fileIdentifier);
+                                } else {
+                                  fileIdsToRemove.add(fileIdentifier);
+                                }
+                                _validateImages();
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isMarkedForRemoval ? Colors.blue : Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                isMarkedForRemoval ? Icons.restore : Icons.close,
+                                color: Colors.white,
+                                size: 16,
                               ),
                             ),
                           ),
@@ -724,45 +593,196 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
             ),
           ),
         ],
-
-        // Show newly added images
-        if (addedFiles.isNotEmpty) ...[
+        
+        // Show billing images (type = 2) - readonly
+        if (billingImages.isNotEmpty) ...[
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _primaryColor.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: _primaryColor.withOpacity(0.2)),
-              boxShadow: [
-                BoxShadow(
-                  color: _primaryColor.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.amber.shade700.withOpacity(0.5)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.add_photo_alternate_outlined, color: _primaryColor, size: 18),
-                    const SizedBox(width: 8),
+                    Icon(Icons.receipt, size: 16, color: Colors.amber.shade700),
+                    const SizedBox(width: 6),
                     Text(
-                      'Hình ảnh mới thêm:',
+                      'Ảnh hóa đơn (chỉ xem):',
                       style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: _primaryColor,
+                        fontWeight: FontWeight.bold,
                         fontSize: 14,
+                        color: Colors.amber.shade700,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: billingImages.map<Widget>((file) {
+                    return GestureDetector(
+                      onTap: () => widget.onShowFullScreenImage(file['fileUrl']),
+                      child: Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.amber.shade300),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: Image.network(
+                            file['fileUrl'],
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                color: Colors.grey[200],
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                        : null,
+                                  ),
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: Icon(Icons.broken_image),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // Show exchange images (type = 3) - readonly
+        if (exchangeImages.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.indigo.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.indigo.withOpacity(0.5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.sync_alt, size: 16, color: Colors.indigo),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Ảnh trao đổi (chỉ xem):',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Colors.indigo,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: exchangeImages.map<Widget>((file) {
+                    return GestureDetector(
+                      onTap: () => widget.onShowFullScreenImage(file['fileUrl']),
+                      child: Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.indigo.shade300),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: Image.network(
+                            file['fileUrl'],
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                color: Colors.grey[200],
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                        : null,
+                                  ),
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: Icon(Icons.broken_image),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // Show newly added incident images
+        if (addedFiles.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green.withOpacity(0.5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.add_photo_alternate, size: 16, color: Colors.green),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Ảnh sự cố mới thêm:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: addedFiles.asMap().entries.map((entry) {
                     final int index = entry.key;
                     final File file = entry.value;
@@ -770,28 +790,22 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
                     return Stack(
                       children: [
                         Container(
-                          width: 100,
-                          height: 100,
+                          width: 90,
+                          height: 90,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 5,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.green.withOpacity(0.5)),
                           ),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(3),
                             child: Image.file(
                               file,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
-                                  color: Colors.grey.shade200,
+                                  color: Colors.grey[200],
                                   child: const Center(
-                                    child: Icon(Icons.broken_image_outlined),
+                                    child: Icon(Icons.broken_image),
                                   ),
                                 );
                               },
@@ -801,34 +815,23 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
                         Positioned(
                           right: 0,
                           top: 0,
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  addedFiles.removeAt(index);
-                                  _validateImages();
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(20),
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: _errorColor,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: _errorColor.withOpacity(0.4),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.close_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                addedFiles.removeAt(index);
+                                _validateImages();
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 16,
                               ),
                             ),
                           ),
@@ -842,13 +845,26 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
           ),
         ],
 
-        // Add image buttons
-        const SizedBox(height: 24),
+        // Note about image types
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8.0),
+          child: Text(
+            'Lưu ý: Chỉ có thể chỉnh sửa ảnh sự cố. Ảnh hóa đơn và ảnh trao đổi được quản lý ở màn hình khác.',
+            style: TextStyle(
+              fontStyle: FontStyle.italic,
+              color: Colors.grey,
+              fontSize: 12,
+            ),
+          ),
+        ),
+
+        // Add image buttons (only for incident images)
+        const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Expanded(
-              child: _buildActionButton(
+              child: ElevatedButton.icon(
                 onPressed: () async {
                   final image = await ImageUtils.takePhoto();
                   if (image != null) {
@@ -858,299 +874,203 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> wit
                     });
                   }
                 },
-                icon: Icons.camera_alt_outlined,
-                label: 'Chụp ảnh',
-                color: _primaryColor,
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Chụp ảnh sự cố'),
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.blue,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             Expanded(
-              child: _buildActionButton(
+              child: ElevatedButton.icon(
                 onPressed: () async {
                   final images = await ImageUtils.pickMultipleImages();
                   if (images.isNotEmpty) {
-                    setState(() {
-                      addedFiles.addAll(images);
-                      _validateImages();
-                    });
+                    // Calculate current total images (existing + added - removed)
+                    final int existingCount = incidentImages.length - fileIdsToRemove.length;
+                    final int currentTotal = existingCount + addedFiles.length;
+                    
+                    // Check if adding these images would exceed the limit
+                    if (currentTotal + images.length > MAX_TOTAL_IMAGES) {
+                      setState(() {
+                        // Only add images up to the limit
+                        if (currentTotal < MAX_TOTAL_IMAGES) {
+                          final int remainingSlots = MAX_TOTAL_IMAGES - currentTotal;
+                          addedFiles.addAll(images.take(remainingSlots));
+                          _imagesError = 'Đã thêm $remainingSlots ảnh (tổng số không vượt quá $MAX_TOTAL_IMAGES ảnh)';
+                        } else {
+                          _imagesError = 'Không thể thêm ảnh, đã đạt giới hạn $MAX_TOTAL_IMAGES ảnh';
+                        }
+                      });
+                    } else if (images.length > MAX_IMAGES_PER_UPLOAD) {
+                      setState(() {
+                        addedFiles.addAll(images.take(MAX_IMAGES_PER_UPLOAD));
+                        _imagesError = 'Đã thêm $MAX_IMAGES_PER_UPLOAD ảnh (mỗi lần chỉ được chọn $MAX_IMAGES_PER_UPLOAD ảnh)';
+                      });
+                    } else {
+                      setState(() {
+                        addedFiles.addAll(images);
+                        _imagesError = null; // Clear error if any
+                      });
+                    }
+                    _validateImages();
                   }
                 },
-                icon: Icons.photo_library_outlined,
-                label: 'Thêm ảnh',
-                color: _accentColor,
+                icon: const Icon(Icons.photo_library),
+                label: const Text('Thêm ảnh sự cố'),
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.blue[300],
+                ),
               ),
             ),
           ],
         ),
+        
+        if (_imagesError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              _imagesError!,
+              style: const TextStyle(color: Colors.red, fontSize: 13),
+            ),
+          ),
       ],
-    );
-  }
-  
-  // Helper method to build action buttons
-  Widget _buildActionButton({
-    required VoidCallback onPressed,
-    required IconData icon,
-    required String label,
-    required Color color,
-  }) {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.2),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 20),
-        label: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          foregroundColor: color,
-          side: BorderSide(color: color.withOpacity(0.5)),
-          backgroundColor: color.withOpacity(0.05),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-        ),
-      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        width: double.infinity,
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        decoration: BoxDecoration(
-          color: _backgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 15,
-              spreadRadius: 5,
-              offset: const Offset(0, -4),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle indicator at top of dialog
+            Center(
+              child: Container(
+                width: 50,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
-          ],
-        ),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Handle indicator at top of dialog
-              Center(
-                child: Container(
-                  width: 65,
-                  height: 5,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(30),
+            
+            // Header with close button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Chỉnh sửa báo cáo sự cố',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              
-              // Header with close button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Chỉnh sửa báo cáo sự cố',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: _primaryColor,
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 5),
-              
-              // Thin gradient divider
-              Container(
-                height: 2,
-                margin: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_primaryColor.withOpacity(0.1), _primaryColor, _accentColor, _accentColor.withOpacity(0.1)],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                  splashRadius: 20,
                 ),
-              ),
-              
-              // Make the content scrollable
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Incident Type
-                          _buildSectionTitle('Loại sự cố', Icons.report_problem_outlined),
-                          _buildTextField(
-                            controller: incidentTypeController,
-                            hintText: 'Nhập loại sự cố',
-                            prefixIcon: Icons.category_outlined,
-                            errorText: _incidentTypeError,
-                          ),
-                          
-                          const SizedBox(height: 24),
-                          
-                          // Incident Resolution Type
-                          
-                          
-                          
-                          const SizedBox(height: 24),
-                          
-                          // Vehicle Type
-                          _buildSectionTitle('Loại xe', Icons.local_shipping_outlined),
-                          _buildRadioSelection(
-                            items: const [
-                              {'label': 'Xe đầu kéo', 'value': 1, 'icon': Icons.fire_truck_outlined},
-                              {'label': 'Xe rơ mooc', 'value': 2, 'icon': Icons.rv_hookup_outlined},
-                            ],
-                            groupValue: vehicleType,
-                            onChanged: (value) {
-                              setState(() {
-                                vehicleType = value;
-                              });
-                            },
-                          ),
-                          
-                          const SizedBox(height: 24),
-                          
-                          // Location
-                          _buildSectionTitle('Địa điểm xảy ra sự cố', Icons.place_outlined),
-                          _buildTextField(
-                            controller: locationController,
-                            hintText: 'Nhập địa điểm xảy ra sự cố',
-                            prefixIcon: Icons.location_on_outlined,
-                            errorText: _locationError,
-                          ),
-                          
-                          const SizedBox(height: 24),
-                          
-                          // Description
-                          _buildSectionTitle('Mô tả chi tiết', Icons.description_outlined),
-                          _buildTextField(
-                            controller: descriptionController,
-                            hintText: 'Nhập chi tiết về sự cố...',
-                            maxLines: 5,
-                            errorText: _descriptionError,
-                          ),
-                          
-                          const SizedBox(height: 30),
-                          
-                          // Images section
-                          _buildImageSection(),
-                          
-                          // Show image validation error
-                          if (_imagesError != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.error_outline, color: _errorColor, size: 16),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    _imagesError!,
-                                    style: TextStyle(
-                                      color: _errorColor,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            
-                          const SizedBox(height: 20),
-                        ],
-                      ),
+              ],
+            ),
+            
+            const Divider(),
+            
+            // Make the content scrollable
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Incident Type
+                    _buildSectionTitle('Loại sự cố', Icons.report_problem_outlined),
+                    _buildTextField(
+                      controller: incidentTypeController,
+                      hintText: 'Nhập loại sự cố',
+                      prefixIcon: Icons.category,
+                      errorText: _incidentTypeError,
                     ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-              // Submit Button
-              Container(
-                width: double.infinity,
-                height: 56,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _primaryColor.withOpacity(0.25),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Vehicle Type
+                    _buildSectionTitle('Loại xe', Icons.local_shipping),
+                    _buildRadioSelection(
+                      items: const [
+                        {'label': 'Xe đầu kéo', 'value': 1, 'icon': Icons.fire_truck},
+                        {'label': 'Xe rơ mooc', 'value': 2, 'icon': Icons.rv_hookup},
+                      ],
+                      groupValue: vehicleType,
+                      onChanged: (value) {
+                        setState(() {
+                          vehicleType = value;
+                        });
+                      },
                     ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Location
+                    _buildSectionTitle('Địa điểm xảy ra sự cố', Icons.place),
+                    _buildTextField(
+                      controller: locationController,
+                      hintText: 'Nhập địa điểm xảy ra sự cố',
+                      prefixIcon: Icons.location_on,
+                      errorText: _locationError,
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Description
+                    _buildSectionTitle('Mô tả chi tiết', Icons.description),
+                    _buildTextField(
+                      controller: descriptionController,
+                      hintText: 'Nhập chi tiết về sự cố...',
+                      maxLines: 4,
+                      errorText: _descriptionError,
+                    ),
+                    
+                    const SizedBox(height: 20),
+                    
+                    // Images section
+                    _buildImageSection(),
                   ],
                 ),
-                child: ElevatedButton(
-                  onPressed: _updateIncidentReport,
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: _primaryColor,
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Ink(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [_primaryColor, _accentColor],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Container(
-                      constraints: const BoxConstraints(minHeight: 56),
-                      alignment: Alignment.center,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.save_outlined, size: 22),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'LƯU THAY ĐỔI',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
               ),
-            ],
-          ),
+            ),
+
+            const SizedBox(height: 16),
+            // Submit Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _updateIncidentReport,
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.blue,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text('LƯU THAY ĐỔI', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1165,13 +1085,32 @@ class EditIncidentReportDialogHelper {
     required Function() onReportUpdated,
     required Function(String) onShowFullScreenImage,
   }) {
-    DialogHelper.showCustomDialog(
+    // Sử dụng trực tiếp showDialog thay vì thông qua DialogHelper để có thể tùy chỉnh kích thước
+    showModalBottomSheet(
       context: context,
-      child: EditIncidentReportDialog(
-        report: report,
-        onReportUpdated: onReportUpdated,
-        onShowFullScreenImage: onShowFullScreenImage,
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        // Lấy thông tin kích thước màn hình
+        final Size screenSize = MediaQuery.of(context).size;
+        final double dialogWidth = screenSize.width > 700 
+          ? 650 
+          : screenSize.width * 0.95;
+        
+        return GestureDetector(
+          onVerticalDragEnd: (details) {
+            // Nếu kéo xuống đủ nhanh, đóng dialog
+            if (details.primaryVelocity! > 300) {
+              Navigator.of(context).pop();
+            }
+          },
+          child: EditIncidentReportDialog(
+            report: report,
+            onReportUpdated: onReportUpdated,
+            onShowFullScreenImage: onShowFullScreenImage,
+          ),
+        );
+      },
     );
   }
 }

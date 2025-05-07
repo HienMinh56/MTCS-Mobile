@@ -11,7 +11,7 @@ class ImagePickerScreen extends StatelessWidget {
   const ImagePickerScreen({
     Key? key,
     required this.title,
-    this.maxImages = 5,
+    this.maxImages = 10,
     required this.buttonText,
     this.initialImages,
   }) : super(key: key);

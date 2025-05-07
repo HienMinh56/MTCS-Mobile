@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:driverapp/components/delivery_report/image_section.dart';
 import 'package:driverapp/components/info_card.dart';
 import 'package:driverapp/components/info_row.dart';
+import 'package:driverapp/utils/dialog_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:driverapp/services/profile_service.dart';
 import 'package:driverapp/services/delivery_report_service.dart';
@@ -109,12 +110,6 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
       setState(() {
         _driverName = 'Lỗi tải thông tin';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Không thể tải thông tin tài xế: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
@@ -131,9 +126,24 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
   Future<void> _pickImage() async {
     final List<File> images = await ImageUtils.pickMultipleImages();
     if (images.isNotEmpty) {
-      setState(() {
-        _imageFiles.addAll(images);
-      });
+      // Check if adding these images would exceed the limit
+      if (_imageFiles.length + images.length > _maxImageCount) {
+        setState(() {
+          _imageError = 'Không được chọn quá $_maxImageCount ảnh';
+          
+          // Only add images up to the limit
+          if (_imageFiles.length < _maxImageCount) {
+            final int remainingSlots = _maxImageCount - _imageFiles.length;
+            _imageFiles.addAll(images.take(remainingSlots));
+            _imageError = 'Đã thêm $remainingSlots ảnh (tối đa $_maxImageCount ảnh)';
+          }
+        });
+      } else {
+        setState(() {
+          _imageFiles.addAll(images);
+          _imageError = null; // Clear error if any
+        });
+      }
       _validateForm();
     }
   }
@@ -190,11 +200,10 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
   }
 
   void _onReportSuccess() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Báo cáo đã được gửi thành công'),
-        backgroundColor: Colors.green,
-      ),
+    DialogHelper.showSnackBar(
+      context: context,
+      message: 'Báo cáo đã được gửi thành công!',
+      isError: false,
     );
 
     if (widget.onReportSubmitted != null) {
@@ -205,11 +214,10 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
   }
 
   void _onReportFailure(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Lỗi gửi báo cáo: $message'),
-        backgroundColor: Colors.red,
-      ),
+    DialogHelper.showSnackBar(
+      context: context,
+      message: 'Gửi báo cáo thất bại: $message',
+      isError: true,
     );
 
     if (widget.onReportSubmitted != null) {

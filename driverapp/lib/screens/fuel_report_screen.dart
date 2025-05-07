@@ -1,4 +1,5 @@
 import 'package:driverapp/components/delivery_report/image_section.dart';
+import 'package:driverapp/utils/dialog_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
@@ -84,26 +85,39 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
       final List<File> pickedFiles = await ImageUtils.pickMultipleImages();
 
       if (pickedFiles.isNotEmpty) {
-        setState(() {
-          _selectedImages.addAll(pickedFiles);
-        });
+        // Check if adding these images would exceed the limit
+        if (_selectedImages.length + pickedFiles.length > 10) {
+          setState(() {
+            _imagesError = 'Không được chọn quá 10 ảnh';
+            
+            // Only add images up to the limit
+            if (_selectedImages.length < 10) {
+              final int remainingSlots = 10 - _selectedImages.length;
+              _selectedImages.addAll(pickedFiles.take(remainingSlots));
+              _imagesError = 'Đã thêm $remainingSlots ảnh (tối đa 10 ảnh)';
+            }
+          });
+        } else {
+          setState(() {
+            _selectedImages.addAll(pickedFiles);
+            _imagesError = null; // Clear error if any
+          });
+        }
         _validateImages();
 
         // Show confirmation
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Đã thêm ${pickedFiles.length} ảnh'),
-            backgroundColor: Colors.green,
-          ),
+        DialogHelper.showSnackBar(
+          context: context,
+          message: 'Đã thêm ảnh thành công',
+          isError: false,
         );
       }
     } catch (e) {
       // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi khi chọn ảnh: $e'),
-          backgroundColor: Colors.red,
-        ),
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Lỗi khi chọn ảnh: $e',
+        isError: true,
       );
     }
   }
@@ -119,20 +133,18 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
         _validateImages();
 
         // Show confirmation
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã thêm ảnh từ camera'),
-            backgroundColor: Colors.green,
-          ),
+        DialogHelper.showSnackBar(
+          context: context,
+          message: 'Đã thêm ảnh từ camera',
+          isError: false,
         );
       }
     } catch (e) {
       // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi khi chụp ảnh: $e'),
-          backgroundColor: Colors.red,
-        ),
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Lỗi khi chụp ảnh: $e',
+        isError: true,
       );
     }
   }
@@ -254,19 +266,17 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
 
     // Handle the result
     if (result['success']) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Báo cáo đã được gửi thành công!"),
-          backgroundColor: Colors.green,
-        ),
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Báo cáo đã được gửi thành công!',
+        isError: false,
       );
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Đã xảy ra lỗi: ${result['message']}"),
-          backgroundColor: Colors.red,
-        ),
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Lỗi khi gửi báo cáo: ${result['message']}',
+        isError: true,
       );
     }
   }
@@ -319,11 +329,10 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Quyền truy cập vị trí bị từ chối'),
-              backgroundColor: Colors.red,
-            ),
+          DialogHelper.showSnackBar(
+            context: context,
+            message: 'Quyền truy cập vị trí bị từ chối',
+            isError: true,
           );
           setState(() {
             _isLoadingLocation = false;
@@ -333,12 +342,10 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Quyền truy cập vị trí bị từ chối vĩnh viễn, vui lòng cấp quyền trong cài đặt'),
-            backgroundColor: Colors.red,
-          ),
+        DialogHelper.showSnackBar(
+          context: context,
+          message: 'Quyền truy cập vị trí bị từ chối vĩnh viễn',
+          isError: true,
         );
         setState(() {
           _isLoadingLocation = false;
@@ -397,18 +404,16 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
         });
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã cập nhật vị trí hiện tại'),
-          backgroundColor: Colors.green,
-        ),
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Đã lấy vị trí hiện tại',
+        isError: false,
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Không thể lấy vị trí: $e'),
-          backgroundColor: Colors.red,
-        ),
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Lỗi khi lấy vị trí: $e',
+        isError: true,
       );
     } finally {
       setState(() {

@@ -36,6 +36,20 @@ class Order {
       deliveryDate: json['deliveryDate'] ?? '',
     );
   }
+
+  factory Order.fromMoJson(Map<String, dynamic> json) {
+    return Order(
+      orderId: json['tripId'] ?? '', // Typically this information is not directly in the response
+      trackingCode: json['trackingCode'] ?? '',
+      pickUpLocation: json['pickUpLocation'] ?? '',
+      deliveryLocation: json['deliveryLocation'] ?? '',
+      conReturnLocation: json['conReturnLocation'] ?? '',
+      containerNumber: json['containerNumber'] ?? '',
+      contactPerson: json['contactPerson'] ?? '',
+      contactPhone: json['contactPhone'] ?? '',
+      deliveryDate: json['deliveryDate'] ?? '',
+    );
+  }
 }
 
 class Trip {
@@ -93,6 +107,33 @@ class Trip {
       matchBy: json['matchBy'],
       matchTime: json['matchTime'] != null ? DateTime.parse(json['matchTime']) : null,
       tripStatusHistories: json['tripStatusHistories'],
+    );
+  }
+
+  factory Trip.fromMoJson(Map<String, dynamic> json) {
+    // Create order directly from the flat structure
+    final Order order = Order(
+      orderId: json['tripId'] ?? '', // Use tripId as orderId if not provided
+      trackingCode: json['trackingCode'] ?? '',
+      pickUpLocation: json['pickUpLocation'] ?? '',
+      deliveryLocation: json['deliveryLocation'] ?? '',
+      conReturnLocation: json['conReturnLocation'] ?? '',
+      containerNumber: json['containerNumber'] ?? '',
+      contactPerson: json['contactPerson'] ?? '',
+      contactPhone: json['contactPhone'] ?? '', 
+      deliveryDate: json['deliveryDate'] ?? '',
+    );
+
+    return Trip(
+      tripId: json['tripId'] ?? '',
+      orderId: json['orderId'] ?? json['tripId'] ?? '', // Use tripId as fallback
+      trackingCode: json['trackingCode'] ?? '',
+      driverId: json['driverId'] ?? '',
+      startTime: json['startTime'] != null ? DateTime.parse(json['startTime']) : null,
+      endTime: json['endTime'] != null ? DateTime.parse(json['endTime']) : null,
+      status: json['status'] ?? '',
+      statusName: StatusManager.getStatusName(json['status']) ?? _getStatusName(json['status']),
+      order: order, // Attach the order
     );
   }
 

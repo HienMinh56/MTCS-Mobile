@@ -4,6 +4,7 @@ import 'package:driverapp/screens/chat_screen.dart';
 import 'package:driverapp/services/chat_service.dart';
 import 'package:driverapp/services/profile_service.dart';
 import 'package:driverapp/services/staff_service.dart';
+import 'package:driverapp/utils/dialog_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
@@ -97,11 +98,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
         _isLoading = false;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi khi tải danh sách chat: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Lỗi khi tải danh sách chat: ${e.toString()}',
+        isError: true,
       );
     }
   }

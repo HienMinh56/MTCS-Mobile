@@ -201,7 +201,12 @@ class FuelReportCard extends StatelessWidget {
                       itemBuilder: (context, index) {
                         final file = report['fuelReportFiles'][index];
                         return GestureDetector(
-                          onTap: () => onShowFullImage(file['fileUrl']),
+                          onTap: () {
+                            // Safely handle the file object
+                            if (file is Map<String, dynamic> && file.containsKey('fileUrl')) {
+                              onShowFullImage(file);
+                            }
+                          },
                           child: Container(
                             margin: const EdgeInsets.only(right: 10),
                             width: 120,
@@ -219,16 +224,17 @@ class FuelReportCard extends StatelessWidget {
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(10),
                               child: Image.network(
-                                file['fileUrl'],
+                                file['fileUrl'] ?? '',
                                 fit: BoxFit.cover,
                                 loadingBuilder: (context, child, loadingProgress) {
                                   if (loadingProgress == null) return child;
                                   return Center(
                                     child: CircularProgressIndicator(
                                       value:
-                                             loadingProgress.expectedTotalBytes != null
-                                          ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                          : null,
+                                          loadingProgress.expectedTotalBytes != null
+                                              ? loadingProgress.cumulativeBytesLoaded /
+                                                  loadingProgress.expectedTotalBytes!
+                                              : null,
                                     ),
                                   );
                                 },
