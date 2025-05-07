@@ -8,7 +8,7 @@ class IncidentReportCard extends StatelessWidget {
   final Function(Map<String, dynamic>)? onEditReport;
   final Function(Map<String, dynamic>)? onResolveReport;
   final Function(Map<String, dynamic>)? onAddBillingImages;
-  final Function(Map<String, dynamic>)? onAddExchangeImages; // New parameter for adding exchange images
+  final Function(Map<String, dynamic>)? onAddExchangeImages;
 
   const IncidentReportCard({
     Key? key,
@@ -18,7 +18,7 @@ class IncidentReportCard extends StatelessWidget {
     this.onEditReport,
     this.onResolveReport,
     this.onAddBillingImages,
-    this.onAddExchangeImages, // Add the new parameter
+    this.onAddExchangeImages,
   }) : super(key: key);
 
   @override
@@ -34,6 +34,10 @@ class IncidentReportCard extends StatelessWidget {
     // Choose badge color based on type
     final Color typeBadgeColor = incidentTypeValue == 2 ? Colors.orange : Colors.blue;
     final Color vehicleTypeBadgeColor = vehicleTypeValue == 1 ? Colors.green : Colors.purple;
+    
+    // Check if billing or exchange images already exist
+    final bool hasBillingImages = _checkImageTypeExists(report['incidentReportsFiles'], 2);
+    final bool hasExchangeImages = _checkImageTypeExists(report['incidentReportsFiles'], 3);
     
     return Card(
       margin: const EdgeInsets.only(bottom: 16.0),
@@ -227,146 +231,38 @@ class IncidentReportCard extends StatelessWidget {
                         report['handledTime']),
                   ),
 
-                const SizedBox(height: 12),
-                const Text(
-                  'Hình ảnh:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-
-                if (report['incidentReportsFiles'] != null &&
-                    (report['incidentReportsFiles'] as List).isNotEmpty)
-                  SizedBox(
-                    height: 100,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: (report['incidentReportsFiles'] as List).length,
-                      itemBuilder: (context, index) {
-                        final file = report['incidentReportsFiles'][index];
-                        return GestureDetector(
-                          onTap: () => onShowFullImage(file['fileUrl']),
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            width: 100,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade300),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.shade200,
-                                  blurRadius: 3,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                file['fileUrl'],
-                                fit: BoxFit.cover,
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return Center(
-                                    child: CircularProgressIndicator(
-                                      value: 
-                                             loadingProgress.expectedTotalBytes != null
-                                          ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                          : null,
-                                    ),
-                                  );
-                                },
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Center(
-                                      child: Icon(Icons.error, color: Colors.red),
-                                    ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  )
-                else
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.0),
-                      child: Text('Không có hình ảnh', style: TextStyle(fontStyle: FontStyle.italic)),
-                    ),
-                  ),
+                if (report['incidentReportsFiles'] != null) ...[
+                  const SizedBox(height: 12),
+                  
+                  // Group images by type
+                  ..._buildImageSections(report['incidentReportsFiles']),
+                ],
+              ],
+            ),
+          ),
                 
-                const SizedBox(height: 16),
-                
-                // Buttons section - only if not resolved and callbacks are provided
-                if (report['status'] != 'Resolved')
-                  Column(
-                    children: [
-                      const Divider(height: 24, thickness: 1),
-                      // First row of buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          // Edit button
-                          if (onEditReport != null)
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 6.0),
-                                child: ElevatedButton.icon(
-                                  onPressed: () => onEditReport!(report),
-                                  icon: const Icon(Icons.edit, size: 16),
-                                  label: const Text('Chỉnh sửa', style: TextStyle(fontSize: 13)),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    elevation: 2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          
-                          // Add Billing Images button
-                          if (onAddBillingImages != null)
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 6.0),
-                                child: ElevatedButton.icon(
-                                  onPressed: () => onAddBillingImages!(report),
-                                  icon: const Icon(Icons.receipt_long, size: 16),
-                                  label: const Text('Thêm hóa đơn', style: TextStyle(fontSize: 13)),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.amber.shade700,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    elevation: 2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      
-                      // Second row with Exchange Images button
-                      if (onAddExchangeImages != null)
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(top: 10.0, left: 6.0, right: 6.0),
+          // Buttons section - only if not resolved and callbacks are provided
+          if (report['status'] != 'Resolved')
+            Column(
+              children: [
+                const Divider(height: 24, thickness: 1),
+                // First row of buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Edit button
+                    if (onEditReport != null)
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6.0),
                           child: ElevatedButton.icon(
-                            onPressed: () => onAddExchangeImages!(report),
-                            icon: const Icon(Icons.sync_alt, size: 18),
-                            label: const Text(
-                              'Thêm ảnh trao đổi',
-                              style: TextStyle(fontSize: 14),
-                            ),
+                            onPressed: () => onEditReport!(report),
+                            icon: const Icon(Icons.edit, size: 16),
+                            label: const Text('Chỉnh sửa', style: TextStyle(fontSize: 13)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.indigo,
+                              backgroundColor: Colors.blue,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -374,36 +270,324 @@ class IncidentReportCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                      
-                      // Third row with Resolve button
-                      if (onResolveReport != null)
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(top: 10.0, left: 6.0, right: 6.0),
+                      ),
+                    
+                    // Add Billing Images button - only show if no billing images exist
+                    if (onAddBillingImages != null && !hasBillingImages)
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6.0),
                           child: ElevatedButton.icon(
-                            onPressed: () => onResolveReport!(report),
-                            icon: const Icon(Icons.check_circle_outline, size: 18),
-                            label: const Text(
-                              'Giải quyết',
-                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                            ),
+                            onPressed: () => onAddBillingImages!(report),
+                            icon: const Icon(Icons.receipt_long, size: 16),
+                            label: const Text('Thêm hóa đơn', style: TextStyle(fontSize: 13)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
+                              backgroundColor: Colors.amber.shade700,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              elevation: 3,
+                              elevation: 2,
                             ),
                           ),
                         ),
-                    ],
+                      ),
+                    
+                    // Placeholder empty container when billing images already exist
+                    if (onAddBillingImages != null && hasBillingImages)
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                          child: ElevatedButton.icon(
+                            onPressed: null,
+                            icon: const Icon(Icons.check_circle, size: 16),
+                            label: const Text('Đã thêm hóa đơn', style: TextStyle(fontSize: 13)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey.shade300,
+                              foregroundColor: Colors.grey.shade700,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              disabledBackgroundColor: Colors.grey.shade200,
+                              disabledForegroundColor: Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                
+                // Second row with Exchange Images button - only show if no exchange images exist
+                if (onAddExchangeImages != null && !hasExchangeImages)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(top: 10.0, left: 6.0, right: 6.0),
+                    child: ElevatedButton.icon(
+                      onPressed: () => onAddExchangeImages!(report),
+                      icon: const Icon(Icons.sync_alt, size: 18),
+                      label: const Text(
+                        'Thêm ảnh trao đổi',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.indigo,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 2,
+                      ),
+                    ),
+                  ),
+                
+                // Placeholder button when exchange images already exist
+                if (onAddExchangeImages != null && hasExchangeImages)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(top: 10.0, left: 6.0, right: 6.0),
+                    child: ElevatedButton.icon(
+                      onPressed: null,
+                      icon: const Icon(Icons.check_circle, size: 18),
+                      label: const Text(
+                        'Đã thêm ảnh trao đổi',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey.shade200,
+                        foregroundColor: Colors.grey.shade700,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        disabledBackgroundColor: Colors.grey.shade200,
+                        disabledForegroundColor: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                
+                // Third row with Resolve button
+                if (onResolveReport != null)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(top: 10.0, left: 6.0, right: 6.0, bottom: 10.0),
+                    child: ElevatedButton.icon(
+                      onPressed: () => onResolveReport!(report),
+                      icon: const Icon(Icons.check_circle_outline, size: 18),
+                      label: const Text(
+                        'Giải quyết',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 3,
+                      ),
+                    ),
                   ),
               ],
             ),
-          ),
         ],
+      ),
+    );
+  }
+
+  // Check if images of a specific type already exist
+  bool _checkImageTypeExists(List? files, int typeToCheck) {
+    if (files == null || files.isEmpty) return false;
+    
+    return files.any((file) {
+      int type = int.tryParse(file['type']?.toString() ?? '0') ?? 0;
+      return type == typeToCheck;
+    });
+  }
+
+  // Helper method to build image sections grouped by type
+  List<Widget> _buildImageSections(List incidentReportsFiles) {
+    // Group files by type
+    Map<int, List> filesByType = {};
+    
+    for (var file in incidentReportsFiles) {
+      int type = int.tryParse(file['type']?.toString() ?? '1') ?? 1;
+      if (!filesByType.containsKey(type)) {
+        filesByType[type] = [];
+      }
+      filesByType[type]!.add(file);
+    }
+    
+    List<Widget> sections = [];
+    
+    // Incident images (type 1)
+    if (filesByType.containsKey(1) && filesByType[1]!.isNotEmpty) {
+      sections.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildImageSectionHeader(
+              title: 'Ảnh sự cố',
+              icon: Icons.camera_alt,
+              color: Colors.blue,
+            ),
+            const SizedBox(height: 8),
+            _buildImageList(filesByType[1]!),
+            const SizedBox(height: 16),
+          ],
+        )
+      );
+    }
+    
+    // Billing images (type 2)
+    if (filesByType.containsKey(2) && filesByType[2]!.isNotEmpty) {
+      sections.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildImageSectionHeader(
+              title: 'Ảnh hóa đơn',
+              icon: Icons.receipt,
+              color: Colors.amber.shade700,
+            ),
+            const SizedBox(height: 8),
+            _buildImageList(filesByType[2]!),
+            const SizedBox(height: 16),
+          ],
+        )
+      );
+    }
+    
+    // Exchange images (type 3)
+    if (filesByType.containsKey(3) && filesByType[3]!.isNotEmpty) {
+      sections.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildImageSectionHeader(
+              title: 'Ảnh trao đổi',
+              icon: Icons.sync_alt,
+              color: Colors.indigo,
+            ),
+            const SizedBox(height: 8),
+            _buildImageList(filesByType[3]!),
+            const SizedBox(height: 16),
+          ],
+        )
+      );
+    }
+    
+    // If no images with recognized types
+    if (sections.isEmpty && incidentReportsFiles.isNotEmpty) {
+      sections.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildImageSectionHeader(
+              title: 'Hình ảnh',
+              icon: Icons.image, 
+              color: Colors.grey,
+            ),
+            const SizedBox(height: 8),
+            _buildImageList(incidentReportsFiles),
+          ],
+        )
+      );
+    } else if (incidentReportsFiles.isEmpty) {
+      sections.add(
+        const Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 8.0),
+            child: Text('Không có hình ảnh', style: TextStyle(fontStyle: FontStyle.italic)),
+          ),
+        )
+      );
+    }
+    
+    return sections;
+  }
+  
+  // Helper method to build image section header
+  Widget _buildImageSectionHeader({
+    required String title,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 6),
+        Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+  
+  // Helper method to build image list
+  Widget _buildImageList(List files) {
+    return SizedBox(
+      height: 100,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: files.length,
+        itemBuilder: (context, index) {
+          final file = files[index];
+          return GestureDetector(
+            onTap: () => onShowFullImage(file['fileUrl']),
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              width: 100,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade200,
+                    blurRadius: 3,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      file['fileUrl'],
+                      fit: BoxFit.cover,
+                      width: 100,
+                      height: 100,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Center(
+                            child: Icon(Icons.error, color: Colors.red),
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

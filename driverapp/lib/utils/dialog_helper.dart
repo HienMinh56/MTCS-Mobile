@@ -236,14 +236,14 @@ class DialogHelper {
   static void showSnackBar({
     required BuildContext context,
     required String message,
-    Duration duration = const Duration(seconds: 2),
+    Duration duration = const Duration(seconds: 1),
     bool isError = false,
   }) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         duration: duration,
-        backgroundColor: isError ? Colors.red : null,
+        backgroundColor: isError ? Colors.red : Colors.green,
         behavior: SnackBarBehavior.floating,
       ),
     );

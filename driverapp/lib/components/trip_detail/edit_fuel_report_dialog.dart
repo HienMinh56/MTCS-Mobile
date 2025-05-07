@@ -228,309 +228,338 @@ class _EditFuelReportDialogState extends State<EditFuelReportDialog> {
     return Container(
       padding: const EdgeInsets.all(16),
       width: double.infinity,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Chỉnh sửa báo cáo đổ xăng',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Chỉnh sửa báo cáo đổ xăng',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: amountController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'Số lượng (lít)',
-              border: const OutlineInputBorder(),
-              errorText: _amountError,
+            const SizedBox(height: 20),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Số lượng (lít)',
+                border: const OutlineInputBorder(),
+                errorText: _amountError,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: costController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'Chi phí (đồng)',
-              border: const OutlineInputBorder(),
-              errorText: _costError,
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: locationController,
-            decoration: InputDecoration(
-              labelText: 'Địa điểm',
-              border: const OutlineInputBorder(),
-              errorText: _locationError,
-            ),
-          ),
-
-          // Display existing images with delete option
-          if (widget.report['fuelReportFiles'] != null &&
-              (widget.report['fuelReportFiles'] as List).isNotEmpty) ...[
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Hình ảnh hiện có',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+            TextField(
+              controller: costController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Chi phí (đồng)',
+                border: const OutlineInputBorder(),
+                errorText: _costError,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: locationController,
+              decoration: InputDecoration(
+                labelText: 'Địa điểm',
+                border: const OutlineInputBorder(),
+                errorText: _locationError,
+              ),
+            ),
+
+            // Display existing images with delete option
+            if (widget.report['fuelReportFiles'] != null &&
+                (widget.report['fuelReportFiles'] as List).isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Hình ảnh hiện có',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
+                  if (fileIdsToRemove.isNotEmpty)
+                    Text(
+                      'Đã chọn ${fileIdsToRemove.length} hình để xóa',
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontStyle: FontStyle.italic,
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 120,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: (widget.report['fuelReportFiles'] as List).length,
+                  itemBuilder: (context, index) {
+                    final file = widget.report['fuelReportFiles'][index];
+                    final String fileId = file['fileId'].toString();
+                    final bool isSelected = fileIdsToRemove.contains(fileId);
+
+                    return Stack(
+                      children: [
+                        GestureDetector(
+                          onTap: () => widget.onShowFullScreenImage(file['fileUrl']),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 10),
+                            width: 100,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected ? Colors.red : Colors.grey.shade300,
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(9),
+                              child: Image.network(
+                                file['fileUrl'],
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      value: loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded /
+                                              loadingProgress.expectedTotalBytes!
+                                          : null,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 0,
+                          right: 10,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                if (isSelected) {
+                                  fileIdsToRemove.remove(fileId);
+                                } else {
+                                  fileIdsToRemove.add(fileId);
+                                }
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isSelected ? Colors.red : Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected ? Colors.red : Colors.grey,
+                                ),
+                              ),
+                              child: Icon(
+                                isSelected ? Icons.close : Icons.delete_outline,
+                                size: 16,
+                                color: isSelected ? Colors.white : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
-                if (fileIdsToRemove.isNotEmpty)
+              ),
+            ],
+
+            // Display newly added images section
+            if (addedFiles.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Hình ảnh mới thêm',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                   Text(
-                    'Đã chọn ${fileIdsToRemove.length} hình để xóa',
+                    '${addedFiles.length} ảnh',
                     style: const TextStyle(
-                      color: Colors.red,
+                      color: Colors.green,
                       fontStyle: FontStyle.italic,
                       fontSize: 12,
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 120,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: (widget.report['fuelReportFiles'] as List).length,
-                itemBuilder: (context, index) {
-                  final file = widget.report['fuelReportFiles'][index];
-                  final String fileId = file['fileId'].toString();
-                  final bool isSelected = fileIdsToRemove.contains(fileId);
+                ],
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 120,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: addedFiles.length,
+                  itemBuilder: (context, index) {
+                    final File file = addedFiles[index];
 
-                  return Stack(
-                    children: [
-                      GestureDetector(
-                        onTap: () => widget.onShowFullScreenImage(file['fileUrl']),
-                        child: Container(
+                    return Stack(
+                      children: [
+                        Container(
                           margin: const EdgeInsets.only(right: 10),
                           width: 100,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: isSelected ? Colors.red : Colors.grey.shade300,
-                              width: isSelected ? 2 : 1,
+                              color: Colors.green.shade300,
+                              width: 1,
                             ),
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(9),
-                            child: Image.network(
-                              file['fileUrl'],
+                            child: Image.file(
+                              file,
                               fit: BoxFit.cover,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Center(
-                                  child: CircularProgressIndicator(
-                                    value: loadingProgress.expectedTotalBytes != null
-                                        ? loadingProgress.cumulativeBytesLoaded /
-                                            loadingProgress.expectedTotalBytes!
-                                        : null,
-                                  ),
-                                );
-                              },
                             ),
                           ),
                         ),
-                      ),
-                      Positioned(
-                        top: 0,
-                        right: 10,
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              if (isSelected) {
-                                fileIdsToRemove.remove(fileId);
-                              } else {
-                                fileIdsToRemove.add(fileId);
-                              }
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: isSelected ? Colors.red : Colors.white,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isSelected ? Colors.red : Colors.grey,
+                        Positioned(
+                          top: 0,
+                          right: 10,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                addedFiles.removeAt(index);
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.red),
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.white,
                               ),
                             ),
-                            child: Icon(
-                              isSelected ? Icons.close : Icons.delete_outline,
-                              size: 16,
-                              color: isSelected ? Colors.white : Colors.grey,
-                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  );
-                },
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
-
-          // Display newly added images section
-          if (addedFiles.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Hình ảnh mới thêm',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+            ],
+            if (_imagesError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _imagesError!,
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 12,
                   ),
                 ),
-                Text(
-                  '${addedFiles.length} ảnh',
-                  style: const TextStyle(
-                    color: Colors.green,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 12,
+              ),
+
+            // Add image buttons
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final image = await ImageUtils.takePhoto();
+                    if (image != null) {
+                      setState(() {
+                        addedFiles.add(image);
+                        _validateImages();
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('Chụp ảnh'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    foregroundColor: Colors.blue.shade700,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final images = await ImageUtils.pickMultipleImages();
+                    if (images.isNotEmpty) {
+                      // Check if adding these images would exceed the limit (considering existing non-deleted images)
+                      final int existingCount = ((widget.report['fuelReportFiles'] as List?) ?? []).length - fileIdsToRemove.length;
+                      final int maxAllowed = 10;
+                      final int currentTotal = existingCount + addedFiles.length;
+
+                      if (currentTotal + images.length > maxAllowed) {
+                        setState(() {
+                          // Only add images up to the limit
+                          if (currentTotal < maxAllowed) {
+                            final int remainingSlots = maxAllowed - currentTotal;
+                            addedFiles.addAll(images.take(remainingSlots));
+                            DialogHelper.showSnackBar(
+                              context: context,
+                              message: 'Đã thêm $remainingSlots ảnh (tối đa $maxAllowed ảnh)',
+                              isError: true,
+                            );
+                          } else {
+                            DialogHelper.showSnackBar(
+                              context: context,
+                              message: 'Không thể thêm ảnh, đã đạt giới hạn $maxAllowed ảnh',
+                              isError: true,
+                            );
+                          }
+                          _validateImages();
+                        });
+                      } else {
+                        setState(() {
+                          addedFiles.addAll(images);
+                          _validateImages();
+                        });
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.photo_library),
+                  label: const Text('Chọn ảnh'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    foregroundColor: Colors.amber.shade700,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 120,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: addedFiles.length,
-                itemBuilder: (context, index) {
-                  final File file = addedFiles[index];
 
-                  return Stack(
-                    children: [
-                      Container(
-                        margin: const EdgeInsets.only(right: 10),
-                        width: 100,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: Colors.green.shade300,
-                            width: 1,
-                          ),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(9),
-                          child: Image.file(
-                            file,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 0,
-                        right: 10,
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              addedFiles.removeAt(index);
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.red),
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Hủy'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _updateFuelReport,
+                  child: const Text('Lưu thay đổi'),
+                ),
+              ],
             ),
           ],
-          if (_imagesError != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                _imagesError!,
-                style: const TextStyle(
-                  color: Colors.red,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-
-          // Add image buttons
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final image = await ImageUtils.takePhoto();
-                  if (image != null) {
-                    setState(() {
-                      addedFiles.add(image);
-                      _validateImages();
-                    });
-                  }
-                },
-                icon: const Icon(Icons.camera_alt),
-                label: const Text('Chụp ảnh'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  foregroundColor: Colors.blue.shade700,
-                ),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final images = await ImageUtils.pickMultipleImages();
-                  if (images.isNotEmpty) {
-                    setState(() {
-                      addedFiles.addAll(images);
-                      _validateImages();
-                    });
-                  }
-                },
-                icon: const Icon(Icons.photo_library),
-                label: const Text('Chọn từ thư viện'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  foregroundColor: Colors.amber.shade700,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('Hủy'),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: _updateFuelReport,
-                child: const Text('Lưu thay đổi'),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }

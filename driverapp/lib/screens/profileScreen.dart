@@ -1,3 +1,4 @@
+import 'package:driverapp/utils/dialog_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:driverapp/models/driver_profile.dart';
 import 'package:driverapp/services/profile_service.dart';
@@ -272,11 +273,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
       // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_updateMessage!),
-          backgroundColor: Colors.red,
-        ),
+      DialogHelper.showSnackBar(
+        context: context,
+        message: _updateMessage!,
+        isError: true,
       );
     }
   }

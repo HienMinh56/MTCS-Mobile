@@ -23,33 +23,63 @@ class _ExchangeImagesDialogState extends State<ExchangeImagesDialog> {
   final List<File> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
   String? _errorMessage;
-  
+
+  // Hằng số giới hạn số lượng ảnh
+  static const int MAX_IMAGES_PER_UPLOAD = 5;
+
   Future<void> _pickImage(ImageSource source) async {
-    if (_selectedImages.length >= 10) {
-      setState(() {
-        _errorMessage = 'Đã đạt giới hạn tối đa 10 ảnh';
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đã đạt giới hạn tối đa 10 ảnh'),
-          backgroundColor: Colors.red.shade700,
-        ),
+    if (source == ImageSource.gallery) {
+      // For gallery, allow picking multiple images with smart limit handling
+      final List<XFile> pickedImages = await _picker.pickMultiImage(
+        maxWidth: 1800,
+        maxHeight: 1800,
+        imageQuality: 85,
       );
-      return;
-    }
 
-    final XFile? image = await _picker.pickImage(
-      source: source,
-      maxWidth: 1800,
-      maxHeight: 1800,
-      imageQuality: 85,
-    );
+      if (pickedImages.isNotEmpty) {
+        final List<File> images = pickedImages.map((image) => File(image.path)).toList();
 
-    if (image != null) {
-      setState(() {
-        _selectedImages.add(File(image.path));
-        _errorMessage = null;
-      });
+        // Check if adding these images would exceed the limit
+        if (_selectedImages.length + images.length > MAX_IMAGES_PER_UPLOAD) {
+          setState(() {
+            _errorMessage = 'Không được chọn quá $MAX_IMAGES_PER_UPLOAD ảnh';
+
+            // Only add images up to the limit
+            if (_selectedImages.length < MAX_IMAGES_PER_UPLOAD) {
+              final int remainingSlots = MAX_IMAGES_PER_UPLOAD - _selectedImages.length;
+              _selectedImages.addAll(images.take(remainingSlots));
+              _errorMessage = 'Đã thêm $remainingSlots ảnh (tối đa $MAX_IMAGES_PER_UPLOAD ảnh)';
+            }
+          });
+        } else {
+          setState(() {
+            _selectedImages.addAll(images);
+            _errorMessage = null; // Clear error if any
+          });
+        }
+      }
+    } else {
+      // For camera, keep single image capture
+      if (_selectedImages.length >= MAX_IMAGES_PER_UPLOAD) {
+        setState(() {
+          _errorMessage = 'Đã đạt giới hạn tối đa $MAX_IMAGES_PER_UPLOAD ảnh';
+        });
+        return;
+      }
+
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        maxWidth: 1800,
+        maxHeight: 1800,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          _selectedImages.add(File(image.path));
+          _errorMessage = null;
+        });
+      }
     }
   }
 
@@ -57,6 +87,32 @@ class _ExchangeImagesDialogState extends State<ExchangeImagesDialog> {
     setState(() {
       _selectedImages.removeAt(index);
     });
+  }
+
+  void _showConfirmDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Xác nhận tải lên'),
+          content: const Text(
+              'Sau khi gửi, bạn sẽ không thể cập nhật hoặc thêm ảnh trao đổi nữa. Bạn có chắc chắn muốn tải lên các ảnh này?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _uploadExchangeImages();
+              },
+              child: const Text('Xác nhận'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -78,68 +134,68 @@ class _ExchangeImagesDialogState extends State<ExchangeImagesDialog> {
           ),
           Expanded(
             child: _selectedImages.isEmpty
-              ? Center(
-                  child: Text(
-                    'Không có ảnh nào được chọn',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                )
-              : GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                  ),
-                  itemCount: _selectedImages.length,
-                  itemBuilder: (context, index) {
-                    return Stack(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.shade200,
-                                blurRadius: 3,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              _selectedImages[index],
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
+                ? Center(
+                    child: Text(
+                      'Không có ảnh nào được chọn',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  )
+                : GridView.builder(
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                    ),
+                    itemCount: _selectedImages.length,
+                    itemBuilder: (context, index) {
+                      return Stack(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.shade200,
+                                  blurRadius: 3,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 5,
-                          right: 5,
-                          child: GestureDetector(
-                            onTap: () => _removeImage(index),
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.8),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                                size: 16,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                _selectedImages[index],
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                          Positioned(
+                            top: 5,
+                            right: 5,
+                            child: GestureDetector(
+                              onTap: () => _removeImage(index),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.8),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
           ),
           if (_errorMessage != null)
             Padding(
@@ -176,7 +232,8 @@ class _ExchangeImagesDialogState extends State<ExchangeImagesDialog> {
                         label: const Text('Chụp ảnh'),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          backgroundColor: Colors.indigoAccent,
+                          backgroundColor: Colors.blue[600],
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -191,7 +248,8 @@ class _ExchangeImagesDialogState extends State<ExchangeImagesDialog> {
                         label: const Text('Chọn từ thư viện'),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          backgroundColor: Colors.blueGrey,
+                          backgroundColor: Colors.green[600],
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -203,7 +261,7 @@ class _ExchangeImagesDialogState extends State<ExchangeImagesDialog> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Đã chọn ${_selectedImages.length}/10 ảnh',
+                  'Đã chọn ${_selectedImages.length}/$MAX_IMAGES_PER_UPLOAD ảnh',
                   style: TextStyle(color: Colors.grey.shade700),
                 ),
                 const SizedBox(height: 12),
@@ -212,7 +270,8 @@ class _ExchangeImagesDialogState extends State<ExchangeImagesDialog> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.indigo,
+                      backgroundColor: Colors.orange[700],
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -220,7 +279,7 @@ class _ExchangeImagesDialogState extends State<ExchangeImagesDialog> {
                     ),
                     onPressed: _selectedImages.isEmpty
                         ? null
-                        : () => _uploadExchangeImages(),
+                        : () => _showConfirmDialog(),
                     child: const Text(
                       'Tải lên',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -239,6 +298,13 @@ class _ExchangeImagesDialogState extends State<ExchangeImagesDialog> {
     if (_selectedImages.isEmpty) {
       setState(() {
         _errorMessage = 'Vui lòng chọn ít nhất một ảnh trao đổi';
+      });
+      return;
+    }
+
+    if (_selectedImages.length > MAX_IMAGES_PER_UPLOAD) {
+      setState(() {
+        _errorMessage = 'Không được tải lên quá $MAX_IMAGES_PER_UPLOAD ảnh';
       });
       return;
     }

@@ -1,5 +1,6 @@
 import 'package:driverapp/models/chat_message.dart';
 import 'package:driverapp/services/chat_service.dart';
+import 'package:driverapp/utils/dialog_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:ui';
@@ -151,19 +152,17 @@ class _ChatScreenState extends State<ChatScreen> {
           _loadParticipantsInfo();
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không thể gửi tin nhắn'),
-            backgroundColor: Colors.red,
-          ),
+        DialogHelper.showSnackBar(
+          context: context,
+          message: 'Không thể gửi tin nhắn',
+          isError: true,
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Lỗi: ${e.toString()}',
+        isError: true,
       );
     } finally {
       setState(() {

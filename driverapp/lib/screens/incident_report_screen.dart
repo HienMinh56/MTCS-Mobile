@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:driverapp/components/delivery_report/image_section.dart';
+import 'package:driverapp/utils/dialog_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
@@ -7,7 +8,6 @@ import 'package:driverapp/utils/image_utils.dart';
 import 'package:driverapp/services/incident_report_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:driverapp/utils/validation_utils.dart';
 
 // Tạo class TextInputFormatter để ngăn chặn khoảng trắng đầu dòng và ký tự đặc biệt
 class NoLeadingSpaceOrSpecialCharFormatter extends TextInputFormatter {
@@ -55,9 +55,13 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
   final List<File> _images = [];
   bool _isSubmitting = false;
   bool _isLoadingLocation = false;
+  String? _imageError; // Thêm biến để lưu trạng thái lỗi của ảnh
   
   // Incident report service
   final _incidentReportService = IncidentReportService();
+  
+  // Thêm hằng số giới hạn số lượng ảnh
+  static const int MAX_IMAGES_PER_UPLOAD = 5; // Số ảnh tối đa mỗi lần tải lên
   
   // Update image picking to support multiple images
   Future<void> _pickImages() async {
@@ -65,39 +69,22 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
     
     if (images.isNotEmpty) {
       // Check if adding these images would exceed the limit
-      if (_images.length + images.length > 10) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không được chọn quá 10 ảnh'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        // Only add images up to the limit
-        if (_images.length < 10) {
-          final int remainingSlots = 10 - _images.length;
-          setState(() {
-            _images.addAll(images.take(remainingSlots));
-          });
+      if (_images.length + images.length > MAX_IMAGES_PER_UPLOAD) {
+        setState(() {
+          _imageError = 'Không được chọn quá $MAX_IMAGES_PER_UPLOAD ảnh mỗi lần gửi';
           
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Đã thêm $remainingSlots ảnh (tối đa 10 ảnh)'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
+          // Only add images up to the limit
+          if (_images.length < MAX_IMAGES_PER_UPLOAD) {
+            final int remainingSlots = MAX_IMAGES_PER_UPLOAD - _images.length;
+            _images.addAll(images.take(remainingSlots));
+            _imageError = 'Đã thêm $remainingSlots ảnh (tối đa $MAX_IMAGES_PER_UPLOAD ảnh mỗi lần gửi)';
+          }
+        });
       } else {
         setState(() {
           _images.addAll(images);
+          _imageError = null; // Clear error if any
         });
-        
-        // Show confirmation
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Đã thêm ${images.length} ảnh'),
-            backgroundColor: Colors.green,
-          ),
-        );
       }
     }
   }
@@ -105,13 +92,10 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
   // Add camera capture function
   Future<void> _takePicture() async {
     // Check if we've reached the limit
-    if (_images.length >= 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Không được chọn quá 10 ảnh'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (_images.length >= MAX_IMAGES_PER_UPLOAD) {
+      setState(() {
+        _imageError = 'Không được chọn quá $MAX_IMAGES_PER_UPLOAD ảnh mỗi lần gửi';
+      });
       return;
     }
     
@@ -120,39 +104,41 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
     if (photo != null) {
       setState(() {
         _images.add(photo);
+        _imageError = null; // Clear error if any
       });
-      
-      // Show confirmation
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã thêm ảnh từ camera'),
-          backgroundColor: Colors.green,
-        ),
-      );
     }
   }
 
   void _removeImage(int index) {
     setState(() {
       _images.removeAt(index);
+      _imageError = null; // Clear error since we're removing an image
     });
   }
 
   Future<void> _submitReport() async {
+    // Clear previous error
+    setState(() {
+      _imageError = null;
+    });
+
     if (!_formKey.currentState!.validate()) {
       // Form validation errors are already shown in the input fields
       return;
     }
     
-    // Use ValidationUtils to validate images
-    String? imageError = ValidationUtils.validateImages(_images);
-    if (imageError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(imageError),
-          backgroundColor: Colors.orange,
-        ),
-      );
+    // Kiểm tra giới hạn số lượng ảnh
+    if (_images.isEmpty) {
+      setState(() {
+        _imageError = 'Vui lòng tải lên ít nhất một ảnh';
+      });
+      return;
+    }
+    
+    if (_images.length > MAX_IMAGES_PER_UPLOAD) {
+      setState(() {
+        _imageError = 'Không được gửi quá $MAX_IMAGES_PER_UPLOAD ảnh mỗi lần';
+      });
       return;
     }
 
@@ -176,7 +162,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
               const SizedBox(height: 8),
               Text('Địa điểm: ${_locationController.text}'),
               const SizedBox(height: 8),
-              Text('Số ảnh đính kèm: ${_images.length}'),
+              Text('Số ảnh đính kèm: ${_images.length}/$MAX_IMAGES_PER_UPLOAD'),
             ],
           ),
           actions: [
@@ -240,26 +226,19 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
       
       if (response.success) {
         // Show success message with report ID if available
-        final reportId = response.data?['reportId'] ?? '';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              reportId.isNotEmpty 
-                  ? 'Báo cáo sự cố đã được gửi thành công. Mã báo cáo: $reportId'
-                  : 'Báo cáo sự cố đã được gửi thành công'
-            ),
-            backgroundColor: Colors.green,
-          ),
+        DialogHelper.showSnackBar(
+          context: context,
+          message: 'Báo cáo đã được gửi thành công',
+          isError: false,
         );
         
         Navigator.pop(context); // Return to previous screen
       } else {
         // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${response.message}'),
-            backgroundColor: Colors.red,
-          ),
+        DialogHelper.showSnackBar(
+          context: context,
+          message: 'Gửi báo cáo thất bại: ${response.message}',
+          isError: true,
         );
       }
     } catch (e) {
@@ -267,11 +246,10 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
       Navigator.pop(context);
       
       // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi không xác định: $e'),
-          backgroundColor: Colors.red,
-        ),
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Đã xảy ra lỗi khi gửi báo cáo: $e',
+        isError: true,
       );
     } finally {
       setState(() {
@@ -291,11 +269,10 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Quyền truy cập vị trí bị từ chối'),
-              backgroundColor: Colors.red,
-            ),
+          DialogHelper.showSnackBar(
+            context: context,
+            message: 'Quyền truy cập vị trí bị từ chối',
+            isError: true,
           );
           setState(() {
             _isLoadingLocation = false;
@@ -305,11 +282,10 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
       }
       
       if (permission == LocationPermission.deniedForever) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Quyền truy cập vị trí bị từ chối vĩnh viễn, vui lòng cấp quyền trong cài đặt'),
-            backgroundColor: Colors.red,
-          ),
+        DialogHelper.showSnackBar(
+          context: context,
+          message: 'Quyền truy cập vị trí bị từ chối vĩnh viễn. Vui lòng cấp quyền trong cài đặt ứng dụng.',
+          isError: true,
         );
         setState(() {
           _isLoadingLocation = false;
@@ -363,18 +339,16 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
         });
       }
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã cập nhật vị trí hiện tại'),
-          backgroundColor: Colors.green,
-        ),
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Vị trí hiện tại đã được lấy thành công',
+        isError: false,
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Không thể lấy vị trí: $e'),
-          backgroundColor: Colors.red,
-        ),
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Không thể lấy vị trí hiện tại: $e',
+        isError: true,
       );
     } finally {
       setState(() {
@@ -783,16 +757,32 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
   }
 
   Widget _buildImageSection() {
-    return ImageSection(
-      title: 'Hình ảnh minh họa',
-      imageFiles: _images,
-      onTakePhoto: _takePicture,
-      onPickImage: _pickImages,
-      onRemoveImage: _removeImage,
-      cameraButtonColor: Colors.blue.shade600,
-      galleryButtonColor: Colors.blue.shade600,
-      emptyMessage: 'Chưa có ảnh nào\nChọn "Chọn nhiều ảnh" để tải lên nhiều ảnh cùng lúc',
-      crossAxisCount: 2,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ImageSection(
+          title: 'Hình ảnh minh họa',
+          imageFiles: _images,
+          onTakePhoto: _takePicture,
+          onPickImage: _pickImages,
+          onRemoveImage: _removeImage,
+          cameraButtonColor: Colors.blue.shade600,
+          galleryButtonColor: Colors.blue.shade600,
+          emptyMessage: 'Chưa có ảnh nào\nChọn "Chọn nhiều ảnh" để tải lên nhiều ảnh cùng lúc',
+          crossAxisCount: 2,
+        ),
+        if (_imageError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              _imageError!,
+              style: TextStyle(
+                color: Colors.red.shade700,
+                fontSize: 13,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
