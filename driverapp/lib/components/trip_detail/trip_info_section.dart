@@ -54,6 +54,13 @@ class TripInfoSection extends StatelessWidget {
             ? DateFormatter.formatDateTimeFromString(tripDetails['endTime'])
             : 'Chưa hoàn thành',
       ),
+      // Add note field
+      InfoRow(
+        label: 'Ghi chú:',
+        value: tripDetails['note'] != null && tripDetails['note'].toString().isNotEmpty
+            ? tripDetails['note'].toString()
+            : 'Không có',
+      ),
       // Add match information
       InfoRow(
         label: 'Loại ghép:',
