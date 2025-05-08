@@ -21,8 +21,11 @@ class ValidationUtils {
       return 'Vui lòng nhập số hợp lệ';
     }
 
-    if (amount <= 0) {
-      return 'Số lít nhiên liệu phải lớn hơn 0';
+    if (amount <= 10) {
+      return 'Số lít nhiên liệu phải lớn hơn 10';
+    }
+    if (amount >= 1500) {
+      return 'Số lít nhiên liệu phải bé hơn 1500';
     }
 
     return null;
@@ -50,8 +53,11 @@ class ValidationUtils {
       return 'Vui lòng nhập số hợp lệ';
     }
 
-    if (cost <= 0) {
-      return 'Giá nhiên liệu phải lớn hơn 0';
+    if (cost <= 1000000) {
+      return 'Giá nhiên liệu phải lớn hơn 1 triệu';
+    }
+    if (cost >= 5000000) {
+      return 'Giá nhiên liệu phải bé hơn 5 triệu';
     }
 
     return null;
@@ -134,6 +140,9 @@ class ValidationUtils {
     
     if (!RegExp(r'^[0-9]{10,11}$').hasMatch(value.trim())) {
       return 'Số điện thoại không hợp lệ';
+    }
+    if (value.trim().length < 10 || value.trim().length > 11) {
+      return 'Số điện thoại phải có từ 10 đến 11 ký tự';
     }
     
     return null;

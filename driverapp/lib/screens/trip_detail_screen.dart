@@ -109,6 +109,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
         'matchBy': trip.matchBy,
         'matchTime': trip.matchTime?.toIso8601String(),
         'tripStatusHistories': trip.tripStatusHistories,
+        'note': trip.note, // Added note field
       };
 
       // Convert Order object to map for compatibility

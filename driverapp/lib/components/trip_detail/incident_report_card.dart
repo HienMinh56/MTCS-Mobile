@@ -27,8 +27,12 @@ class IncidentReportCard extends StatelessWidget {
     final int incidentTypeValue = int.tryParse(report['type']?.toString() ?? '1') ?? 1;
     final String incidentTypeName = _getIncidentTypeName(incidentTypeValue);
     
-    // Get vehicle type info
-    final int vehicleTypeValue = int.tryParse(report['vehicleType']?.toString() ?? '1') ?? 1;
+    // Check if vehicle type is available
+    final bool hasVehicleType = report['vehicleType'] != null;
+    
+    // Get vehicle type info if available
+    final int vehicleTypeValue = hasVehicleType ? 
+        (int.tryParse(report['vehicleType'].toString()) ?? 1) : 1;
     final String vehicleTypeName = vehicleTypeValue == 1 ? 'Xe kéo' : 'Rơ moóc';
     
     // Choose badge color based on type
@@ -102,35 +106,36 @@ class IncidentReportCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    // Vehicle type badge
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: vehicleTypeBadgeColor.withOpacity(0.1),
-                        border: Border.all(color: vehicleTypeBadgeColor),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            vehicleTypeValue == 1 ? Icons.local_shipping : Icons.add_box,
-                            size: 12,
-                            color: vehicleTypeBadgeColor,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            vehicleTypeName,
-                            style: TextStyle(
-                              fontSize: 11,
+                    // Vehicle type badge - only show if vehicle type is available
+                    if (hasVehicleType)
+                      Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: vehicleTypeBadgeColor.withOpacity(0.1),
+                          border: Border.all(color: vehicleTypeBadgeColor),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              vehicleTypeValue == 1 ? Icons.local_shipping : Icons.add_box,
+                              size: 12,
                               color: vehicleTypeBadgeColor,
-                              fontWeight: FontWeight.bold,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 3),
+                            Text(
+                              vehicleTypeName,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: vehicleTypeBadgeColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
                     // Incident type badge
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),

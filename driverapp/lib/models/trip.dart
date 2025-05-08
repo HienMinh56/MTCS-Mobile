@@ -70,6 +70,7 @@ class Trip {
   final String? matchBy;
   final DateTime? matchTime;
   final List<dynamic>? tripStatusHistories;
+  final String? note; // Thêm trường ghi chú
 
   Trip({
     required this.tripId,
@@ -87,6 +88,7 @@ class Trip {
     this.matchBy, 
     this.matchTime,
     this.tripStatusHistories,
+    this.note,
   });
 
   factory Trip.fromJson(Map<String, dynamic> json) {
@@ -107,6 +109,7 @@ class Trip {
       matchBy: json['matchBy'],
       matchTime: json['matchTime'] != null ? DateTime.parse(json['matchTime']) : null,
       tripStatusHistories: json['tripStatusHistories'],
+      note: json['note'], // Map trường ghi chú
     );
   }
 
@@ -134,6 +137,7 @@ class Trip {
       status: json['status'] ?? '',
       statusName: StatusManager.getStatusName(json['status']) ?? _getStatusName(json['status']),
       order: order, // Attach the order
+      note: json['note'], // Map trường ghi chú
     );
   }
 
