@@ -291,13 +291,16 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> {
     try {
       DialogHelper.showLoadingDialog(context: context, message: 'Đang cập nhật...');
 
+      // Check if vehicle type exists in the original report
+      final bool hasVehicleType = widget.report['vehicleType'] != null;
+
       // Call the API service to update the report
       final result = await _incidentReportService.updateIncidentReport(
         reportId: widget.report['reportId'],
         description: descriptionController.text,
         location: locationController.text,
         incidentType: incidentTypeController.text,
-        vehicleType: vehicleType,
+        vehicleType: hasVehicleType ? vehicleType : null, // Only send vehicle type if it existed originally
         fileIdsToRemove: fileIdsToRemove,
         addedFiles: addedFiles,
       );
@@ -943,6 +946,9 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Kiểm tra xem report ban đầu có vehicle type không
+    final bool hasVehicleType = widget.report['vehicleType'] != null;
+
     return Container(
       padding: const EdgeInsets.all(16),
       width: double.infinity,
@@ -1008,22 +1014,23 @@ class _EditIncidentReportDialogState extends State<EditIncidentReportDialog> {
                       errorText: _incidentTypeError,
                     ),
                     
-                    const SizedBox(height: 16),
-                    
-                    // Vehicle Type
-                    _buildSectionTitle('Loại xe', Icons.local_shipping),
-                    _buildRadioSelection(
-                      items: const [
-                        {'label': 'Xe đầu kéo', 'value': 1, 'icon': Icons.fire_truck},
-                        {'label': 'Xe rơ mooc', 'value': 2, 'icon': Icons.rv_hookup},
-                      ],
-                      groupValue: vehicleType,
-                      onChanged: (value) {
-                        setState(() {
-                          vehicleType = value;
-                        });
-                      },
-                    ),
+                    // Vehicle Type - chỉ hiển thị khi báo cáo ban đầu có vehicle type
+                    if (hasVehicleType) ...[
+                      const SizedBox(height: 16),
+                      _buildSectionTitle('Loại xe', Icons.local_shipping),
+                      _buildRadioSelection(
+                        items: const [
+                          {'label': 'Xe đầu kéo', 'value': 1, 'icon': Icons.fire_truck},
+                          {'label': 'Xe rơ mooc', 'value': 2, 'icon': Icons.rv_hookup},
+                        ],
+                        groupValue: vehicleType,
+                        onChanged: (value) {
+                          setState(() {
+                            vehicleType = value;
+                          });
+                        },
+                      ),
+                    ],
                     
                     const SizedBox(height: 16),
                     

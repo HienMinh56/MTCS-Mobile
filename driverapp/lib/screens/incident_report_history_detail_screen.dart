@@ -92,7 +92,7 @@ class IncidentReportDetailScreen extends StatelessWidget {
   }
 
   String _getVehicleTypeText(int? vehicleType) {
-    if (vehicleType == null) return 'Không có thông tin';
+    if (vehicleType == null) return 'Không có';
     switch (vehicleType) {
       case 1: return 'Đầu kéo';
       case 2: return 'Rơ móc';

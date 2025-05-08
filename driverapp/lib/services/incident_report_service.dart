@@ -20,8 +20,8 @@ class IncidentReportService {
     required String incidentType,
     required String description,
     required String location,
-    required int type, // 1 = On Site, 2 = Change Vehicle
-    required int vehicleType, // 1 = Head, 2 = Trailer
+    required int type, // 1 = On Site, 2 = Change Vehicle, 3 = Cần hỗ trợ loại 2
+    required int? vehicleType, // 1 = Head, 2 = Trailer, null khi type=3
     required String status, // 'Resolved' or 'Unresolved'
     String? resolutionDetails,
     List<File> images = const [],
@@ -33,9 +33,13 @@ class IncidentReportService {
       'Description': description,
       'Location': location,
       'Type': type.toString(),
-      'VehicleType': vehicleType.toString(),
       'Status': "Handling",
     };
+    
+    // Chỉ thêm VehicleType nếu type khác 3 (không phải "Cần hỗ trợ loại 2")
+    if (type != 3 && vehicleType != null) {
+      fields['VehicleType'] = vehicleType.toString();
+    }
     
     // Add resolution details if provided
     if (resolutionDetails != null && resolutionDetails.isNotEmpty) {

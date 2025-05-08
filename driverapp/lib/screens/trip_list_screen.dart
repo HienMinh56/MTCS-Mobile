@@ -558,50 +558,60 @@ class _TripCardState extends State<TripCard> {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(statusIcon, color: statusColor),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.trip.trackingCode.isNotEmpty 
-                        ? 'Mã vận đơn: ${widget.trip.trackingCode}'
-                        : 'Mã chuyến: ${widget.trip.tripId}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: statusColor,
-                    ),
-                  ),
-                ),
-                // Add copy button for tracking code
-                if (widget.trip.trackingCode.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.copy, size: 20),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: widget.trip.trackingCode));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Đã sao chép mã vận đơn'),
-                          duration: Duration(seconds: 1),
+                // Dòng đầu tiên chỉ hiển thị tracking code và nút copy
+                Row(
+                  children: [
+                    Icon(statusIcon, color: statusColor),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.trip.trackingCode.isNotEmpty 
+                            ? 'Mã vận đơn: ${widget.trip.trackingCode}'
+                            : 'Mã chuyến: ${widget.trip.tripId}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
                         ),
-                      );
-                    },
-                  ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    widget.trip.statusName,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                      ),
+                    ),
+                    // Add copy button for tracking code
+                    if (widget.trip.trackingCode.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: widget.trip.trackingCode));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Đã sao chép mã vận đơn'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      widget.trip.statusName,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ),

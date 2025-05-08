@@ -158,7 +158,9 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
               const SizedBox(height: 8),
               Text('Xử lý: ${_incidentType == 1 ? "Có thể sửa" : _incidentType == 2 ? "Cần hỗ trợ loại 1" : _incidentType == 3 ? "Cần hỗ trợ loại 2" : ""}'),
               const SizedBox(height: 8),
-              Text('Loại xe: ${_vehicleType == 1 ? "Xe đầu kéo" : "Rơ mooc"}'),
+              // Chỉ hiển thị loại xe khi không phải là Cần hỗ trợ loại 2 (type = 3)
+              if (_incidentType != 3)
+                Text('Loại xe: ${_vehicleType == 1 ? "Xe đầu kéo" : "Rơ mooc"}'),
               const SizedBox(height: 8),
               Text('Địa điểm: ${_locationController.text}'),
               const SizedBox(height: 8),
@@ -210,14 +212,15 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
     );
     
     try {
+      // Chỉ truyền vehicleType khi không phải là loại "Cần hỗ trợ loại 2"
       final response = await _incidentReportService.submitIncidentReport(
         tripId: widget.tripId,
         incidentType: _selectedIncidentType ?? '',
         description: _descriptionController.text,
         location: _locationController.text,
         type: _incidentType,
-        vehicleType: _vehicleType, // Added vehicle type parameter
-        status: 'Handling', // Defaulting to Resolved as per API example
+        vehicleType: _incidentType != 3 ? _vehicleType : null, // Không truyền vehicleType (null) khi là loại 3
+        status: 'Handling',
         images: _images,
       );
       print('Response: $response');
@@ -533,43 +536,49 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                 const SizedBox(height: 20),
                 
                 // Vehicle Type
-                _buildSectionTitle('Loại xe'),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.blue.shade200),
-                    borderRadius: BorderRadius.circular(12),
-                    color: Colors.white,
-                  ),
-                  child: Column(
-                    children: [
-                      RadioListTile<int>(
-                        title: const Text('Xe đầu kéo'),
-                        value: 1,
-                        groupValue: _vehicleType,
-                        activeColor: Colors.blue.shade700,
-                        onChanged: (value) {
-                          setState(() {
-                            _vehicleType = value!;
-                          });
-                        },
+                if (_incidentType != 3) // Chỉ hiển thị khi không phải loại "Cần hỗ trợ loại 2"
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle('Loại xe'),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.blue.shade200),
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white,
                       ),
-                      Divider(height: 1, color: Colors.blue.shade100),
-                      RadioListTile<int>(
-                        title: const Text('Xe rơ mooc'),
-                        value: 2,
-                        groupValue: _vehicleType,
-                        activeColor: Colors.blue.shade700,
-                        onChanged: (value) {
-                          setState(() {
-                            _vehicleType = value!;
-                          });
-                        },
+                      child: Column(
+                        children: [
+                          RadioListTile<int>(
+                            title: const Text('Xe đầu kéo'),
+                            value: 1,
+                            groupValue: _vehicleType,
+                            activeColor: Colors.blue.shade700,
+                            onChanged: (value) {
+                              setState(() {
+                                _vehicleType = value!;
+                              });
+                            },
+                          ),
+                          Divider(height: 1, color: Colors.blue.shade100),
+                          RadioListTile<int>(
+                            title: const Text('Xe rơ mooc'),
+                            value: 2,
+                            groupValue: _vehicleType,
+                            activeColor: Colors.blue.shade700,
+                            onChanged: (value) {
+                              setState(() {
+                                _vehicleType = value!;
+                              });
+                            },
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    
+                    const SizedBox(height: 20),
+                  ],
                 ),
-                
-                const SizedBox(height: 20),
                 
                 // Location
                 _buildSectionTitle('Địa điểm xảy ra sự cố'),
