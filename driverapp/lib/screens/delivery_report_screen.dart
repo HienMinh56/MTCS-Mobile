@@ -361,7 +361,7 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
 
   Widget _buildNoteSection() {
     return InfoCard(
-      title: 'Ghi chú',
+      title: 'Ghi chú *',
       children: [
         TextFormField(
           controller: _noteController,
@@ -380,7 +380,7 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
               borderSide: const BorderSide(color: Colors.red, width: 2),
             ),
             errorText: _noteError,
-            helperText: 'Tối thiểu $_minNoteLength ký tự, tối đa $_maxNoteLength ký tự',
+            // helperText: 'Tối thiểu $_minNoteLength ký tự, tối đa $_maxNoteLength ký tự',
             counterText: '${_noteController.text.length}/$_maxNoteLength',
           ),
           onChanged: (value) {
@@ -412,7 +412,7 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ImageSection(
-          title: 'Hình ảnh biên bản',
+          title: 'Hình ảnh biên bản *',
           imageFiles: _imageFiles,
           onTakePhoto: _takePhoto,
           onPickImage: _pickImage,
@@ -429,13 +429,13 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
               style: const TextStyle(color: Colors.red, fontSize: 12),
             ),
           ),
-        Padding(
-          padding: const EdgeInsets.only(top: 8.0, left: 12.0),
-          child: Text(
-            'Tối đa $_maxImageCount ảnh',
-            style: const TextStyle(color: Colors.grey, fontSize: 12),
-          ),
-        ),
+        // Padding(
+        //   padding: const EdgeInsets.only(top: 8.0, left: 12.0),
+        //   child: Text(
+        //     'Tối đa $_maxImageCount ảnh',
+        //     style: const TextStyle(color: Colors.grey, fontSize: 12),
+        //   ),
+        // ),
       ],
     );
   }

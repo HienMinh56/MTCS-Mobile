@@ -424,7 +424,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                 const SizedBox(height: 8),
                 
                 // Incident Type
-                _buildSectionTitle('Loại sự cố'),
+                _buildSectionTitle('Loại sự cố *'),
                 TextFormField(
                   initialValue: _selectedIncidentType,
                   onChanged: (value) {
@@ -485,7 +485,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                 const SizedBox(height: 20),
                 
                 // Incident Resolution Type (On Site vs Change Vehicle vs Cancel Trip)
-                _buildSectionTitle('Loại xử lý sự cố'),
+                _buildSectionTitle('Loại xử lý sự cố *'),
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.blue.shade200),
@@ -540,7 +540,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionTitle('Loại xe'),
+                    _buildSectionTitle('Loại xe *'),
                     Container(
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.blue.shade200),
@@ -581,7 +581,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                 ),
                 
                 // Location
-                _buildSectionTitle('Địa điểm xảy ra sự cố'),
+                _buildSectionTitle('Địa điểm xảy ra sự cố *'),
                 TextFormField(
                   controller: _locationController,
                   decoration: InputDecoration(
@@ -651,7 +651,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                 const SizedBox(height: 20),
                 
                 // Description
-                _buildSectionTitle('Mô tả chi tiết'),
+                _buildSectionTitle('Mô tả chi tiết *'),
                 TextFormField(
                   controller: _descriptionController,
                   maxLines: 5,
@@ -770,7 +770,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ImageSection(
-          title: 'Hình ảnh minh họa',
+          title: 'Hình ảnh minh họa *',
           imageFiles: _images,
           onTakePhoto: _takePicture,
           onPickImage: _pickImages,

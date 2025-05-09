@@ -1047,11 +1047,11 @@ class _TripCardState extends State<TripCard> {
                                           label: Text('Cập nhật thành: ${_nextStatus!.statusName}'),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: ColorConstants.accentColor,
+                                            foregroundColor: Colors.white, // Thêm thuộc tính này để đặt màu chữ
                                             padding: const EdgeInsets.symmetric(vertical: 14),
                                             textStyle: const TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
-                                              color: Colors.white
                                             ),
                                           ),
                                         ),
