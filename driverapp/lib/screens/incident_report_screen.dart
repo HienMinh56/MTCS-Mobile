@@ -181,8 +181,12 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
               ),
-              child: const Text('XÁC NHẬN'),
+              child: const Text('XÁC NHẬN' ,
+                style: TextStyle(
+                  color: Colors.white,
+                ),
             ),
+            )
           ],
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),

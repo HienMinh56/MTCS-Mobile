@@ -108,7 +108,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             title: 'Thông tin Hàng Hóa',
             children: [
               InfoRow(label: 'Loại Container:', value: _getContainerType(_orderDetails!['containerType'])),
-              InfoRow(label: 'Nhiệt độ:', value: '${_orderDetails!['temperature']} °C'),
+              InfoRow(label: 'Nhiệt độ:', value: _orderDetails!['temperature'] != null ? '${_orderDetails!['temperature']} °C' : 'N/A'),
               InfoRow(label: 'Khối lượng:', value: '${_orderDetails!['weight']} tấn'),
             ],
           ),

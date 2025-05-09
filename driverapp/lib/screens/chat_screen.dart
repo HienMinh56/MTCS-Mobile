@@ -10,6 +10,7 @@ class ChatScreen extends StatefulWidget {
   final String userName;
   final String otherUserId;
   final String otherUserName;
+  final String otherUserPhone; // Thêm thuộc tính số điện thoại
 
   const ChatScreen({
     Key? key,
@@ -17,6 +18,7 @@ class ChatScreen extends StatefulWidget {
     required this.userName,
     required this.otherUserId,
     required this.otherUserName,
+    required this.otherUserPhone, // Thêm vào constructor
   }) : super(key: key);
 
   @override
@@ -200,6 +202,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
                 Text(
+                  widget.otherUserPhone, // Hiển thị số điện thoại
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+                Text(
                   "Nhân viên",
                   style: TextStyle(
                     fontSize: 12,
@@ -250,7 +259,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                "Điều phối viên",
+                                "Nhân viên",
                                 style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,

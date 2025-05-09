@@ -229,7 +229,11 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue.shade700,
               ),
-              child: Text('Xác nhận gửi'),
+              child: Text('Xác nhận gửi', 
+                style: TextStyle(
+                  color: Colors.white,
+                ),
+              ),
             ),
           ],
         );

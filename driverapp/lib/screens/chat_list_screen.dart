@@ -222,6 +222,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                     userName: _userName,
                                     otherUserId: chat['otherUserId'],
                                     otherUserName: chat['otherUserName'],
+                                    otherUserPhone: chat['otherUserPhone'] ?? '', // Đảm bảo luôn truyền số điện thoại
                                   ),
                                 ),
                               ).then((_) {
@@ -519,7 +520,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             // Lọc danh sách nhân viên theo từ khóa tìm kiếm
                             final filteredStaff = snapshot.data!.where((staff) {
                               return staff.fullName.toLowerCase().contains(searchQuery) ||
-                                  staff.email.toLowerCase().contains(searchQuery);
+                                  staff.phoneNumber.toLowerCase().contains(searchQuery);
                             }).toList();
                             
                             if (filteredStaff.isEmpty) {
@@ -583,6 +584,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                               userName: _userName,
                                               otherUserId: staff.userId,
                                               otherUserName: staff.fullName,
+                                              otherUserPhone: staff.phoneNumber, // Truyền số điện thoại
                                             ),
                                           ),
                                         ).then((_) {
