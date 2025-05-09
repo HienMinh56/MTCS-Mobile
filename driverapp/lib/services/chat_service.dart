@@ -156,7 +156,7 @@ class ChatService {
           List<Map<String, dynamic>> participants = [];
           if (participantsData is List) {
             participants = List<Map<String, dynamic>>.from(
-              participantsData.map((item) => item is Map ? Map<String, dynamic>.from(item) : {'id': '', 'name': ''})
+              participantsData.map((item) => item is Map ? Map<String, dynamic>.from(item) : {'id': '', 'name': '', 'phoneNumber': ''})
             );
           } else {
             continue;
@@ -173,7 +173,7 @@ class ChatService {
           // Lấy thông tin của người tham gia còn lại
           final otherUser = participants.firstWhere(
             (participant) => participant['id'] != userId,
-            orElse: () => {'id': '', 'name': ''}
+            orElse: () => {'id': '', 'name': '', 'phoneNumber': ''}
           );
 
           if (otherUser['id'].isEmpty) {
@@ -204,6 +204,7 @@ class ChatService {
             'chatId': chatDoc.id,
             'otherUserId': otherUser['id'],
             'otherUserName': otherUser['name'],
+            'otherUserPhone': otherUser['phoneNumber'] ?? '', // Thêm dòng này để truyền số điện thoại
             'lastMessage': lastMessage,
             'unreadCount': unreadQuery.docs.length,
           });

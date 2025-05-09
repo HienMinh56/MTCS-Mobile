@@ -189,7 +189,7 @@ class _ResolveIncidentDialogState extends State<ResolveIncidentDialog> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                 ),
-                child: const Text('Xác nhận giải quyết'),
+                child: const Text('Xác nhận giải quyết', style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
