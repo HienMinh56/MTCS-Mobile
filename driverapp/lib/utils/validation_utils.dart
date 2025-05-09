@@ -53,11 +53,11 @@ class ValidationUtils {
       return 'Vui lòng nhập số hợp lệ';
     }
 
-    if (cost <= 1000000) {
-      return 'Giá nhiên liệu phải lớn hơn 1 triệu';
+    if (cost <= 100000) {
+      return 'Giá nhiên liệu phải lớn hơn 1 trắm ngàn VNĐ';
     }
-    if (cost >= 5000000) {
-      return 'Giá nhiên liệu phải bé hơn 5 triệu';
+    if (cost >= 50000000) {
+      return 'Giá nhiên liệu phải bé hơn 50 triệu VNĐ';
     }
 
     return null;
@@ -144,7 +144,6 @@ class ValidationUtils {
     if (value.trim().length < 10 || value.trim().length > 11) {
       return 'Số điện thoại phải có từ 10 đến 11 ký tự';
     }
-    
     return null;
   }
 

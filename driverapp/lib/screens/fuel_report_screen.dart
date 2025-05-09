@@ -510,7 +510,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                             FilteringTextInputFormatter.digitsOnly,
                           ],
                           decoration: InputDecoration(
-                            labelText: 'Số lít nhiên liệu đổ',
+                            labelText: 'Số lít nhiên liệu đổ *',
                             labelStyle: TextStyle(color: Colors.blue.shade700),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -553,7 +553,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                             FilteringTextInputFormatter.digitsOnly,
                           ],
                           decoration: InputDecoration(
-                            labelText: 'Giá nhiên liệu',
+                            labelText: 'Giá nhiên liệu *',
                             labelStyle: TextStyle(color: Colors.blue.shade700),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -617,7 +617,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                         TextField(
                           controller: _locationController,
                           decoration: InputDecoration(
-                            labelText: 'Vị trí đổ nhiên liệu',
+                            labelText: 'Vị trí đổ nhiên liệu *',
                             labelStyle: TextStyle(color: Colors.green.shade700),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -684,7 +684,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                 const SizedBox(height: 24),
 
                 ImageSection(
-                  title: 'Ảnh hoá đơn',
+                  title: 'Ảnh hoá đơn *',
                   imageFiles: _selectedImages,
                   onTakePhoto: () {
                     _takePicture().then((_) => _validateImages());
@@ -722,6 +722,7 @@ class _FuelReportScreenState extends State<FuelReportScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                 ),
