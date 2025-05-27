@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../components/trip_detail/trip_info_section.dart';
 import '../components/trip_detail/report_icons_section.dart';
-import '../components/trip_detail/fuel_report_card.dart';
+import '../components/trip_detail/expense_report_card.dart';
 import '../components/trip_detail/incident_report_card.dart';
 import '../components/trip_detail/delivery_report_card.dart';
 import '../components/trip_detail/trip_status_history_section.dart';
-import '../components/trip_detail/edit_fuel_report_dialog.dart';
 import '../components/trip_detail/edit_incident_report_dialog.dart'; // New import for incident report dialog
+import '../components/trip_detail/edit_expense_report_dialog.dart'; // Import for expense report dialog
 import '../components/trip_detail/billing_images_dialog.dart'; // New import for billing images dialog
 import '../components/trip_detail/resolve_incident_dialog.dart'; // New import for resolve incident dialog
 import '../components/trip_detail/exchange_images_dialog.dart'; // Import ExchangeImagesDialog
@@ -15,7 +15,7 @@ import '../models/trip.dart';
 import '../services/trip_service.dart';
 import '../services/order_service.dart';
 import '../services/delivery_status_service.dart';
-import '../services/fuel_report_service.dart';
+import '../services/expense_report_service.dart';
 import '../services/incident_report_service.dart';
 import '../services/delivery_report_service.dart';
 
@@ -28,11 +28,9 @@ class TripDetailScreen extends StatefulWidget {
   _TripDetailScreenState createState() => _TripDetailScreenState();
 }
 
-class _TripDetailScreenState extends State<TripDetailScreen> {
-  final TripService _tripService = TripService();
+class _TripDetailScreenState extends State<TripDetailScreen> {  final TripService _tripService = TripService();
   final OrderService _orderService = OrderService();
   final DeliveryStatusService _statusService = DeliveryStatusService();
-  final FuelReportService _fuelReportService = FuelReportService();
   final IncidentReportService _incidentReportService = IncidentReportService();
   final DeliveryReportService _deliveryReportService = DeliveryReportService();
 
@@ -40,12 +38,12 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
   String _errorMessage = '';
   Map<String, dynamic>? _tripDetails;
   Map<String, dynamic>? _orderDetails;
-  List<Map<String, dynamic>> _fuelReports = [];
+  List<Map<String, dynamic>> _expenseReports = [];
   List<Map<String, dynamic>> _incidentReports = [];
   List<Map<String, dynamic>> _deliveryReports = [];
 
   // Add state variables to track which report type is expanded
-  bool _isFuelReportsExpanded = false;
+  bool _isExpenseReportsExpanded = false;
   bool _isIncidentReportsExpanded = false;
   bool _isDeliveryReportsExpanded = false;
 
@@ -135,21 +133,20 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
         } catch (e) {
           print('Error loading order details: $e');
           // Continue without order details
-        }
-      }
-
-      // Load fuel reports with more robust error handling
-      List<Map<String, dynamic>> fuelReports = [];
+        }      }      // Load expense reports with more robust error handling
+      List<Map<String, dynamic>> expenseReports = [];
       try {
-        final fuelReportsResponse = await _fuelReportService.getFuelReportsByTripId(widget.tripId);
-        if (fuelReportsResponse['status'] == 200 && fuelReportsResponse['data'] is List) {
-          fuelReports = (fuelReportsResponse['data'] as List)
+        // Sử dụng API mới để lấy tất cả báo cáo chi phí cho chuyến đi
+        final expenseReportsResponse = await ExpenseReportService.getAllExpenseReports(widget.tripId);
+        
+        if (expenseReportsResponse['status'] == 200 && expenseReportsResponse['data'] is List) {
+          expenseReports = (expenseReportsResponse['data'] as List)
               .map((item) => _convertToStringKeyMap(item))
               .toList();
         }
       } catch (e) {
-        print('Error loading fuel reports: $e');
-        // Continue with empty fuel reports rather than failing the whole function
+        print('Error loading expense reports: $e');
+        // Continue with empty expense reports rather than failing the whole function
       }
 
       // Load incident reports with more robust error handling
@@ -184,16 +181,14 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       } catch (e) {
         print('Error loading delivery reports: $e');
         // Continue with empty delivery reports rather than failing the whole function
-      }
-
-      if (mounted) {
+      }      if (mounted) {
         setState(() {
           _tripDetails = tripDetails;
           _orderDetails = orderDetails;
           
-          // Sắp xếp báo cáo nhiên liệu theo thời gian mới nhất
-          _fuelReports = fuelReports;
-          _fuelReports.sort((a, b) {
+          // Sắp xếp báo cáo chi phí theo thời gian mới nhất
+          _expenseReports = expenseReports;
+          _expenseReports.sort((a, b) {
             final DateTime timeA = DateTime.parse(a['reportTime'] ?? DateTime.now().toString());
             final DateTime timeB = DateTime.parse(b['reportTime'] ?? DateTime.now().toString());
             return timeB.compareTo(timeA); // Sắp xếp giảm dần (mới nhất đầu tiên)
@@ -227,11 +222,10 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       }
     }
   }
-
   void _handleReportTypeSelected(int reportType) {
     setState(() {
       // Reset all section expanded states
-      _isFuelReportsExpanded = reportType == 0 ? !_isFuelReportsExpanded : false;
+      _isExpenseReportsExpanded = reportType == 0 ? !_isExpenseReportsExpanded : false;
       _isIncidentReportsExpanded = reportType == 1 ? !_isIncidentReportsExpanded : false;
       _isDeliveryReportsExpanded = reportType == 2 ? !_isDeliveryReportsExpanded : false;
     });
@@ -268,16 +262,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       ),
     );
   }
-
-  // Hàm mới sử dụng component EditFuelReportDialog
-  void _showEditFuelReportDialog(Map<String, dynamic> report) {
-    EditFuelReportDialogHelper.show(
-      context: context,
-      report: report,
-      onReportUpdated: _loadDetails,
-      onShowFullScreenImage: _showFullScreenImage,
-    );
-  }
+  // Note: We removed the EditFuelReportDialog function as we no longer need it
 
   void _showEditIncidentDialog(Map<String, dynamic> report) {
     EditIncidentReportDialogHelper.show(
@@ -296,12 +281,21 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       // onShowFullScreenImage: _showFullScreenImage,
     );
   }
-
   void _showBillingImagesDialog(Map<String, dynamic> report) {
     BillingImagesDialogHelper.show(
       context: context,
       reportId: report['reportId'],
       onImagesUploaded: _loadDetails,
+    );
+  }
+  
+  // Edit expense report
+  void _showEditExpenseDialog(Map<String, dynamic> report) {
+    EditExpenseReportDialogHelper.show(
+      context: context,
+      report: report,
+      onReportUpdated: _loadDetails,
+      onShowFullScreenImage: _showFullScreenImage,
     );
   }
 
@@ -356,26 +350,23 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
           // Reports Section with icons
           const SizedBox(height: 20),
           _buildSectionTitle('Báo cáo'),
-          
-          // Report Icons Section
+            // Report Icons Section
           ReportIconsSection(
-            fuelReportsCount: _fuelReports.length,
+            expenseReportsCount: _expenseReports.length,
             incidentReportsCount: _incidentReports.length,
             deliveryReportsCount: _deliveryReports.length,
-            isFuelReportsExpanded: _isFuelReportsExpanded,
+            isExpenseReportsExpanded: _isExpenseReportsExpanded,
             isIncidentReportsExpanded: _isIncidentReportsExpanded,
             isDeliveryReportsExpanded: _isDeliveryReportsExpanded,
             onReportTypeSelected: _handleReportTypeSelected,
-          ),
-
-          // Fuel Reports Section (expandable)
-          if (_isFuelReportsExpanded) ...[
+          ),          // Expense Reports Section (expandable)
+          if (_isExpenseReportsExpanded) ...[
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Báo cáo đổ xăng',
+                  'Báo cáo chi phí',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -385,19 +376,18 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   icon: Icon(Icons.keyboard_arrow_up),
                   onPressed: () {
                     setState(() {
-                      _isFuelReportsExpanded = false;
+                      _isExpenseReportsExpanded = false;
                     });
                   },
                 ),
               ],
-            ),
-            if (_fuelReports.isNotEmpty)
-              ..._fuelReports.map((report) => FuelReportCard(
+            ),            if (_expenseReports.isNotEmpty)
+              ..._expenseReports.map((report) => ExpenseReportCard(
                     report: report,
                     isTripEnded: isTripEnded,
-                    onShowFullImage: (file) => _showFullScreenImage(file['fileUrl']),
-                    // Chỉ cho phép cập nhật báo cáo nhiên liệu khi chuyến chưa kết thúc
-                    onEditReport: isTripEnded ? null : _showEditFuelReportDialog,
+                    onShowFullImage: (fileUrl) => _showFullScreenImage(fileUrl),
+                    // Chỉ cho phép cập nhật báo cáo chi phí khi chuyến chưa kết thúc
+                    onEditReport: !isTripEnded ? _showEditExpenseDialog : null,
                   )).toList()
             else
               Card(
@@ -406,7 +396,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                     borderRadius: BorderRadius.circular(12)),
                 child: const Padding(
                   padding: EdgeInsets.all(16.0),
-                  child: Center(child: Text('Chưa có báo cáo đổ xăng')),
+                  child: Center(child: Text('Chưa có báo cáo chi phí')),
                 ),
               ),
           ],
@@ -416,8 +406,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
+              children: [                Text(
                   'Báo cáo sự cố',
                   style: const TextStyle(
                     fontSize: 18,

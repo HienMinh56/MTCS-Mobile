@@ -2,20 +2,20 @@ import 'package:flutter/material.dart';
 import '../../utils/color_constants.dart';
 
 class ReportIconsSection extends StatelessWidget {
-  final int fuelReportsCount;
+  final int expenseReportsCount;
   final int incidentReportsCount;
   final int deliveryReportsCount;
-  final bool isFuelReportsExpanded;
+  final bool isExpenseReportsExpanded;
   final bool isIncidentReportsExpanded;
   final bool isDeliveryReportsExpanded;
   final Function(int) onReportTypeSelected;
 
   const ReportIconsSection({
     Key? key,
-    required this.fuelReportsCount,
+    required this.expenseReportsCount,
     required this.incidentReportsCount,
     required this.deliveryReportsCount,
-    required this.isFuelReportsExpanded,
+    required this.isExpenseReportsExpanded,
     required this.isIncidentReportsExpanded,
     required this.isDeliveryReportsExpanded,
     required this.onReportTypeSelected,
@@ -31,12 +31,12 @@ class ReportIconsSection extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            // Fuel report icon
+            // Expense report icon
             _buildReportIcon(
-              icon: Icons.local_gas_station,
-              label: 'Đổ xăng',
-              count: fuelReportsCount,
-              isSelected: isFuelReportsExpanded,
+              icon: Icons.receipt,
+              label: 'Chi phí',
+              count: expenseReportsCount,
+              isSelected: isExpenseReportsExpanded,
               onTap: () => onReportTypeSelected(0),
             ),
 

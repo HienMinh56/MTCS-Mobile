@@ -371,30 +371,55 @@ class IncidentReportCard extends StatelessWidget {
                         disabledForegroundColor: Colors.grey.shade700,
                       ),
                     ),
-                  ),
-                
-                // Third row with Resolve button
+                  ),                  // Third row with Resolve button
                 if (onResolveReport != null)
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(top: 10.0, left: 6.0, right: 6.0, bottom: 10.0),
-                    child: ElevatedButton.icon(
-                      onPressed: () => onResolveReport!(report),
-                      icon: const Icon(Icons.check_circle_outline, size: 18),
-                      label: const Text(
-                        'Giải quyết',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                  Column(
+                    children: [
+                      // Show note if type is 2 and no exchange images
+                      if (incidentTypeValue == 2 && !hasExchangeImages)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.red.shade700, size: 16),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Cần thêm ảnh trao đổi trước khi giải quyết với loại báo cáo này',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.red.shade700,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        elevation: 3,
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(top: 10.0, left: 6.0, right: 6.0, bottom: 10.0),
+                        child: ElevatedButton.icon(
+                          onPressed: (incidentTypeValue == 2 && !hasExchangeImages)
+                              ? null // Disable button if type = 2 and no exchange images
+                              : () => onResolveReport!(report),
+                          icon: const Icon(Icons.check_circle_outline, size: 18),
+                          label: const Text(
+                            'Giải quyết',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 3,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
               ],
             ),

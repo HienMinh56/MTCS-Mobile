@@ -83,7 +83,6 @@ class ValidationUtils {
     
     return null;
   }
-
   /// Validates if images are selected
   /// 
   /// Returns null if valid, or an error message if invalid
@@ -95,6 +94,64 @@ class ValidationUtils {
     // Added validation for maximum number of images
     if (images.length > 10) {
       return 'Số lượng ảnh không được vượt quá 10 ảnh';
+    }
+    
+    return null;
+  }
+  
+  /// Validates expense cost value
+  /// 
+  /// Returns null if valid, or an error message if invalid
+  static String? validateExpenseCost(String? value) {
+    if (value == null || value.isEmpty || value.trim().isEmpty) {
+      return 'Vui lòng nhập số tiền chi phí';
+    }
+
+    // Check for leading zeros or invalid first characters
+    if (value.startsWith('0')) {
+      return 'Chi phí không được bắt đầu bằng số 0';
+    }
+
+    if (!RegExp(r'^[1-9][\d]*\.?[\d]*$').hasMatch(value)) {
+      return 'Chi phí phải bắt đầu bằng số từ 1-9';
+    }
+
+    final double? cost = double.tryParse(value);
+    if (cost == null) {
+      return 'Vui lòng nhập số hợp lệ';
+    }
+
+    if (cost <= 5000) {
+      return 'Chi phí phải lớn hơn 5.000 VNĐ';
+    }
+    if (cost >= 10000000) {
+      return 'Chi phí phải nhỏ hơn 10 triệu VNĐ';
+    }
+
+    return null;
+  }
+  
+  /// Validates expense description
+  /// 
+  /// Returns null if valid, or an error message if invalid
+  static String? validateExpenseDescription(String? value) {
+    if (value == null || value.isEmpty || value.trim().isEmpty) {
+      return 'Vui lòng nhập mô tả chi phí';
+    }
+    
+    // Check for leading spaces
+    if (value.startsWith(' ')) {
+      return 'Không được bắt đầu bằng khoảng trắng';
+    }
+    
+    // Check minimum length after trimming
+    if (value.trim().length < 5) {
+      return 'Mô tả phải có ít nhất 5 ký tự';
+    }
+    
+    // Check maximum length
+    if (value.trim().length > 200) {
+      return 'Mô tả không được quá 200 ký tự';
     }
     
     return null;

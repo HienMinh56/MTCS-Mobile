@@ -8,6 +8,7 @@ import 'package:driverapp/screens/loginScreen.dart';
 import 'package:driverapp/screens/homeScreen.dart';
 import 'package:driverapp/services/auth_service.dart';
 import 'package:driverapp/services/status_manager.dart';
+import 'package:driverapp/services/expense_type_manager.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 // 🔹 Plugin hiển thị thông báo cục bộ
@@ -98,9 +99,13 @@ void main() async {
   
   // Yêu cầu tất cả quyền cần thiết khi khởi động
   await requestPermissions();
+    // Khởi tạo các service và tải dữ liệu trước
   
-  // Initialize status manager to fetch delivery statuses
+  // Khởi tạo trình quản lý trạng thái
   await StatusManager.initialize();
+  
+  // Khởi tạo trình quản lý loại báo cáo chi phí
+  await ExpenseTypeManager.initialize();
   
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 

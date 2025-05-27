@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:driverapp/screens/profileScreen.dart';
 import 'package:driverapp/screens/incident_reports_history_screen.dart';
 import 'package:driverapp/screens/fuel_reports_history_screen.dart';
+import 'package:driverapp/screens/expense_reports_history_screen.dart';
 import 'package:driverapp/screens/trip_list_screen.dart';
 
 class NavigationService {
@@ -81,6 +82,16 @@ class NavigationService {
       context,
       MaterialPageRoute(
         builder: (context) => ChatListScreen(userId: userId),
+      ),
+    );
+  }
+
+  // Method to navigate to Expense Reports
+  void navigateToExpenseReports(BuildContext context, String userId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ExpenseReportsScreen(userId: userId),
       ),
     );
   }
