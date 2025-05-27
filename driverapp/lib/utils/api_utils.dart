@@ -151,8 +151,7 @@ class ApiUtils {
     print('DEBUG: MultipartPost - Sending request...');
     return request.send();
   }
-  
-  // Helper for multipart requests (PUT)
+    // Helper for multipart requests (PUT)
   static Future<http.StreamedResponse> multipartPut(
     String endpoint,
     Map<String, String> fields,
@@ -162,6 +161,52 @@ class ApiUtils {
     final uri = Uri.parse('$baseUrl$endpoint');
     
     var request = http.MultipartRequest('PUT', uri);
+    request.headers.addAll(headers);
+    
+    // Add form fields
+    request.fields.addAll(fields);
+    
+    // Add files if provided
+    if (files != null) {
+      for (var fileEntry in files.entries) {
+        String fieldName = fileEntry.key;
+        for (var file in fileEntry.value) {
+          if (await file.exists()) {
+            var fileName = path.basename(file.path);
+            var fileExtension = path.extension(fileName).toLowerCase();
+            String mimeType;
+            
+            if (fileExtension == '.jpg' || fileExtension == '.jpeg') {
+              mimeType = 'image/jpeg';
+            } else if (fileExtension == '.png') {
+              mimeType = 'image/png';
+            } else {
+              mimeType = 'application/octet-stream';
+            }
+            
+            request.files.add(await http.MultipartFile.fromPath(
+              fieldName,
+              file.path,
+              contentType: MediaType.parse(mimeType),
+            ));
+          }
+        }
+      }
+    }
+    
+    return request.send();
+  }
+
+  // Helper for multipart requests (PATCH)
+  static Future<http.StreamedResponse> multipartPatch(
+    String endpoint,
+    Map<String, String> fields,
+    Map<String, List<File>>? files,
+  ) async {
+    final headers = await getAuthHeaders(isMultipart: true);
+    final uri = Uri.parse('$baseUrl$endpoint');
+    
+    var request = http.MultipartRequest('PATCH', uri);
     request.headers.addAll(headers);
     
     // Add form fields

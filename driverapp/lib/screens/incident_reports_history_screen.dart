@@ -405,8 +405,7 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
     Color statusColor = StatusUtils.getStatusColor(report.status);
 
     return ReportCard(
-      onTap: () {
-        // Chuyển đổi IncidentReport thành Map<String, dynamic>
+      onTap: () {        // Chuyển đổi IncidentReport thành Map<String, dynamic>
         Map<String, dynamic> reportJson = {
           'reportId': report.reportId,
           'tripId': report.tripId,
@@ -418,6 +417,8 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
           'type': report.type,
           'status': report.status,
           'vehicleType': report.vehicleType,
+          'price': report.price ?? 0,
+          'isPay': report.isPay ?? 0,
           'resolutionDetails': report.resolutionDetails,
           'handledBy': report.handledBy,
           'handledTime': report.handledTime?.toIso8601String(),

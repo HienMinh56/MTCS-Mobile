@@ -57,12 +57,13 @@ class IncidentReportDetailScreen extends StatelessWidget {
       color: statusColor,
     );
   }
-
   Widget _buildInfoCard(BuildContext context) {
     final int type = int.tryParse(report['type']?.toString() ?? '1') ?? 1;
     final int? vehicleType = report['vehicleType'] != null
         ? int.tryParse(report['vehicleType'].toString())
         : null;
+    final double price = double.tryParse(report['price']?.toString() ?? '0') ?? 0;
+    final int isPay = int.tryParse(report['isPay']?.toString() ?? '0') ?? 0;
 
     return InfoCard(
       title: 'Thông tin sự cố',
@@ -78,6 +79,17 @@ class IncidentReportDetailScreen extends StatelessWidget {
           value: DateFormatter.formatDateTimeFromString(report['incidentTime']),
         ),
         InfoRow(label: 'Người báo cáo:', value: report['reportedBy'] ?? ''),
+        // Chỉ hiển thị giá tiền khi price > 0
+        if (price > 0) ...[
+          InfoRow(
+            label: 'Giá:', 
+            value: '${price.toStringAsFixed(0)} VND'
+          ),
+          InfoRow(
+            label: 'Trạng thái thanh toán:', 
+            value: _getPaymentStatusText(isPay)
+          ),
+        ],
       ],
     );
   }
@@ -90,12 +102,19 @@ class IncidentReportDetailScreen extends StatelessWidget {
       default: return 'Không xác định';
     }
   }
-
   String _getVehicleTypeText(int? vehicleType) {
     if (vehicleType == null) return 'Không có';
     switch (vehicleType) {
       case 1: return 'Đầu kéo';
       case 2: return 'Rơ móc';
+      default: return 'Không xác định';
+    }
+  }
+
+  String _getPaymentStatusText(int isPay) {
+    switch (isPay) {
+      case 0: return 'Chưa thanh toán';
+      case 1: return 'Đã thanh toán';
       default: return 'Không xác định';
     }
   }

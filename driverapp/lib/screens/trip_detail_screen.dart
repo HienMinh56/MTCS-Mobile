@@ -8,7 +8,6 @@ import '../components/trip_detail/delivery_report_card.dart';
 import '../components/trip_detail/trip_status_history_section.dart';
 import '../components/trip_detail/edit_incident_report_dialog.dart'; // New import for incident report dialog
 import '../components/trip_detail/edit_expense_report_dialog.dart'; // Import for expense report dialog
-import '../components/trip_detail/billing_images_dialog.dart'; // New import for billing images dialog
 import '../components/trip_detail/resolve_incident_dialog.dart'; // New import for resolve incident dialog
 import '../components/trip_detail/exchange_images_dialog.dart'; // Import ExchangeImagesDialog
 import '../models/trip.dart';
@@ -272,20 +271,12 @@ class _TripDetailScreenState extends State<TripDetailScreen> {  final TripServic
       onShowFullScreenImage: _showFullScreenImage,
     );
   }
-
   void _showConfirmIncidentDialog(Map<String, dynamic> report) {
     ResolveIncidentDialogHelper.show(
       context: context,
       report: report,
       onReportResolved: _loadDetails,
       // onShowFullScreenImage: _showFullScreenImage,
-    );
-  }
-  void _showBillingImagesDialog(Map<String, dynamic> report) {
-    BillingImagesDialogHelper.show(
-      context: context,
-      reportId: report['reportId'],
-      onImagesUploaded: _loadDetails,
     );
   }
   
@@ -429,11 +420,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {  final TripServic
                     isTripEnded: isTripEnded,
                     onShowFullImage: (file) => _showFullScreenImage(file),
                     // Chỉ cho phép cập nhật báo cáo sự cố khi chưa được giải quyết và chuyến chưa kết thúc
-                    onEditReport:  report['status'] == 'Resolved' ? null : _showEditIncidentDialog,
-                    // Chỉ cho phép giải quyết sự cố khi chưa được giải quyết và chuyến chưa kết thúc
+                    onEditReport:  report['status'] == 'Resolved' ? null : _showEditIncidentDialog,                    // Chỉ cho phép giải quyết sự cố khi chưa được giải quyết và chuyến chưa kết thúc
                     onResolveReport:  report['status'] == 'Resolved' ? null : _showConfirmIncidentDialog,
-                    // Thêm callback để tải lên ảnh hóa đơn cho sự cố
-                    onAddBillingImages:  report['status'] == 'Resolved' ? null : _showBillingImagesDialog,
                     // Thêm callback để tải lên ảnh trao đổi cho sự cố
                     onAddExchangeImages:  report['status'] == 'Resolved' ? null : _handleAddExchangeImages,
                   )).toList()

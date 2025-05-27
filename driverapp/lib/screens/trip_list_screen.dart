@@ -10,7 +10,6 @@ import 'package:driverapp/components/info_row.dart';
 import 'package:driverapp/components/trip_filter_panel.dart';
 import 'package:driverapp/screens/trip_detail_screen.dart';
 import 'package:driverapp/screens/order_detail_screen.dart';
-import 'package:driverapp/screens/fuel_report_screen.dart';
 import 'package:driverapp/screens/delivery_report_screen.dart';
 import 'package:driverapp/screens/incident_report_screen.dart';
 import 'package:driverapp/screens/expense_report_screen.dart';
