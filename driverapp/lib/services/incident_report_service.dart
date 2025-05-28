@@ -144,40 +144,38 @@ class IncidentReportService {
       defaultErrorMessage: 'Không thể tải lên hình ảnh giải quyết'
     );
   }
-
-  /// Resolve an incident report (with optional resolution images)
+  /// Resolve an incident report (with optional billing images and price)
   Future<Map<String, dynamic>> resolveIncidentReport({
     required String reportId,
     String? resolutionDetails,
-    List<File>? resolutionImages,
+    List<File>? billingImages,
+    double? price,
   }) async {
     try {
-      // First upload resolution images if available
-      if (resolutionImages != null && resolutionImages.isNotEmpty) {
-        await uploadExchangeImages(
-          reportId: reportId,
-          images: resolutionImages,
-        );
-      }
-      
-      // Create request body with reportId and optional resolutionDetails
-      final Map<String, dynamic> requestBody = {
+      // Use multipart request to handle text fields and images
+      Map<String, String> fields = {
         'reportId': reportId,
+        'isPay': '1', // Always send isPay = 1 as requested
       };
       
       // Add resolution details if provided
       if (resolutionDetails != null && resolutionDetails.isNotEmpty) {
-        requestBody['resolutionDetails'] = resolutionDetails;
+        fields['ResolutionDetails'] = resolutionDetails;
       }
       
-      return ApiUtils.safeApiCall(
-        apiCall: () => ApiUtils.patch('/api/IncidentReport', requestBody),
-        onSuccess: (data) => data,
-        defaultValue: {
-          'status': 0,
-          'message': 'Không thể giải quyết báo cáo sự cố',
-          'data': null,
-        },
+      // Add price if provided
+      if (price != null) {
+        fields['Price'] = price.toString();
+      }
+      
+      // Add billing images if provided
+      Map<String, List<File>> files = {};
+      if (billingImages != null && billingImages.isNotEmpty) {
+        files['BillingImages'] = billingImages;
+      }
+      
+      return ApiUtils.safeMultipartApiCall(
+        apiCall: () => ApiUtils.multipartPatch('/api/IncidentReport', fields, files),
         defaultErrorMessage: 'Không thể giải quyết báo cáo sự cố'
       );
     } catch (e) {

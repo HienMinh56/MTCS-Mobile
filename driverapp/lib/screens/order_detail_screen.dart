@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:driverapp/services/order_service.dart';
-import 'package:driverapp/utils/formatters.dart';
 import 'package:driverapp/components/info_row.dart';
 import 'package:driverapp/components/section_card.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -51,12 +50,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       }
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chi tiết đơn hàng: ${_orderDetails?['orderId'] ?? ''}'),
+        title: Text('Chi tiết đơn hàng'),
       ),
       body: RefreshIndicator(
         onRefresh: _loadOrderDetails,
@@ -72,9 +70,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Widget _buildOrderContent() {
     if (_orderDetails == null) {
       return const Center(child: Text('Không có dữ liệu'));
-    }
-
-    return SingleChildScrollView(
+    }    return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,10 +79,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             title: 'Thông tin Cơ bản',
             children: [
               InfoRow(label: 'Mã đơn:', value: _orderDetails!['orderId'] ?? 'N/A'),
-              InfoRow(label: 'Mã vận chuyển:', value: _orderDetails!['trackingCode'] ?? 'N/A'),
+              InfoRow(label: 'Mã đơn chi tiết:', value: _orderDetails!['orderDetailId'] ?? 'N/A'),
               InfoRow(label: 'Số Container:', value: _orderDetails!['containerNumber'] ?? 'N/A'),
-              InfoRow(label: 'Giá:', value: CurrencyFormatter.formatVND(_orderDetails!['price'])),
-              InfoRow(label: 'Loại:', value: _orderDetails!['deliveryType'] == 1 ? "Nhập" : "Xuất"),
+              InfoRow(label: 'Kích thước Container:', value: '${_orderDetails!['containerSize'] ?? 'N/A'} feet'),
+              InfoRow(label: 'Trạng thái:', value: _orderDetails!['status'] ?? 'N/A'),
             ],
           ),
           
@@ -98,7 +94,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               InfoRow(label: 'Điểm lấy hàng:', value: _orderDetails!['pickUpLocation'] ?? 'N/A'),
               InfoRow(label: 'Điểm giao hàng:', value: _orderDetails!['deliveryLocation'] ?? 'N/A'),
               InfoRow(label: 'Điểm trả rỗng:', value: _orderDetails!['conReturnLocation'] ?? 'N/A'),
-              InfoRow(label: 'Khoảng cách:', value: '${_orderDetails!['distance']} km'),
+              InfoRow(label: 'Khoảng cách:', value: '${_orderDetails!['distance'] ?? 'N/A'} km'),
             ],
           ),
           
@@ -107,9 +103,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           SectionCard(
             title: 'Thông tin Hàng Hóa',
             children: [
-              InfoRow(label: 'Loại Container:', value: _getContainerType(_orderDetails!['containerType'])),
+              InfoRow(label: 'Loại Container:', value: _orderService.getContainerType(_orderDetails!['containerType'])),
               InfoRow(label: 'Nhiệt độ:', value: _orderDetails!['temperature'] != null ? '${_orderDetails!['temperature']} °C' : 'N/A'),
-              InfoRow(label: 'Khối lượng:', value: '${_orderDetails!['weight']} tấn'),
+              InfoRow(label: 'Khối lượng:', value: '${_orderDetails!['weight'] ?? 'N/A'} tấn'),
             ],
           ),
           
@@ -120,7 +116,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             children: [
               InfoRow(label: 'Ngày lấy hàng:', value: _formatDate(_orderDetails!['pickUpDate'])),
               InfoRow(label: 'Ngày giao hàng:', value: _formatDate(_orderDetails!['deliveryDate'])),
-              InfoRow(label: 'Ước lượng thời gian hoàn thành:', value: _orderDetails!['completionTime']),
+              InfoRow(label: 'Ước lượng thời gian hoàn thành:', value: _orderDetails!['completionTime'] ?? 'N/A'),
             ],
           ),
           
@@ -144,20 +140,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   children: [
                     InfoRow(label: '', value: _orderDetails!['note'] ?? 'Không có ghi chú'),
                   ],
-                ),
-              ],
+                ),              ],
             ),
             
-          if (_orderDetails!['orderFiles'] != null && (_orderDetails!['orderFiles'] as List).isNotEmpty)
+          if (_orderDetails!['files'] != null && (_orderDetails!['files'] as List).isNotEmpty)
             Column(
               children: [
                 const SizedBox(height: 16),
                 SectionCard(
                   title: 'Tài liệu đính kèm',
-                  children: _buildFilesList(_orderDetails!['orderFiles']),
+                  children: _buildFilesList(_orderDetails!['files']),
                 ),
-              ],
-            ),
+              ],            ),
         ],
       ),
     );
@@ -168,7 +162,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       // Extract file details
       final String fileName = file['fileName'] ?? 'Tệp đính kèm';
       final String? description = file['description'];
+      final String? note = file['note'];
+      final String? uploadBy = file['uploadBy'];
+      final String? uploadDate = file['uploadDate'];
       final bool hasDescription = description != null && description.toString().isNotEmpty;
+      final bool hasNote = note != null && note.toString().isNotEmpty;
 
       return Card(
         margin: const EdgeInsets.symmetric(vertical: 8.0),
@@ -223,6 +221,46 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+              
+              // Note section if available and different from description
+              if (hasNote && note != description)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0, left: 36.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Ghi chú:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        note,
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              
+              // Upload info
+              if (uploadBy != null || uploadDate != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0, left: 36.0),
+                  child: Text(
+                    'Tải lên bởi: ${uploadBy ?? 'N/A'}${uploadDate != null ? ' - ${_formatDateTime(uploadDate)}' : ''}',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               
@@ -340,7 +378,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       }
     }
   }
-
   String _formatDate(String? dateStr) {
     if (dateStr == null) return 'N/A';
     try {
@@ -351,15 +388,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
   
-  String _getContainerType(int? type) {
-    if (type == null) return 'N/A';
-    switch (type) {
-      case 1:
-        return 'Container Thường';
-      case 2:
-        return 'Container Lạnh';
-      default:
-        return 'Loại $type';
+  String _formatDateTime(String? dateStr) {
+    if (dateStr == null) return 'N/A';
+    try {
+      final dateTime = DateTime.parse(dateStr);
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return 'N/A';
     }
   }
 }

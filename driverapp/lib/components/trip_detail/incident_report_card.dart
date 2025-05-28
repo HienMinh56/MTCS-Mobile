@@ -6,9 +6,7 @@ class IncidentReportCard extends StatelessWidget {
   final bool isTripEnded;
   final Function(String) onShowFullImage;
   final Function(Map<String, dynamic>)? onEditReport;
-  final Function(Map<String, dynamic>)? onResolveReport;
-  final Function(Map<String, dynamic>)? onAddBillingImages;
-  final Function(Map<String, dynamic>)? onAddExchangeImages;
+  final Function(Map<String, dynamic>)? onResolveReport;  final Function(Map<String, dynamic>)? onAddExchangeImages;
 
   const IncidentReportCard({
     Key? key,
@@ -17,7 +15,6 @@ class IncidentReportCard extends StatelessWidget {
     required this.onShowFullImage,
     this.onEditReport,
     this.onResolveReport,
-    this.onAddBillingImages,
     this.onAddExchangeImages,
   }) : super(key: key);
 
@@ -38,9 +35,7 @@ class IncidentReportCard extends StatelessWidget {
     // Choose badge color based on type
     final Color typeBadgeColor = incidentTypeValue == 2 ? Colors.orange : Colors.blue;
     final Color vehicleTypeBadgeColor = vehicleTypeValue == 1 ? Colors.green : Colors.purple;
-    
-    // Check if billing or exchange images already exist
-    final bool hasBillingImages = _checkImageTypeExists(report['incidentReportsFiles'], 2);
+      // Check if exchange images already exist
     final bool hasExchangeImages = _checkImageTypeExists(report['incidentReportsFiles'], 3);
     
     return Card(
@@ -227,13 +222,61 @@ class IncidentReportCard extends StatelessWidget {
 
                 if (report['handledBy'] != null &&
                     report['handledBy'].toString().isNotEmpty)
-                  _buildInfoRow('Người xử lý:', report['handledBy']),
-
-                if (report['handledTime'] != null)
+                  _buildInfoRow('Người xử lý:', report['handledBy']),                if (report['handledTime'] != null)
                   _buildInfoRow(
                     'Thời gian xử lý:',
                     DateFormatter.formatDateTimeFromString(
                         report['handledTime']),
+                  ),
+
+                // Display price if it's not 0
+                if (report['price'] != null && report['price'] != 0)
+                  _buildInfoRow(
+                    'Chi phí:',
+                    '${_formatCurrency(report['price'])} VND',
+                  ),
+
+                // Display payment status
+                if (report['isPay'] != null)
+                  Row(
+                    children: [
+                      Text(
+                        'Thanh toán:', 
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: report['isPay'] == 1 
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12), 
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              report['isPay'] == 1 ? Icons.check_circle : Icons.pending,
+                              size: 14,
+                              color: report['isPay'] == 1 ? Colors.green : Colors.red,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              report['isPay'] == 1 ? 'Đã thanh toán' : 'Chưa thanh toán',
+                              style: TextStyle(
+                                color: report['isPay'] == 1 ? Colors.green : Colors.red,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
 
                 if (report['incidentReportsFiles'] != null) ...[
@@ -276,51 +319,7 @@ class IncidentReportCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                    
-                    // Add Billing Images button - only show if no billing images exist
-                    if (onAddBillingImages != null && !hasBillingImages)
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 6.0),
-                          child: ElevatedButton.icon(
-                            onPressed: () => onAddBillingImages!(report),
-                            icon: const Icon(Icons.receipt_long, size: 16),
-                            label: const Text('Thêm hóa đơn', style: TextStyle(fontSize: 13)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.amber.shade700,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              elevation: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                    
-                    // Placeholder empty container when billing images already exist
-                    if (onAddBillingImages != null && hasBillingImages)
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 6.0),
-                          child: ElevatedButton.icon(
-                            onPressed: null,
-                            icon: const Icon(Icons.check_circle, size: 16),
-                            label: const Text('Đã thêm hóa đơn', style: TextStyle(fontSize: 13)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey.shade300,
-                              foregroundColor: Colors.grey.shade700,
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              disabledBackgroundColor: Colors.grey.shade200,
-                              disabledForegroundColor: Colors.grey.shade700,
-                            ),
-                          ),
-                        ),
-                      ),
+  
                   ],
                 ),
                 
@@ -371,30 +370,55 @@ class IncidentReportCard extends StatelessWidget {
                         disabledForegroundColor: Colors.grey.shade700,
                       ),
                     ),
-                  ),
-                
-                // Third row with Resolve button
+                  ),                  // Third row with Resolve button
                 if (onResolveReport != null)
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(top: 10.0, left: 6.0, right: 6.0, bottom: 10.0),
-                    child: ElevatedButton.icon(
-                      onPressed: () => onResolveReport!(report),
-                      icon: const Icon(Icons.check_circle_outline, size: 18),
-                      label: const Text(
-                        'Giải quyết',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                  Column(
+                    children: [
+                      // Show note if type is 2 and no exchange images
+                      if (incidentTypeValue == 2 && !hasExchangeImages)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.red.shade700, size: 16),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Cần thêm ảnh trao đổi trước khi giải quyết với loại báo cáo này',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.red.shade700,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        elevation: 3,
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(top: 10.0, left: 6.0, right: 6.0, bottom: 10.0),
+                        child: ElevatedButton.icon(
+                          onPressed: (incidentTypeValue == 2 && !hasExchangeImages)
+                              ? null // Disable button if type = 2 and no exchange images
+                              : () => onResolveReport!(report),
+                          icon: const Icon(Icons.check_circle_outline, size: 18),
+                          label: const Text(
+                            'Giải quyết',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 3,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
               ],
             ),
@@ -629,7 +653,6 @@ class IncidentReportCard extends StatelessWidget {
       ),
     );
   }
-
   // Helper method to convert incident type to readable text
   String _getIncidentTypeName(int incidentType) {
     switch (incidentType) {
@@ -642,5 +665,21 @@ class IncidentReportCard extends StatelessWidget {
       default:
         return 'Khác';
     }
+  }
+
+  // Helper method to format currency
+  String _formatCurrency(dynamic price) {
+    if (price == null) return '0';
+    
+    // Convert to int if it's a double
+    int amount = price is int ? price : (price as double).toInt();
+    
+    // Format with thousand separators
+    String formatted = amount.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+    
+    return formatted;
   }
 }

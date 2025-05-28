@@ -35,14 +35,13 @@ class ReportMenuScreen extends StatelessWidget {
                       context, userId
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  _buildReportCard(
+                  const SizedBox(height: 16),                  _buildReportCard(
                     context: context,
-                    title: 'Báo Cáo Nhiên Liệu',
-                    subtitle: 'Xem lịch sử các báo cáo nhiên liệu',
-                    icon: Icons.local_gas_station,
+                    title: 'Báo Cáo Chi Phí',
+                    subtitle: 'Xem lịch sử các báo cáo chi phí',
+                    icon: Icons.receipt_long,
                     color: Colors.orange,
-                    onTap: () => _navigationService.navigateToFuelReports(
+                    onTap: () => _navigationService.navigateToExpenseReports(
                       context, userId
                     ),
                   ),

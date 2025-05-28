@@ -11,6 +11,8 @@ class IncidentReport {
   final int type;
   final String status;
   final int? vehicleType;
+  final double? price;  // Thêm field price
+  final int? isPay;     // Thêm field isPay (0 = chưa thanh toán, 1 = đã thanh toán)
   final String? resolutionDetails;
   final String? handledBy;
   final DateTime? handledTime;
@@ -28,6 +30,8 @@ class IncidentReport {
     required this.type,
     required this.status,
     this.vehicleType,
+    this.price,           // Thêm parameter price
+    this.isPay,           // Thêm parameter isPay
     this.resolutionDetails,
     this.handledBy,
     this.handledTime,
@@ -42,9 +46,7 @@ class IncidentReport {
       files = (json['incidentReportsFiles'] as List)
           .map((file) => IncidentReportFile.fromJson(file))
           .toList();
-    }
-
-    return IncidentReport(
+    }    return IncidentReport(
       reportId: json['reportId'] ?? '',
       tripId: json['tripId'] ?? '',
       reportedBy: json['reportedBy'] ?? '',
@@ -57,6 +59,8 @@ class IncidentReport {
       type: json['type'] ?? 0,
       status: json['status'] ?? '',
       vehicleType: json['vehicleType'] is int ? json['vehicleType'] : (json['vehicleType'] != null ? int.tryParse(json['vehicleType'].toString()) : null),
+      price: json['price'] != null ? (json['price'] as num).toDouble() : null,  // Parse field price
+      isPay: json['isPay'] != null ? (json['isPay'] as num).toInt() : null,      // Parse field isPay
       resolutionDetails: json['resolutionDetails'],
       handledBy: json['handledBy'],
       handledTime: json['handledTime'] != null 

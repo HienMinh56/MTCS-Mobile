@@ -10,9 +10,9 @@ import 'package:driverapp/components/info_row.dart';
 import 'package:driverapp/components/trip_filter_panel.dart';
 import 'package:driverapp/screens/trip_detail_screen.dart';
 import 'package:driverapp/screens/order_detail_screen.dart';
-import 'package:driverapp/screens/fuel_report_screen.dart';
 import 'package:driverapp/screens/delivery_report_screen.dart';
 import 'package:driverapp/screens/incident_report_screen.dart';
+import 'package:driverapp/screens/expense_report_screen.dart';
 
 class TripListScreen extends StatefulWidget {
   final String driverId;
@@ -1077,18 +1077,17 @@ class _TripCardState extends State<TripCard> {
                           Navigator.pop(context);
                           _navigateWithRefresh(TripDetailScreen(tripId: widget.trip.tripId));
                         },
-                      ),
-                      if (widget.trip.status != 'not_started' &&
+                      ),                          if (widget.trip.status != 'not_started' &&
                           widget.trip.status != 'completed' &&
                           widget.trip.status != 'canceled') ...[
-                        const SizedBox(height: 12),
-                        _buildActionButton(
-                          label: 'Báo cáo đổ nhiên liệu',
-                          icon: Icons.local_gas_station,
-                          color: Colors.orange,
+                        
+                        const SizedBox(height: 12),                        _buildActionButton(
+                          label: 'Tạo báo cáo chi phí',
+                          icon: Icons.receipt,
+                          color: Colors.green,
                           onPressed: () {
                             Navigator.pop(context);
-                            _navigateWithRefresh(FuelReportScreen(tripId: widget.trip.tripId));
+                            _navigateWithRefresh(ExpenseReportScreen(tripId: widget.trip.tripId));
                           },
                         ),
                         if (widget.trip.status != 'delaying') ...[
