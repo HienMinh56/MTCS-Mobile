@@ -82,7 +82,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               InfoRow(label: 'Mã đơn chi tiết:', value: _orderDetails!['orderDetailId'] ?? 'N/A'),
               InfoRow(label: 'Số Container:', value: _orderDetails!['containerNumber'] ?? 'N/A'),
               InfoRow(label: 'Kích thước Container:', value: '${_orderDetails!['containerSize'] ?? 'N/A'} feet'),
-              InfoRow(label: 'Trạng thái:', value: _orderDetails!['status'] ?? 'N/A'),
             ],
           ),
           

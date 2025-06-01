@@ -476,7 +476,7 @@ class _EditExpenseReportDialogState extends State<EditExpenseReportDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Hình ảnh chứng từ', Icons.photo_library),
+        _buildSectionTitle('Hình ảnh', Icons.photo_library),
         
         // Error message if any
         if (_imagesError != null)
@@ -760,128 +760,143 @@ class _EditExpenseReportDialogState extends State<EditExpenseReportDialog> {
   Widget build(BuildContext context) {
     final bool isOtherExpense = _selectedReportTypeId == 'other';
     
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
-      child: Container(
-        width: double.infinity,
-        constraints: const BoxConstraints(
-          maxWidth: 600, // Maximum width for better display on larger devices
-        ),
-        padding: const EdgeInsets.all(24.0),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle indicator at top of dialog
+          Center(
+            child: Container(
+              width: 40,
+              height: 5,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2.5),
+              ),
+            ),
+          ),
+          
+          // Header with close button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Dialog title with improved styling
-              const Center(
-                child: Text(
-                  'Chỉnh sửa báo cáo chi phí',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
+              Text(
+                'Chỉnh sửa báo cáo chi phí',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade800,
                 ),
               ),
-              const Divider(thickness: 1.5, height: 36),
-                // Report Type Display (Read-only)
-              _buildSectionTitle('Loại chi phí (Chỉ xem)', Icons.category),
-              _isLoadingReportTypes
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildReportTypeDropdown(),
-              const SizedBox(height: 24),
-              
-              // Cost field
-              _buildSectionTitle('Chi phí (VND)', Icons.monetization_on),
-              _buildTextField(
-                controller: costController,
-                hintText: 'Nhập số tiền chi phí',
-                prefixIcon: Icons.attach_money,
-                keyboardType: TextInputType.number,
-                errorText: _costError,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                ],
-              ),
-              const SizedBox(height: 24),
-              
-              // Location field
-              _buildSectionTitle('Địa điểm', Icons.location_on),
-              _buildTextField(
-                controller: locationController,
-                hintText: 'Nhập địa điểm phát sinh chi phí',
-                prefixIcon: Icons.location_on,
-                errorText: _locationError,
-              ),
-              const SizedBox(height: 24),
-              
-              // Description field - show required indicator only for 'other' type
-              _buildSectionTitle(
-                isOtherExpense ? 'Mô tả (bắt buộc)' : 'Mô tả',
-                Icons.description
-              ),
-              _buildTextField(
-                controller: descriptionController,
-                hintText: isOtherExpense 
-                    ? 'Vui lòng mô tả chi tiết về chi phí này...'
-                    : 'Nhập chi tiết về chi phí (tùy chọn)...',
-                maxLines: 3,
-                errorText: _descriptionError,
-              ),
-              const SizedBox(height: 24),
-              
-              // Images section
-              _buildImageSection(),
-              const SizedBox(height: 28),
-              
-              // Action buttons with improved styling
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade300),
-                        ),
-                      ),
-                      child: const Text('Hủy', style: TextStyle(fontSize: 16)),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _updateExpenseReport,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
-                      ),
-                      child: const Text('Lưu thay đổi', 
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
-                      ),
-                    ),
-                  ),
-                ],
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+                splashRadius: 20,
               ),
             ],
           ),
-        ),
+          
+          const Divider(),
+          
+          // Make the content scrollable
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Report Type Display (Read-only)
+                  const SizedBox(height: 12),
+                  _buildSectionTitle('Loại chi phí (Chỉ xem)', Icons.category),
+                  _isLoadingReportTypes
+                      ? const Center(child: CircularProgressIndicator())
+                      : _buildReportTypeDropdown(),
+                  const SizedBox(height: 20),
+                  
+                  // Cost field
+                  _buildSectionTitle('Chi phí (VND)', Icons.monetization_on),
+                  _buildTextField(
+                    controller: costController,
+                    hintText: 'Nhập số tiền chi phí',
+                    prefixIcon: Icons.attach_money,
+                    keyboardType: TextInputType.number,
+                    errorText: _costError,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Location field
+                  _buildSectionTitle('Địa điểm', Icons.location_on),
+                  _buildTextField(
+                    controller: locationController,
+                    hintText: 'Nhập địa điểm phát sinh chi phí',
+                    prefixIcon: Icons.location_on,
+                    errorText: _locationError,
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Description field - show required indicator only for 'other' type
+                  _buildSectionTitle(
+                    isOtherExpense ? 'Mô tả (bắt buộc)' : 'Mô tả',
+                    Icons.description
+                  ),
+                  _buildTextField(
+                    controller: descriptionController,
+                    hintText: isOtherExpense 
+                        ? 'Vui lòng mô tả chi tiết về chi phí này...'
+                        : 'Nhập chi tiết về chi phí (tùy chọn)...',
+                    maxLines: 3,
+                    errorText: _descriptionError,
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Images section
+                  _buildImageSection(),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+          // Submit Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _updateExpenseReport,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: const Text(
+                'Lưu thay đổi',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// Helper class to show the dialog
+// Helper class to show the dialog as modal bottom sheet
 class EditExpenseReportDialogHelper {
   static void show({
     required BuildContext context,
@@ -889,13 +904,25 @@ class EditExpenseReportDialogHelper {
     required Function() onReportUpdated,
     required Function(String) onShowFullScreenImage,
   }) {
-    DialogHelper.showCustomDialog(
+    showModalBottomSheet(
       context: context,
-      child: EditExpenseReportDialog(
-        report: report,
-        onReportUpdated: onReportUpdated,
-        onShowFullScreenImage: onShowFullScreenImage,
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return GestureDetector(
+          onVerticalDragEnd: (details) {
+            // Nếu kéo xuống đủ nhanh, đóng dialog
+            if (details.primaryVelocity! > 300) {
+              Navigator.pop(context);
+            }
+          },
+          child: EditExpenseReportDialog(
+            report: report,
+            onReportUpdated: onReportUpdated,
+            onShowFullScreenImage: onShowFullScreenImage,
+          ),
+        );
+      },
     );
   }
 }
