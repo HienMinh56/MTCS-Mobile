@@ -148,12 +148,11 @@ class _TripFilterPanelState extends State<TripFilterPanel> {
           ),
           
           const Divider(),
-          
-          // Tracking code filter
+            // Order Detail ID filter
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8.0),
             child: Text(
-              "Mã vận đơn",
+              "Order Detail ID",
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
@@ -168,9 +167,8 @@ class _TripFilterPanelState extends State<TripFilterPanel> {
               border: Border.all(color: Colors.grey.shade200),
             ),
             child: TextField(
-              controller: _trackingCodeController,
-              decoration: InputDecoration(
-                hintText: 'Nhập mã vận đơn...',
+              controller: _trackingCodeController,              decoration: InputDecoration(
+                hintText: 'Nhập Order Detail ID...',
                 border: InputBorder.none,
                 suffixIcon: _trackingCodeController.text.isNotEmpty
                     ? GestureDetector(

@@ -56,6 +56,7 @@ class Trip {
   final String tripId;
   final String orderId;
   final String trackingCode;
+  final String orderDetailId;  // Added new orderDetailId field
   final String driverId;
   final String? tractorId;
   final String? trailerId;
@@ -71,11 +72,11 @@ class Trip {
   final DateTime? matchTime;
   final List<dynamic>? tripStatusHistories;
   final String? note; // Thêm trường ghi chú
-
   Trip({
     required this.tripId,
     required this.orderId,
     this.trackingCode = '',
+    this.orderDetailId = '',  // Added with default empty string
     required this.driverId,
     this.tractorId,
     this.trailerId,
@@ -90,12 +91,12 @@ class Trip {
     this.tripStatusHistories,
     this.note,
   });
-
   factory Trip.fromJson(Map<String, dynamic> json) {
     return Trip(
       tripId: json['tripId'] ?? '',
       orderId: json['orderId'] ?? '',
       trackingCode: json['trackingCode'] ?? '',
+      orderDetailId: json['orderDetailId'] ?? '',  // Added orderDetailId
       driverId: json['driverId'] ?? '',
       tractorId: json['tractorId'],
       trailerId: json['trailerId'],
@@ -125,12 +126,11 @@ class Trip {
       contactPerson: json['contactPerson'] ?? '',
       contactPhone: json['contactPhone'] ?? '', 
       deliveryDate: json['deliveryDate'] ?? '',
-    );
-
-    return Trip(
+    );    return Trip(
       tripId: json['tripId'] ?? '',
       orderId: json['orderId'] ?? json['tripId'] ?? '', // Use tripId as fallback
       trackingCode: json['trackingCode'] ?? '',
+      orderDetailId: json['orderDetailId'] ?? '',  // Added orderDetailId
       driverId: json['driverId'] ?? '',
       startTime: json['startTime'] != null ? DateTime.parse(json['startTime']) : null,
       endTime: json['endTime'] != null ? DateTime.parse(json['endTime']) : null,

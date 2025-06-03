@@ -36,11 +36,10 @@ class _TripListScreenState extends State<TripListScreen> {
   List<Trip> _filteredTrips = [];
   bool _isLoading = true;
   String _errorMessage = '';
-
   String? _statusFilter;
   DateTime? _startDateFilter;
   DateTime? _endDateFilter;
-  String? _trackingCodeFilter;
+  String? _orderDetailIdFilter; // Renamed from _trackingCodeFilter
   bool _showFilterPanel = false;
 
   @override
@@ -181,11 +180,9 @@ class _TripListScreenState extends State<TripListScreen> {
         return (tripStartDate != null && tripStartDate.isBefore(endOfDay)) ||
             (tripEndDate != null && tripEndDate.isBefore(endOfDay));
       }).toList();
-    }
-
-    if (_trackingCodeFilter != null && _trackingCodeFilter!.isNotEmpty) {
+    }    if (_orderDetailIdFilter != null && _orderDetailIdFilter!.isNotEmpty) {
       result = result.where((trip) => 
-        trip.trackingCode.toLowerCase().contains(_trackingCodeFilter!.toLowerCase())
+        trip.orderDetailId.toLowerCase().contains(_orderDetailIdFilter!.toLowerCase())
       ).toList();
     }
 
@@ -193,23 +190,21 @@ class _TripListScreenState extends State<TripListScreen> {
       _filteredTrips = result;
     });
   }
-
   void _resetFilters() {
     setState(() {
       _statusFilter = null;
       _startDateFilter = null;
       _endDateFilter = null;
-      _trackingCodeFilter = null;
+      _orderDetailIdFilter = null;
       _applyFilters();
     });
   }
-
-  void _handleFilterChange(String? status, DateTime? startDate, DateTime? endDate, String? trackingCode) {
+  void _handleFilterChange(String? status, DateTime? startDate, DateTime? endDate, String? orderDetailId) {
     setState(() {
       _statusFilter = status;
       _startDateFilter = startDate;
       _endDateFilter = endDate;
-      _trackingCodeFilter = trackingCode;
+      _orderDetailIdFilter = orderDetailId;
       _applyFilters();
     });
   }
@@ -280,12 +275,11 @@ class _TripListScreenState extends State<TripListScreen> {
           if (_showFilterPanel)
             AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              height: _showFilterPanel ? null : 0,
-              child: TripFilterPanel(
+              height: _showFilterPanel ? null : 0,              child: TripFilterPanel(
                 statusFilter: _statusFilter,
                 startDateFilter: _startDateFilter,
                 endDateFilter: _endDateFilter,
-                trackingCodeFilter: _trackingCodeFilter,
+                trackingCodeFilter: _orderDetailIdFilter, // Updated to use orderDetailIdFilter
                 onApplyFilter: _handleFilterChange,
                 onResetFilter: _resetFilters,
                 showStatusFilter: widget.status == 'completed', // Chỉ hiển thị bộ lọc trạng thái khi ở màn hình completed
@@ -560,16 +554,15 @@ class _TripCardState extends State<TripCard> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Dòng đầu tiên chỉ hiển thị tracking code và nút copy
+              children: [                // Hiển thị order detail ID thay vì tracking code
                 Row(
                   children: [
                     Icon(statusIcon, color: statusColor),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        widget.trip.trackingCode.isNotEmpty 
-                            ? 'Mã vận đơn: ${widget.trip.trackingCode}'
+                        widget.trip.orderDetailId.isNotEmpty 
+                            ? 'Mã đơn: ${widget.trip.orderDetailId}'
                             : 'Mã chuyến: ${widget.trip.tripId}',
                         style: TextStyle(
                           fontSize: 13,
@@ -578,17 +571,17 @@ class _TripCardState extends State<TripCard> {
                         ),
                       ),
                     ),
-                    // Add copy button for tracking code
-                    if (widget.trip.trackingCode.isNotEmpty)
+                    // Add copy button for order detail ID
+                    if (widget.trip.orderDetailId.isNotEmpty)
                       IconButton(
                         icon: const Icon(Icons.copy, size: 20),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () {
-                          Clipboard.setData(ClipboardData(text: widget.trip.trackingCode));
+                          Clipboard.setData(ClipboardData(text: widget.trip.orderDetailId));
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Đã sao chép mã vận đơn'),
+                              content: Text('Đã sao chép mã đơn'),
                               duration: Duration(seconds: 1),
                             ),
                           );
@@ -946,15 +939,14 @@ class _TripCardState extends State<TripCard> {
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
+                    children: [                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Mã vận đơn: ${widget.trip.order?.trackingCode}',
+                            'Mã đơn: ${widget.trip.orderDetailId}',
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 16,
+                              fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1239,8 +1231,7 @@ class _TripCardState extends State<TripCard> {
                     ),
                   ],
                 ),
-              ),
-              if (widget.trip.trackingCode.isNotEmpty)
+              ),              if (widget.trip.orderDetailId.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 16),
                   child: Row(
@@ -1248,7 +1239,7 @@ class _TripCardState extends State<TripCard> {
                       const Icon(Icons.local_shipping, color: Colors.grey),
                       const SizedBox(width: 8),
                       Text(
-                        'Mã vận đơn: ${widget.trip.trackingCode}',
+                        'Order Detail ID: ${widget.trip.orderDetailId}',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[700],
