@@ -80,6 +80,12 @@ class IncidentReport {
   String getFormattedCreatedDate() {
     return DateFormat('dd/MM/yyyy HH:mm').format(createdDate);
   }
+  
+  String getFormattedPrice() {
+    if (price == null) return '0';
+    final formatter = NumberFormat('#,###', 'vi_VN');
+    return formatter.format(price);
+  }
 
 }
 

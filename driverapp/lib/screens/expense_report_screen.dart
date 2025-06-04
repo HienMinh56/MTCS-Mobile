@@ -42,11 +42,7 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
   @override
   void initState() {
     super.initState();
-    // Add listeners to validate on text changes
-    _costController.addListener(_validateCost);
-    _locationController.addListener(_validateLocation);
-    _descriptionController.addListener(_validateDescription);
-    
+    // Không thêm listeners cho validation ngay từ đầu để tránh validate khi vừa nhấn vào field
     // Load expense report types
     _initReportTypes();
   }
@@ -98,11 +94,12 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
       }
     }
   }
-  
-  // Validation methods
+    // Validation methods
   void _validateCost() {
     setState(() {
-      _costError = ValidationUtils.validateExpenseCost(_costController.text);
+      // Remove commas before validation
+      final String rawValue = _costController.text.replaceAll(',', '');
+      _costError = ValidationUtils.validateExpenseCost(rawValue);
     });
   }
 
@@ -117,29 +114,24 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
       _descriptionError = ValidationUtils.validateExpenseDescription(_descriptionController.text);
     });
   }
-
-  void _validateImages() {
-    setState(() {
-      _imagesError = ValidationUtils.validateImages(_selectedImages);
-    });
-  }
-
-  void _validateReportType() {
-    setState(() {
-      _reportTypeError = _selectedReportTypeId == null ? 'Vui lòng chọn loại chi phí' : null;
-    });
-  }
-
-  // Validate all fields at once
+  // Đã xóa các phương thức _validateImages() và _validateReportType() không còn được sử dụng
+  // Validate all fields at once - chỉ được gọi khi người dùng submit form
   bool _validateAllFields() {
-    _validateCost();
-    _validateLocation();
-    _validateImages();
-    _validateReportType();
+    // Force validate tất cả các trường bằng cách gọi các phương thức validate
+    setState(() {
+      _costError = ValidationUtils.validateExpenseCost(_costController.text);
+      _locationError = ValidationUtils.validateLocation(_locationController.text);
+      _imagesError = ValidationUtils.validateImages(_selectedImages);
+      _reportTypeError = _selectedReportTypeId == null ? 'Vui lòng chọn loại chi phí' : null;
+      
+      // Chỉ validate mô tả khi loại chi phí là "khác"
+      if (_shouldShowDescription) {
+        _descriptionError = ValidationUtils.validateExpenseDescription(_descriptionController.text);
+      }
+    });
     
-    // Chỉ validate mô tả khi loại chi phí là "khác"
+    // Kiểm tra xem tất cả các trường đều hợp lệ không
     if (_shouldShowDescription) {
-      _validateDescription();
       return _costError == null &&
           _locationError == null &&
           _descriptionError == null &&
@@ -217,21 +209,28 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
           address = address.replaceAll(RegExp(r', ,'), ',')
                            .replaceAll(RegExp(r',,'), ',')
                            .replaceAll(RegExp(r'^, '), '')
-                           .replaceAll(RegExp(r', $'), '');
-
-          setState(() {
+                           .replaceAll(RegExp(r', $'), '');          setState(() {
             _locationController.text = address;
             _isLoadingLocation = false;
+            // Chỉ validate khi có dữ liệu thực sự
+            if (address.isNotEmpty) {
+              _locationError = ValidationUtils.validateLocation(address);
+            } else {
+              _locationError = null;
+            }
           });
-          _validateLocation();
         }
-      } catch (e) {
+      } catch (e) {        final coordinates = '${position.latitude}, ${position.longitude}';
         setState(() {
-          _locationController.text =
-              '${position.latitude}, ${position.longitude}';
+          _locationController.text = coordinates;
           _isLoadingLocation = false;
+          // Chỉ validate khi có dữ liệu thực sự
+          if (coordinates.isNotEmpty) {
+            _locationError = ValidationUtils.validateLocation(coordinates);
+          } else {
+            _locationError = null;
+          }
         });
-        _validateLocation();
       }
     } catch (e) {
       DialogHelper.showSnackBar(
@@ -261,14 +260,13 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
               _selectedImages.addAll(pickedFiles.take(remainingSlots));
               _imagesError = 'Đã thêm $remainingSlots ảnh (tối đa 10 ảnh)';
             }
-          });
-        } else {
+          });        } else {
           setState(() {
             _selectedImages.addAll(pickedFiles);
-            _imagesError = null; // Clear error if any
+            // Validate trực tiếp ở đây thay vì gọi _validateImages()
+            _imagesError = ValidationUtils.validateImages(_selectedImages);
           });
         }
-        _validateImages();
 
         // Show confirmation
         DialogHelper.showSnackBar(
@@ -289,13 +287,12 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
 
   Future<void> _takePicture() async {
     try {
-      final File? photo = await ImageUtils.takePhoto();
-
-      if (photo != null) {
+      final File? photo = await ImageUtils.takePhoto();      if (photo != null) {
         setState(() {
           _selectedImages.add(photo);
+          // Validate trực tiếp ở đây thay vì gọi _validateImages()
+          _imagesError = ValidationUtils.validateImages(_selectedImages);
         });
-        _validateImages();
 
         // Show confirmation
         DialogHelper.showSnackBar(
@@ -313,12 +310,12 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
       );
     }
   }
-
   void _removeImage(int index) {
     setState(() {
       _selectedImages.removeAt(index);
+      // Validate trực tiếp ở đây thay vì gọi _validateImages()
+      _imagesError = ValidationUtils.validateImages(_selectedImages);
     });
-    _validateImages();
   }
 
   // Lấy tên loại báo cáo từ ID
@@ -352,10 +349,8 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
         isError: true,
       );
       return;
-    }
-
-    // Parse values (we know they're valid at this point)
-    final double cost = double.parse(_costController.text);
+    }    // Parse values (we know they're valid at this point)
+    final double cost = double.parse(_costController.text.replaceAll(',', ''));
     
     // Hiển thị dialog xác nhận trước khi gửi báo cáo
     bool? shouldProceed = await showDialog<bool>(
@@ -396,12 +391,6 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
                   'Vị trí phát sinh:',
                   _locationController.text,
                   Colors.green,
-                ),
-                _buildConfirmInfoRow(
-                  Icons.payment,
-                  'Trạng thái thanh toán:',
-                  'Chưa thanh toán',
-                  Colors.red,
                 ),
                 if (_shouldShowDescription)
                   _buildConfirmInfoRow(
@@ -613,8 +602,7 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(4.0),
-                      child: TextFormField(
+                      padding: const EdgeInsets.all(4.0),                      child: TextFormField(
                         controller: _costController,
                         decoration: InputDecoration(
                           labelText: 'Số tiền chi phí (VND)',
@@ -623,13 +611,45 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
                           ),
                           errorText: _costError,
                           border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          prefixIcon: Icon(Icons.monetization_on, color: Colors.orange.shade400),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),                          prefixIcon: Icon(Icons.monetization_on, color: Colors.orange.shade400),
                           hintText: 'Nhập số tiền chi phí',
                           hintStyle: TextStyle(color: Colors.grey.shade400),
-                        ),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          suffixText: 'VND',
+                        ),                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          TextInputFormatter.withFunction((oldValue, newValue) {
+                            if (newValue.text.isEmpty) return newValue;
+                            final int? value = int.tryParse(newValue.text);
+                            if (value == null) return oldValue;
+                            return TextEditingValue(
+                              text: value.toString().replaceAllMapped(
+                                RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                                (Match m) => '${m[1]},',
+                              ),
+                              selection: TextSelection.collapsed(
+                                offset: value.toString().replaceAllMapped(
+                                  RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                                  (Match m) => '${m[1]},',
+                                ).length,
+                              ),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) {
+                          // Chỉ validate khi người dùng đã thực sự nhập dữ liệu
+                          if (value.isNotEmpty) {
+                            _validateCost();
+                          } else {
+                            setState(() {
+                              _costError = null;
+                            });
+                          }
+                        },
+                        onEditingComplete: () {
+                          _validateCost();
+                          FocusScope.of(context).nextFocus();
+                        },
                       ),
                     ),
                   ),
@@ -669,9 +689,22 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
                           ),
                           hintText: 'Nhập vị trí phát sinh chi phí',
                           hintStyle: TextStyle(color: Colors.grey.shade400),
-                        ),
-                        maxLines: 2,
+                        ),                        maxLines: 2,
                         minLines: 1,
+                        onChanged: (value) {
+                          // Chỉ validate khi người dùng đã thực sự nhập dữ liệu
+                          if (value.isNotEmpty) {
+                            _validateLocation();
+                          } else {
+                            setState(() {
+                              _locationError = null;
+                            });
+                          }
+                        },
+                        onEditingComplete: () {
+                          _validateLocation();
+                          FocusScope.of(context).nextFocus();
+                        },
                       ),
                     ),
                   ),
@@ -698,8 +731,21 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
                             prefixIcon: Icon(Icons.description, color: Colors.blue.shade400),
                             hintText: 'Nhập mô tả chi tiết về chi phí',
                             hintStyle: TextStyle(color: Colors.grey.shade400),
-                          ),
-                          maxLines: 3,
+                          ),                          maxLines: 3,
+                          onChanged: (value) {
+                            // Chỉ validate khi người dùng đã thực sự nhập dữ liệu
+                            if (value.isNotEmpty) {
+                              _validateDescription();
+                            } else {
+                              setState(() {
+                                _descriptionError = null;
+                              });
+                            }
+                          },
+                          onEditingComplete: () {
+                            _validateDescription();
+                            FocusScope.of(context).nextFocus();
+                          },
                         ),
                       ),
                     ),

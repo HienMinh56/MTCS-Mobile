@@ -1239,7 +1239,7 @@ class _TripCardState extends State<TripCard> {
                       const Icon(Icons.local_shipping, color: Colors.grey),
                       const SizedBox(width: 8),
                       Text(
-                        'Order Detail ID: ${widget.trip.orderDetailId}',
+                        'Mã đơn: ${widget.trip.orderDetailId}',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[700],

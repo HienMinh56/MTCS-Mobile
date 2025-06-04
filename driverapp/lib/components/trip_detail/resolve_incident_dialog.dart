@@ -97,7 +97,7 @@ class _ResolveIncidentDialogState extends State<ResolveIncidentDialog> {
           return;
         }
         
-        if (price <= 0) {
+        if (price <= 1000) {
           _priceError = 'Giá phải lớn hơn 0';
           return;
         }

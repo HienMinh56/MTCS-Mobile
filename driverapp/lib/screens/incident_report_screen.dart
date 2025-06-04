@@ -8,6 +8,7 @@ import 'package:driverapp/utils/image_utils.dart';
 import 'package:driverapp/services/incident_report_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:driverapp/utils/validation_utils.dart';
 
 // Tạo class TextInputFormatter để ngăn chặn khoảng trắng đầu dòng và ký tự đặc biệt
 class NoLeadingSpaceOrSpecialCharFormatter extends TextInputFormatter {
@@ -49,19 +50,73 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
+  final _incidentTypeController = TextEditingController(); // Thêm controller cho incident type
   String? _selectedIncidentType;
   int _incidentType = 1; // 1 = On Site, 2 = Change Vehicle, 3 = Hủy chuyến trong ngày
   int _vehicleType = 1; // 1 = Tractor, 2 = Trailer
   final List<File> _images = [];
   bool _isSubmitting = false;
   bool _isLoadingLocation = false;
-  String? _imageError; // Thêm biến để lưu trạng thái lỗi của ảnh
+  
+  // Các biến để lưu trạng thái lỗi của từng trường
+  String? _incidentTypeError;
+  String? _locationError;
+  String? _descriptionError;
+  String? _imageError;
   
   // Incident report service
   final _incidentReportService = IncidentReportService();
   
   // Thêm hằng số giới hạn số lượng ảnh
   static const int MAX_IMAGES_PER_UPLOAD = 5; // Số ảnh tối đa mỗi lần tải lên
+  
+  @override
+  void initState() {
+    super.initState();
+    // Không thêm listeners cho validation ngay từ đầu để tránh validate khi vừa nhấn vào field
+  }
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    _locationController.dispose();
+    _incidentTypeController.dispose(); // Dispose controller
+    super.dispose();
+  }
+  
+  // Validation methods
+  void _validateIncidentType(String? value) {
+    setState(() {
+      _incidentTypeError = ValidationUtils.validateIncidentType(value);
+    });
+  }
+
+  void _validateLocation() {
+    setState(() {
+      _locationError = ValidationUtils.validateIncidentLocation(_locationController.text);
+    });
+  }
+
+  void _validateDescription() {
+    setState(() {
+      _descriptionError = ValidationUtils.validateIncidentDescription(_descriptionController.text);
+    });
+  }
+  
+  // Validate all fields at once - chỉ được gọi khi người dùng submit form
+  bool _validateAllFields() {
+    setState(() {
+      _incidentTypeError = ValidationUtils.validateIncidentType(_selectedIncidentType);
+      _locationError = ValidationUtils.validateIncidentLocation(_locationController.text);
+      _descriptionError = ValidationUtils.validateIncidentDescription(_descriptionController.text);
+      _imageError = ValidationUtils.validateImages(_images);
+    });
+    
+    return _incidentTypeError == null &&
+           _locationError == null &&
+           _descriptionError == null &&
+           _imageError == null;
+  }
   
   // Update image picking to support multiple images
   Future<void> _pickImages() async {
@@ -83,7 +138,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
       } else {
         setState(() {
           _images.addAll(images);
-          _imageError = null; // Clear error if any
+          _imageError = ValidationUtils.validateImages(_images);
         });
       }
     }
@@ -104,7 +159,7 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
     if (photo != null) {
       setState(() {
         _images.add(photo);
-        _imageError = null; // Clear error if any
+        _imageError = ValidationUtils.validateImages(_images);
       });
     }
   }
@@ -112,33 +167,14 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
   void _removeImage(int index) {
     setState(() {
       _images.removeAt(index);
-      _imageError = null; // Clear error since we're removing an image
+      _imageError = ValidationUtils.validateImages(_images);
     });
   }
 
   Future<void> _submitReport() async {
-    // Clear previous error
-    setState(() {
-      _imageError = null;
-    });
-
-    if (!_formKey.currentState!.validate()) {
-      // Form validation errors are already shown in the input fields
-      return;
-    }
-    
-    // Kiểm tra giới hạn số lượng ảnh
-    if (_images.isEmpty) {
-      setState(() {
-        _imageError = 'Vui lòng tải lên ít nhất một ảnh';
-      });
-      return;
-    }
-    
-    if (_images.length > MAX_IMAGES_PER_UPLOAD) {
-      setState(() {
-        _imageError = 'Không được gửi quá $MAX_IMAGES_PER_UPLOAD ảnh mỗi lần';
-      });
+    // Validate all fields before submitting
+    if (!_validateAllFields()) {
+      // Error messages are already shown in the form fields
       return;
     }
 
@@ -332,17 +368,27 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
           
           setState(() {
             _locationController.text = address;
+            // Chỉ validate khi có dữ liệu thực sự
+            if (address.isNotEmpty) {
+              _locationError = ValidationUtils.validateIncidentLocation(address);
+            } else {
+              _locationError = null;
+            }
           });
         } else {
           // If no address is found, use the coordinates
           setState(() {
             _locationController.text = '${position.latitude}, ${position.longitude}';
+            // Validate location
+            _validateLocation();
           });
         }
       } catch (e) {
         // If geocoding fails, fallback to coordinates
         setState(() {
           _locationController.text = '${position.latitude}, ${position.longitude}';
+          // Validate location
+          _validateLocation();
         });
       }
       
@@ -362,13 +408,6 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
         _isLoadingLocation = false;
       });
     }
-  }
-
-  @override
-  void dispose() {
-    _descriptionController.dispose();
-    _locationController.dispose();
-    super.dispose();
   }
 
   @override
@@ -429,11 +468,15 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                 
                 // Incident Type
                 _buildSectionTitle('Loại sự cố *'),
-                TextFormField(
-                  initialValue: _selectedIncidentType,
+                TextField(
+                  controller: _incidentTypeController,
                   onChanged: (value) {
                     setState(() {
                       _selectedIncidentType = value;
+                      // Chỉ validate khi người dùng đã nhập dữ liệu
+                      if (value.isNotEmpty) {
+                        _validateIncidentType(value);
+                      }
                     });
                   },
                   decoration: InputDecoration(
@@ -454,37 +497,19 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                     fillColor: Colors.white,
                     prefixIcon: Icon(Icons.category, color: Colors.blue.shade700),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Vui lòng nhập loại sự cố';
-                    }
-                    
-                    // Trim value to remove leading/trailing whitespace
-                    final trimmedValue = value.trim();
-                    
-                    // Check if original value starts with whitespace
-                    if (value.startsWith(' ')) {
-                      return 'Không được bắt đầu bằng khoảng trắng';
-                    }
-                    
-                    // Check if first character is a special character
-                    if (trimmedValue.isNotEmpty && RegExp(r'^[^\w\sÀ-ỹ]').hasMatch(trimmedValue)) {
-                      return 'Không được bắt đầu bằng ký tự đặc biệt';
-                    }
-                    
-                    // Check length after trimming
-                    if (trimmedValue.length < 3) {
-                      return 'Loại sự cố phải có ít nhất 3 ký tự (không tính khoảng trắng đầu/cuối)';
-                    }
-                    
-                    if (trimmedValue.length > 100) {
-                      return 'Loại sự cố không được quá 100 ký tự';
-                    }
-                    
-                    return null;
-                  },
                   inputFormatters: [NoLeadingSpaceOrSpecialCharFormatter()],
                 ),
+                if (_incidentTypeError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _incidentTypeError!,
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
                 
                 const SizedBox(height: 20),
                 
@@ -586,8 +611,14 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                 
                 // Location
                 _buildSectionTitle('Địa điểm xảy ra sự cố *'),
-                TextFormField(
+                TextField(
                   controller: _locationController,
+                  onChanged: (value) {
+                    // Chỉ validate khi người dùng đã nhập dữ liệu
+                    if (value.isNotEmpty) {
+                      _validateLocation();
+                    }
+                  },
                   decoration: InputDecoration(
                     hintText: 'Nhập địa điểm xảy ra sự cố',
                     border: OutlineInputBorder(
@@ -620,45 +651,33 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                           tooltip: 'Lấy vị trí hiện tại',
                         ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Vui lòng nhập địa điểm xảy ra sự cố';
-                    }
-                    
-                    // Trim value to remove leading/trailing whitespace
-                    final trimmedValue = value.trim();
-                    
-                    // Check if original value starts with whitespace
-                    if (value.startsWith(' ')) {
-                      return 'Không được bắt đầu bằng khoảng trắng';
-                    }
-                    
-                    // Check if first character is a special character
-                    if (trimmedValue.isNotEmpty && RegExp(r'^[^\w\sÀ-ỹ]').hasMatch(trimmedValue)) {
-                      return 'Không được bắt đầu bằng ký tự đặc biệt';
-                    }
-                    
-                    // Check length after trimming
-                    if (trimmedValue.length < 5) {
-                      return 'Địa điểm phải có ít nhất 5 ký tự (không tính khoảng trắng đầu/cuối)';
-                    }
-                    
-                    if (trimmedValue.length > 200) {
-                      return 'Địa điểm không được quá 200 ký tự';
-                    }
-                    
-                    return null;
-                  },
                   inputFormatters: [NoLeadingSpaceOrSpecialCharFormatter()],
                 ),
+                if (_locationError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _locationError!,
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
                 
                 const SizedBox(height: 20),
                 
                 // Description
                 _buildSectionTitle('Mô tả chi tiết *'),
-                TextFormField(
+                TextField(
                   controller: _descriptionController,
                   maxLines: 5,
+                  onChanged: (value) {
+                    // Chỉ validate khi người dùng đã nhập dữ liệu
+                    if (value.isNotEmpty) {
+                      _validateDescription();
+                    }
+                  },
                   decoration: InputDecoration(
                     hintText: 'Nhập chi tiết về sự cố...',
                     border: OutlineInputBorder(
@@ -675,37 +694,19 @@ class _IncidentReportScreenState extends State<IncidentReportScreen> {
                     filled: true,
                     fillColor: Colors.white,
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Vui lòng nhập mô tả sự cố';
-                    }
-                    
-                    // Trim value to remove leading/trailing whitespace
-                    final trimmedValue = value.trim();
-                    
-                    // Check if original value starts with whitespace
-                    if (value.startsWith(' ')) {
-                      return 'Không được bắt đầu bằng khoảng trắng';
-                    }
-                    
-                    // Check if first character is a special character
-                    if (trimmedValue.isNotEmpty && RegExp(r'^[^\w\sÀ-ỹ]').hasMatch(trimmedValue)) {
-                      return 'Không được bắt đầu bằng ký tự đặc biệt';
-                    }
-                    
-                    // Check length after trimming
-                    if (trimmedValue.length < 10) {
-                      return 'Mô tả phải có ít nhất 10 ký tự (không tính khoảng trắng đầu/cuối)';
-                    }
-                    
-                    if (trimmedValue.length > 500) {
-                      return 'Mô tả không được quá 500 ký tự';
-                    }
-                    
-                    return null;
-                  },
                   inputFormatters: [NoLeadingSpaceOrSpecialCharFormatter()],
                 ),
+                if (_descriptionError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _descriptionError!,
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
                 
                 const SizedBox(height: 24),
                 

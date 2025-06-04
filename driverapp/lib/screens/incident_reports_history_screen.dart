@@ -488,6 +488,18 @@ class _IncidentReportsScreenState extends State<IncidentReportsScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
+          // Add price display here
+          if (report.price != null && report.price! > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Chi phí: ${report.getFormattedPrice()} VND',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.orange,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

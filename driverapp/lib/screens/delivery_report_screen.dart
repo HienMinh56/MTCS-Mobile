@@ -39,35 +39,51 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
   static const int _maxNoteLength = 500;
   static const int _minNoteLength = 10;
   static const int _maxImageCount = 10;
-
   // Validation state variables
   String? _noteError;
   String? _imageError;
-  bool _isFormValid = false;
-
   @override
   void initState() {
     super.initState();
     _loadDriverName();
-    _noteController.addListener(_validateForm);
+    // Không thêm listeners cho validation ngay từ đầu để tránh validate khi vừa nhấn vào field
   }
 
   @override
   void dispose() {
-    _noteController.removeListener(_validateForm);
     _noteController.dispose();
     super.dispose();
   }
-
-  void _validateForm() {
-    _validateNote();
-    _validateImages();
-
+  // Validate all fields at once - chỉ được gọi khi người dùng tương tác với form
+  // Đã bỏ _validateForm() vì chúng ta sẽ validate từng trường riêng lẻ khi người dùng nhập liệu
+  
+  // Validate tất cả các trường và trả về kết quả validation
+  // Chỉ được gọi khi người dùng submit form
+  bool _validateAllFields() {
+    // Force validate tất cả các trường bằng cách gọi các phương thức validate
     setState(() {
-      _isFormValid = (_noteError == null && _imageError == null) &&
-          _noteController.text.trim().isNotEmpty && 
-          _imageFiles.isNotEmpty; // Bắt buộc phải có ảnh
+      _noteError = _validateNoteText(_noteController.text);
+      _imageError = ValidationUtils.validateImages(_imageFiles);
     });
+    
+    // Kiểm tra tất cả các điều kiện hợp lệ
+    return (_noteError == null && _imageError == null) &&
+        (_noteController.text.trim().isNotEmpty || _imageFiles.isNotEmpty); // Yêu cầu có ghi chú hoặc ảnh
+  }
+  
+  // Helper method để validate nội dung ghi chú
+  String? _validateNoteText(String text) {
+    final trimmedText = text.trim();
+    
+    if (trimmedText.isEmpty) {
+      return null; // Cho phép ghi chú trống nếu có ảnh
+    } else if (trimmedText.length < _minNoteLength) {
+      return 'Ghi chú quá ngắn (tối thiểu $_minNoteLength ký tự)';
+    } else if (trimmedText.length > _maxNoteLength) {
+      return 'Ghi chú quá dài (tối đa $_maxNoteLength ký tự)';
+    }
+    
+    return null;
   }
 
   void _validateNote() {
@@ -84,12 +100,6 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
       } else {
         _noteError = null;
       }
-    });
-  }
-
-  void _validateImages() {
-    setState(() {
-      _imageError = ValidationUtils.validateImages(_imageFiles);
     });
   }
 
@@ -111,55 +121,87 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
         _driverName = 'Lỗi tải thông tin';
       });
     }
-  }
-
-  Future<void> _takePhoto() async {
-    final File? image = await ImageUtils.takePhoto();
-    if (image != null) {
-      setState(() {
-        _imageFiles.add(image);
-      });
-      _validateForm();
-    }
-  }
-
-  Future<void> _pickImage() async {
-    final List<File> images = await ImageUtils.pickMultipleImages();
-    if (images.isNotEmpty) {
-      // Check if adding these images would exceed the limit
-      if (_imageFiles.length + images.length > _maxImageCount) {
+  }  Future<void> _takePhoto() async {
+    try {
+      final File? image = await ImageUtils.takePhoto();
+      if (image != null) {
         setState(() {
-          _imageError = 'Không được chọn quá $_maxImageCount ảnh';
-          
-          // Only add images up to the limit
-          if (_imageFiles.length < _maxImageCount) {
-            final int remainingSlots = _maxImageCount - _imageFiles.length;
-            _imageFiles.addAll(images.take(remainingSlots));
-            _imageError = 'Đã thêm $remainingSlots ảnh (tối đa $_maxImageCount ảnh)';
-          }
+          _imageFiles.add(image);
+          // Validate trực tiếp ở đây
+          _imageError = ValidationUtils.validateImages(_imageFiles);
         });
-      } else {
-        setState(() {
-          _imageFiles.addAll(images);
-          _imageError = null; // Clear error if any
-        });
+
+        // Show confirmation
+        DialogHelper.showSnackBar(
+          context: context,
+          message: 'Đã thêm ảnh từ camera',
+          isError: false,
+        );
       }
-      _validateForm();
+    } catch (e) {
+      // Show error message
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Lỗi khi chụp ảnh: $e',
+        isError: true,
+      );
     }
   }
+  Future<void> _pickImage() async {
+    try {
+      final List<File> images = await ImageUtils.pickMultipleImages();
+      if (images.isNotEmpty) {
+        // Check if adding these images would exceed the limit
+        if (_imageFiles.length + images.length > _maxImageCount) {
+          setState(() {
+            _imageError = 'Không được chọn quá $_maxImageCount ảnh';
+            
+            // Only add images up to the limit
+            if (_imageFiles.length < _maxImageCount) {
+              final int remainingSlots = _maxImageCount - _imageFiles.length;
+              _imageFiles.addAll(images.take(remainingSlots));
+              _imageError = 'Đã thêm $remainingSlots ảnh (tối đa $_maxImageCount ảnh)';
+            }
+          });
+        } else {
+          setState(() {
+            _imageFiles.addAll(images);
+            // Validate trực tiếp ở đây 
+            _imageError = ValidationUtils.validateImages(_imageFiles);
+          });
+        }
 
+        // Show confirmation
+        DialogHelper.showSnackBar(
+          context: context,
+          message: 'Đã thêm ảnh thành công',
+          isError: false,
+        );
+      }
+    } catch (e) {
+      // Show error message
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Lỗi khi chọn ảnh: $e',
+        isError: true,
+      );
+    }
+  }
   void _removeImage(int index) {
     setState(() {
       _imageFiles.removeAt(index);
+      // Validate trực tiếp ở đây
+      _imageError = ValidationUtils.validateImages(_imageFiles);
     });
-    _validateForm();
-  }
-
-  Future<void> _submitReport() async {
-    _validateForm();
-
-    if (!_isFormValid) {
-      // Form validation errors are already displayed in the UI, no need for a SnackBar
+  }Future<void> _submitReport() async {
+    // Validate all fields before submitting
+    if (!_validateAllFields()) {
+      DialogHelper.showSnackBar(
+        context: context,
+        message: 'Vui lòng kiểm tra lại thông tin nhập vào',
+        isError: true,
+      );
+      // Error messages are already shown in the form fields
       return;
     }
 
@@ -358,7 +400,6 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
       ],
     );
   }
-
   Widget _buildNoteSection() {
     return InfoCard(
       title: 'Ghi chú *',
@@ -382,8 +423,7 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
             errorText: _noteError,
             // helperText: 'Tối thiểu $_minNoteLength ký tự, tối đa $_maxNoteLength ký tự',
             counterText: '${_noteController.text.length}/$_maxNoteLength',
-          ),
-          onChanged: (value) {
+          ),          onChanged: (value) {
             // Nếu bắt đầu bằng khoảng trắng, xóa khoảng trắng ở đầu
             if (value.startsWith(' ')) {
               _noteController.text = value.trimLeft();
@@ -392,7 +432,20 @@ class _DeliveryReportScreenState extends State<DeliveryReportScreen> {
                 TextPosition(offset: _noteController.text.length),
               );
             }
-            _validateForm();
+            
+            // Chỉ validate khi người dùng đã thực sự nhập dữ liệu có ý nghĩa
+            // Không validate ngay khi người dùng mới chỉ click vào field
+            if (value.trim().isNotEmpty) {
+              _validateNote();
+            } else {
+              setState(() {
+                _noteError = null;
+              });
+            }
+          },
+          onEditingComplete: () {
+            _validateNote();
+            FocusScope.of(context).unfocus();
           },
         ),
         if (_noteController.text.trim().isEmpty && _imageFiles.isEmpty)
